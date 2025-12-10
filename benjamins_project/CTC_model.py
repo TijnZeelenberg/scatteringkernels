@@ -234,10 +234,10 @@ for i in range(ncoll):
     Elj = lj13 + lj14 + lj23 + lj24
     Etot = Ekin + Erot + Elj
 
-    # Convert initial Rotational energies to Kelvin (currently in Joules)
+    # Convert energies to Kelvin (currently in Joules)
+    # Etr_init_K is already in Kelvin
     Er1_init_K = Erot_tot_1 / kB
     Er2_init_K = Erot_tot_2 / kB
-    # Ekin[step] is in Joules, so divide by kB for Kelvin
     Etr_final_K = Ekin[step] / kB
     Er1_final_K = Erot1[step] / kB
     Er2_final_K = Erot2[step] / kB
@@ -254,6 +254,7 @@ for i in range(ncoll):
         Er2_final_K,  # Final rotational energy of molecule 2
     ]
 
-df = pd.DataFrame(b_arr, columns=varNames)
+df = pd.DataFrame(b_arr, columns=pd.Index(varNames))
+
 print(df.head())
 print("--- %s seconds ---", (time.time() - start_time))
