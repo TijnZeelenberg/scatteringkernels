@@ -1,10 +1,17 @@
-import numpy as np
-from numpy.linalg import norm
+import os
+
+# Make sure each process uses only one thread for numpy operations (since we are implementing multiprocessing ourselves)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 import pandas as pd  # for storing the data
 import time
 from random import random, seed  # for randomly initializing particles
 from math import sqrt
-import os
+import numpy as np
+from numpy.linalg import norm
 import multiprocessing
 from CTC_utils import *
 
@@ -53,7 +60,7 @@ b_arr = np.zeros((ncoll, len(varNames)))
 
 
 def run_collision(i):
-    if i % 100 == 0:
+    if i % 50 == 0:
         print(f"Running collision {i}")
     seed(i)
     # Translational energy
@@ -241,7 +248,8 @@ def run_collision(i):
 
 
 if __name__ == "__main__":
-    num_processes = min(os.cpu_count(), ncoll)
+    print(f"You have {os.cpu_count()} CPU cores available.")
+    num_processes = 6
     print(f"Using {num_processes} CPU cores for simulation.")
 
     with multiprocessing.Pool(processes=num_processes) as pool:
