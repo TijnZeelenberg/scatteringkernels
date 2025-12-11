@@ -56,7 +56,6 @@ varNames = [
     "Er1_final_K",
     "Er2_final_K",
 ]
-b_arr = np.zeros((ncoll, len(varNames)))
 
 
 def run_collision(i):
@@ -69,7 +68,6 @@ def run_collision(i):
 
     bmax = 1.5 * sigma_LJ  # Max impact parameter
     b = random() * bmax  # Impact parameter
-    b_arr[i] = b / sigma_LJ
 
     # Rotational energies
     Erot_tot_1 = random() * Erot_K_max * kB  # Rotational energy of particle 1 [J]
@@ -130,9 +128,6 @@ def run_collision(i):
     lj14 = 0
     lj23 = 0
     lj24 = 0
-    dr12v = 0
-    dr34v = 0
-    drABv = 0
 
     dr = 0
     step = 0
@@ -143,7 +138,6 @@ def run_collision(i):
             print(f"Collision {i} took too long to drift apart. Continuing...")
             break
         dr = norm(X1 - X2)
-        drABv = dr
 
         # Extracting values at timestep t
         Ekin1 = 0.5 * m1 * (norm(V1) ** 2)
@@ -162,10 +156,6 @@ def run_collision(i):
         lj14 = lennartjones_potential(float(dr14), sigma_LJ, kB)
         lj23 = lennartjones_potential(float(dr23), sigma_LJ, kB)
         lj24 = lennartjones_potential(float(dr24), sigma_LJ, kB)
-
-        # Computing interatomic distances for molecules 1 and 2
-        dr12v = norm(X11 - X12)
-        dr34v = norm(X21 - X22)
 
         # Compute interaction forces between atoms of different molecules
         F13tr = intraatomic_force(X11, X21, sigma_LJ, kB)
