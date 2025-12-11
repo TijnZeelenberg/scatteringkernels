@@ -70,24 +70,25 @@ def run_collision(i):
     if i % 50 == 0:
         print(f"Running collision {i}")
     seed(i)
-    # Translational energy
-    Etr_init_K = Etr_min + random() * Etr_K_max  # Translational energy [K]
-    vtr = sqrt(Etr_init_K * kB / m_H2)  # Velocity [m/s]
+
+    # Translational energy of each particle [K]
+    Etr_init_K = Etr_min + random() * Etr_K_max
+    vtr = sqrt(Etr_init_K * kB / m_H2)  # Velocity of each particle [m/s]
 
     bmax = 1.5 * sigma_LJ  # Max impact parameter
     b = random() * bmax  # Impact parameter
 
     # Rotational energies
-    Erot_tot_1 = random() * Erot_K_max * kB  # Rotational energy of particle 1 [J]
-    Erot_tot_2 = random() * Erot_K_max * kB  # Rotational energy of particle 2 [J]
+    Erot1_initial = random() * Erot_K_max * kB  # Rotational energy of particle 1 [J]
+    Erot2_initial = random() * Erot_K_max * kB  # Rotational energy of particle 2 [J]
 
     frac11 = random()  # Fraction of rotational energy in mode 1
     frac21 = random()  # Fraction of rotational energy in mode 2
 
-    Er11 = frac11 * Erot_tot_1  # Rotational energy for particle 1 mode 1
-    Er12 = (1 - frac11) * Erot_tot_1  # Rotational energy for particle 1 mode 2
-    Er21 = frac21 * Erot_tot_2  # Rotational energy for particle 2 mode 1
-    Er22 = (1 - frac21) * Erot_tot_2  # Rotational energy for particle 2 mode 1
+    Er11 = frac11 * Erot1_initial  # Rotational energy for particle 1 mode 1
+    Er12 = (1 - frac11) * Erot1_initial  # Rotational energy for particle 1 mode 2
+    Er21 = frac21 * Erot2_initial  # Rotational energy for particle 2 mode 1
+    Er22 = (1 - frac21) * Erot2_initial  # Rotational energy for particle 2 mode 1
 
     # Angular velocities omega_nm of particle n in mode m
     omega_11 = ((random() > 0.5) * 2 - 1) * sqrt(2 * Er11 / I)
@@ -142,12 +143,6 @@ def run_collision(i):
             print(f"Collision {i} took too long to drift apart. Continuing...")
             break
         dr = norm(X1 - X2)
-
-        # Extracting values at timestep t
-        Ekin1 = 0.5 * m1 * (norm(V1) ** 2)
-        Ekin2 = 0.5 * m2 * (norm(V2) ** 2)
-        Erot1 = 0.5 * I * (omega_1[0] ** 2 + omega_1[1] ** 2)
-        Erot2 = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
 
         # Compute interaction forces between atoms of different molecules
         F13tr = intraatomic_force(X11, X21, sigma_LJ, kB)
@@ -209,12 +204,18 @@ def run_collision(i):
         omega_1 = omega_1_half + (M1_half / I) * (0.5 * dt)
         omega_2 = omega_2_half + (M2_half / I) * (0.5 * dt)
 
+        # Extracting values at timestep t
+        Ekin1 = 0.5 * m1 * (norm(V1) ** 2)
+        Ekin2 = 0.5 * m2 * (norm(V2) ** 2)
+        Erot1 = 0.5 * I * (omega_1[0] ** 2 + omega_1[1] ** 2)
+        Erot2 = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
+
     # Store the initial and final energies in a list
     collision_results = [
         b / sigma_LJ,  # b (normalized)
         Etr_init_K,  # Initial translational energy of each molecule (already in K)
-        Erot_tot_1 / kB,  # Initial rotational energy of molecule 1
-        Erot_tot_2 / kB,  # Initial rotational energy of molecule 2
+        Erot1_initial / kB,  # Initial rotational energy of molecule 1
+        Erot2_initial / kB,  # Initial rotational energy of molecule 2
         Ekin1 / kB,  # Final kinetic energy of molecule 1
         Ekin2 / kB,  # Final kinetic energy of molecule 2
         Erot1 / kB,  # Final rotational energy of molecule 1
