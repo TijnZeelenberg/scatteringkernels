@@ -9,8 +9,6 @@ import multiprocessing
 from CTC_utils import *
 
 start_time = time.time()
-seed(42)  # randomseed for reproducability
-
 
 # Constants
 m_H = 1.6738e-27  # Hydrogen atom mass [kg]
@@ -55,8 +53,9 @@ b_arr = np.zeros((ncoll, len(varNames)))
 
 
 def run_collision(i):
-    print(f"iteration {i} of {ncoll}")
-
+    if i % 100 == 0:
+        print(f"Running collision {i}")
+    seed(i)
     # Translational energy
     Etr_init_K = Etr_min + random() * Etr_K_max  # Translational energy [K]
     vtr = sqrt(Etr_init_K * kB / m_H2)  # Velocity [m/s]
@@ -116,18 +115,17 @@ def run_collision(i):
     V1 = np.array([vtr, 0, 0])  # Particle 1 moves in the positive x direction
     V2 = np.array([-vtr, 0, 0])  # Particle 2 moves in the negative x direction
 
-    # Preallocation data arrays
-    Ekin1 = np.zeros(round(nsteps))
-    Ekin2 = np.zeros(round(nsteps))
-    Erot1 = np.zeros(round(nsteps))
-    Erot2 = np.zeros(round(nsteps))
-    lj13 = np.zeros(round(nsteps))
-    lj14 = np.zeros(round(nsteps))
-    lj23 = np.zeros(round(nsteps))
-    lj24 = np.zeros(round(nsteps))
-    dr12v = np.zeros(round(nsteps))
-    dr34v = np.zeros(round(nsteps))
-    drABv = np.zeros(round(nsteps))
+    Ekin1 = 0
+    Ekin2 = 0
+    Erot1 = 0
+    Erot2 = 0
+    lj13 = 0
+    lj14 = 0
+    lj23 = 0
+    lj24 = 0
+    dr12v = 0
+    dr34v = 0
+    drABv = 0
 
     dr = 0
     step = 0
@@ -138,13 +136,13 @@ def run_collision(i):
             print(f"Collision {i} took too long to drift apart. Continuing...")
             break
         dr = norm(X1 - X2)
-        drABv[step] = dr
+        drABv = dr
 
         # Extracting values at timestep t
-        Ekin1[step] = 0.5 * m1 * (norm(V1) ** 2)
-        Ekin2[step] = 0.5 * m2 * (norm(V2) ** 2)
-        Erot1[step] = 0.5 * I * (omega_1[0] ** 2 + omega_1[1] ** 2)
-        Erot2[step] = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
+        Ekin1 = 0.5 * m1 * (norm(V1) ** 2)
+        Ekin2 = 0.5 * m2 * (norm(V2) ** 2)
+        Erot1 = 0.5 * I * (omega_1[0] ** 2 + omega_1[1] ** 2)
+        Erot2 = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
 
         # Computing Intra-atomic distances
         dr13 = norm(X11 - X21)
@@ -153,14 +151,14 @@ def run_collision(i):
         dr24 = norm(X12 - X22)
 
         # Computing interatomic lennard-jones potentials
-        lj13[step] = lennartjones_potential(float(dr13), sigma_LJ, kB)
-        lj14[step] = lennartjones_potential(float(dr14), sigma_LJ, kB)
-        lj23[step] = lennartjones_potential(float(dr23), sigma_LJ, kB)
-        lj24[step] = lennartjones_potential(float(dr24), sigma_LJ, kB)
+        lj13 = lennartjones_potential(float(dr13), sigma_LJ, kB)
+        lj14 = lennartjones_potential(float(dr14), sigma_LJ, kB)
+        lj23 = lennartjones_potential(float(dr23), sigma_LJ, kB)
+        lj24 = lennartjones_potential(float(dr24), sigma_LJ, kB)
 
         # Computing interatomic distances for molecules 1 and 2
-        dr12v[step] = norm(X11 - X12)
-        dr34v[step] = norm(X21 - X22)
+        dr12v = norm(X11 - X12)
+        dr34v = norm(X21 - X22)
 
         # Compute interaction forces between atoms of different molecules
         F13tr = intraatomic_force(X11, X21, sigma_LJ, kB)
@@ -235,9 +233,9 @@ def run_collision(i):
         Etr_init_K,  # Initial translational energy of each molecule (already in K)
         Erot_tot_1 / kB,  # Initial rotational energy of molecule 1
         Erot_tot_2 / kB,  # Initial rotational energy of molecule 2
-        Ekin[step] / kB,  # Final translational energy of each molecule
-        Erot1[step] / kB,  # Final rotational energy of molecule 1
-        Erot2[step] / kB,  # Final rotational energy of molecule 2
+        Ekin / kB,  # Final translational energy of each molecule
+        Erot1 / kB,  # Final rotational energy of molecule 1
+        Erot2 / kB,  # Final rotational energy of molecule 2
     ]
     return collision_results
 
