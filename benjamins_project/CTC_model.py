@@ -6,12 +6,6 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
-import pandas as pd  # for storing the data
-import time
-from random import random, seed  # for randomly initializing particles
-from math import sqrt
-import numpy as np
-from numpy.linalg import norm
 import multiprocessing
 import time
 from math import sqrt
@@ -129,10 +123,10 @@ def run_collision(i):
     V1 = np.array([vtr, 0, 0])  # Particle 1 moves in the positive x direction
     V2 = np.array([-vtr, 0, 0])  # Particle 2 moves in the negative x direction
 
-    Ekin1 = 0  # Kinetic energy of molecule 1
-    Ekin2 = 0  # Kinetic energy of molecule 2
-    Erot1 = 0  # Rotational energy of molecule 1
-    Erot2 = 0  # Rotational energy of molecule 2
+    Ekin1 = 0.5 * m1 * (norm(V1) ** 2)
+    Ekin2 = 0.5 * m2 * (norm(V2) ** 2)
+    Erot1 = 0.5 * I * (omega_1[0] ** 2 + omega_1[1] ** 2)
+    Erot2 = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
 
     dr = 0
     step = 0
