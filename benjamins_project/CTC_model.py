@@ -1,8 +1,8 @@
 import numpy as np
 from numpy.linalg import norm
-import pandas as pd
+import pandas as pd  # for storing the data
 import time
-from random import random, seed
+from random import random, seed  # for randomly initializing particles
 from math import sqrt
 from CTC_utils import *
 
@@ -255,6 +255,7 @@ for i in range(ncoll):
     ]
 
 df = pd.DataFrame(b_arr, columns=pd.Index(varNames))
+df.to_csv("CTC_simulation_results.csv", index=False)
 
 print(df.head())
 print("--- %s seconds ---", (time.time() - start_time))
