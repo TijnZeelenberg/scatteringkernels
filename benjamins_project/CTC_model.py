@@ -1,14 +1,22 @@
-import numpy as np
-from numpy.linalg import norm
-import pandas as pd  # for storing the data
+import os
+
+# Make sure each process uses only one thread for numpy operations (since we are implementing multiprocessing ourselves)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+import multiprocessing
 import time
-from random import random, seed  # for randomly initializing particles
 from math import sqrt
+from random import random, seed  # for randomly initializing particles
+
+import numpy as np
+import pandas as pd  # for storing the data
 from CTC_utils import *
+from numpy.linalg import norm
 
 start_time = time.time()
-seed(42)  # randomseed for reproducability
-
 
 # Constants
 m_H = 1.6738e-27  # Hydrogen atom mass [kg]
@@ -45,34 +53,36 @@ varNames = [
     "Etr_init_K",
     "Er1_init_K",
     "Er2_init_K",
-    "Etr_final_K",
+    "Ekin1_final_K",
+    "Ekin2_final_K",
     "Er1_final_K",
     "Er2_final_K",
 ]
-b_arr = np.zeros((ncoll, len(varNames)))
 
-for i in range(ncoll):
-    print(f"iteration {i} of {ncoll}")
 
-    # Translational energy
-    Etr_init_K = Etr_min + random() * Etr_K_max  # Translational energy [K]
-    vtr = sqrt(Etr_init_K * kB / m_H2)  # Velocity [m/s]
+def run_collision(i):
+    if i % 50 == 0:
+        print(f"Running collision {i}")
+    seed(i)
+
+    # Translational energy of each particle [K]
+    Etr_init_K = Etr_min + random() * Etr_K_max
+    vtr = sqrt(Etr_init_K * kB / m_H2)  # Velocity of each particle [m/s]
 
     bmax = 1.5 * sigma_LJ  # Max impact parameter
     b = random() * bmax  # Impact parameter
-    b_arr[i] = b / sigma_LJ
 
     # Rotational energies
-    Erot_tot_1 = random() * Erot_K_max * kB  # Rotational energy of particle 1 [J]
-    Erot_tot_2 = random() * Erot_K_max * kB  # Rotational energy of particle 2 [J]
+    Erot1_initial = random() * Erot_K_max * kB  # Rotational energy of particle 1 [J]
+    Erot2_initial = random() * Erot_K_max * kB  # Rotational energy of particle 2 [J]
 
     frac11 = random()  # Fraction of rotational energy in mode 1
     frac21 = random()  # Fraction of rotational energy in mode 2
 
-    Er11 = frac11 * Erot_tot_1  # Rotational energy for particle 1 mode 1
-    Er12 = (1 - frac11) * Erot_tot_1  # Rotational energy for particle 1 mode 2
-    Er21 = frac21 * Erot_tot_2  # Rotational energy for particle 2 mode 1
-    Er22 = (1 - frac21) * Erot_tot_2  # Rotational energy for particle 2 mode 1
+    Er11 = frac11 * Erot1_initial  # Rotational energy for particle 1 mode 1
+    Er12 = (1 - frac11) * Erot1_initial  # Rotational energy for particle 1 mode 2
+    Er21 = frac21 * Erot2_initial  # Rotational energy for particle 2 mode 1
+    Er22 = (1 - frac21) * Erot2_initial  # Rotational energy for particle 2 mode 1
 
     # Angular velocities omega_nm of particle n in mode m
     omega_11 = ((random() > 0.5) * 2 - 1) * sqrt(2 * Er11 / I)
@@ -113,22 +123,10 @@ for i in range(ncoll):
     V1 = np.array([vtr, 0, 0])  # Particle 1 moves in the positive x direction
     V2 = np.array([-vtr, 0, 0])  # Particle 2 moves in the negative x direction
 
-    # Preallocation data arrays
-    Ekin1 = np.zeros(round(nsteps))
-    Ekin2 = np.zeros(round(nsteps))
-    Erot1 = np.zeros(round(nsteps))
-    Erot2 = np.zeros(round(nsteps))
-    lj13 = np.zeros(round(nsteps))
-    lj14 = np.zeros(round(nsteps))
-    lj23 = np.zeros(round(nsteps))
-    lj24 = np.zeros(round(nsteps))
-    dr12v = np.zeros(round(nsteps))
-    dr13v = np.zeros(round(nsteps))
-    dr14v = np.zeros(round(nsteps))
-    dr23v = np.zeros(round(nsteps))
-    dr24v = np.zeros(round(nsteps))
-    dr34v = np.zeros(round(nsteps))
-    drABv = np.zeros(round(nsteps))
+    Ekin1 = 0.5 * m1 * (norm(V1) ** 2)
+    Ekin2 = 0.5 * m2 * (norm(V2) ** 2)
+    Erot1 = 0.5 * I * (omega_1[0] ** 2 + omega_1[1] ** 2)
+    Erot2 = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
 
     dr = 0
     step = 0
@@ -139,34 +137,6 @@ for i in range(ncoll):
             print(f"Collision {i} took too long to drift apart. Continuing...")
             break
         dr = norm(X1 - X2)
-        drABv[step] = dr
-
-        # Extracting values at timestep t
-        Ekin1[step] = 0.5 * m1 * (norm(V1) ** 2)
-        Ekin2[step] = 0.5 * m2 * (norm(V2) ** 2)
-        Erot1[step] = 0.5 * I * (omega_1[0] ** 2 + omega_1[1] ** 2)
-        Erot2[step] = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
-
-        # Computing Intra-atomic distances
-        dr13 = norm(X11 - X21)
-        dr14 = norm(X11 - X22)
-        dr23 = norm(X12 - X21)
-        dr24 = norm(X12 - X22)
-
-        dr13v = dr13
-        dr14v = dr14
-        dr23v = dr23
-        dr24v = dr24
-
-        # Computing interatomic lennard-jones potentials
-        lj13[step] = lennartjones_potential(float(dr13), sigma_LJ, kB)
-        lj14[step] = lennartjones_potential(float(dr14), sigma_LJ, kB)
-        lj23[step] = lennartjones_potential(float(dr23), sigma_LJ, kB)
-        lj24[step] = lennartjones_potential(float(dr24), sigma_LJ, kB)
-
-        # Computing interatomic distances for molecules 1 and 2
-        dr12v[step] = norm(X11 - X12)
-        dr34v[step] = norm(X21 - X22)
 
         # Compute interaction forces between atoms of different molecules
         F13tr = intraatomic_force(X11, X21, sigma_LJ, kB)
@@ -228,34 +198,35 @@ for i in range(ncoll):
         omega_1 = omega_1_half + (M1_half / I) * (0.5 * dt)
         omega_2 = omega_2_half + (M2_half / I) * (0.5 * dt)
 
-    # Storing final energies after collision
-    Ekin = Ekin1 + Ekin2
-    Erot = Erot1 + Erot2
-    Elj = lj13 + lj14 + lj23 + lj24
-    Etot = Ekin + Erot + Elj
+        # Extracting values at timestep t
+        Ekin1 = 0.5 * m1 * (norm(V1) ** 2)
+        Ekin2 = 0.5 * m2 * (norm(V2) ** 2)
+        Erot1 = 0.5 * I * (omega_1[0] ** 2 + omega_1[1] ** 2)
+        Erot2 = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
 
-    # Convert energies to Kelvin (currently in Joules)
-    # Etr_init_K is already in Kelvin
-    Er1_init_K = Erot_tot_1 / kB
-    Er2_init_K = Erot_tot_2 / kB
-    Etr_final_K = Ekin[step] / kB
-    Er1_final_K = Erot1[step] / kB
-    Er2_final_K = Erot2[step] / kB
-
-    # Store all 7 variables in the row corresponding to collision 'i'
-    # Columns: ["b", "Etr", "Er1", "Er2", "Etrp", "Er1p", "Er2p"]
-    b_arr[i, :] = [
+    # Store the initial and final energies in a list
+    collision_results = [
         b / sigma_LJ,  # b (normalized)
         Etr_init_K,  # Initial translational energy of each molecule (already in K)
-        Er1_init_K,  # Initial rotational energy of molecule 1
-        Er2_init_K,  # Initial rotational energy of molecule 2
-        Etr_final_K,  # Final translational energy of each molecule
-        Er1_final_K,  # Final rotational energy of molecule 1
-        Er2_final_K,  # Final rotational energy of molecule 2
+        Erot1_initial / kB,  # Initial rotational energy of molecule 1
+        Erot2_initial / kB,  # Initial rotational energy of molecule 2
+        Ekin1 / kB,  # Final kinetic energy of molecule 1
+        Ekin2 / kB,  # Final kinetic energy of molecule 2
+        Erot1 / kB,  # Final rotational energy of molecule 1
+        Erot2 / kB,  # Final rotational energy of molecule 2
     ]
+    return collision_results
 
-df = pd.DataFrame(b_arr, columns=pd.Index(varNames))
-df.to_csv("CTC_simulation_results.csv", index=False)
 
-print(df.head())
-print("--- %s seconds ---", (time.time() - start_time))
+if __name__ == "__main__":
+    print(f"You have {os.cpu_count()} CPU cores available.")
+    num_processes = 6
+    print(f"Using {num_processes} CPU cores for simulation.")
+
+    with multiprocessing.Pool(processes=num_processes) as pool:
+        all_results = pool.map(run_collision, range(ncoll))
+    df = pd.DataFrame(all_results, columns=pd.Index(varNames))
+    df.to_csv("CTC_simulation_results.csv", index=False)
+
+    print(df)
+    print("--- %s seconds ---", (time.time() - start_time))
