@@ -52,7 +52,8 @@ varNames = [
     "Etr_init_K",
     "Er1_init_K",
     "Er2_init_K",
-    "Etr_final_K",
+    "Ekin1_final_K",
+    "Ekin2_final_K",
     "Er1_final_K",
     "Er2_final_K",
 ]
@@ -207,7 +208,8 @@ def run_collision(i):
         Etr_init_K,  # Initial translational energy of each molecule (already in K)
         Erot_tot_1 / kB,  # Initial rotational energy of molecule 1
         Erot_tot_2 / kB,  # Initial rotational energy of molecule 2
-        Ekin / kB,  # Final translational energy of each molecule
+        Ekin1 / kB,  # Final kinetic energy of molecule 1
+        Ekin2 / kB,  # Final kinetic energy of molecule 2
         Erot1 / kB,  # Final rotational energy of molecule 1
         Erot2 / kB,  # Final rotational energy of molecule 2
     ]
