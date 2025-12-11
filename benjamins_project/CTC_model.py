@@ -51,7 +51,8 @@ varNames = [
 ]
 b_arr = np.zeros((ncoll, len(varNames)))
 
-for i in range(ncoll):
+
+def run_collision(i):
     print(f"iteration {i} of {ncoll}")
 
     # Translational energy
@@ -123,10 +124,6 @@ for i in range(ncoll):
     lj23 = np.zeros(round(nsteps))
     lj24 = np.zeros(round(nsteps))
     dr12v = np.zeros(round(nsteps))
-    dr13v = np.zeros(round(nsteps))
-    dr14v = np.zeros(round(nsteps))
-    dr23v = np.zeros(round(nsteps))
-    dr24v = np.zeros(round(nsteps))
     dr34v = np.zeros(round(nsteps))
     drABv = np.zeros(round(nsteps))
 
@@ -152,11 +149,6 @@ for i in range(ncoll):
         dr14 = norm(X11 - X22)
         dr23 = norm(X12 - X21)
         dr24 = norm(X12 - X22)
-
-        dr13v = dr13
-        dr14v = dr14
-        dr23v = dr23
-        dr24v = dr24
 
         # Computing interatomic lennard-jones potentials
         lj13[step] = lennartjones_potential(float(dr13), sigma_LJ, kB)
@@ -234,28 +226,24 @@ for i in range(ncoll):
     Elj = lj13 + lj14 + lj23 + lj24
     Etot = Ekin + Erot + Elj
 
-    # Convert energies to Kelvin (currently in Joules)
-    # Etr_init_K is already in Kelvin
-    Er1_init_K = Erot_tot_1 / kB
-    Er2_init_K = Erot_tot_2 / kB
-    Etr_final_K = Ekin[step] / kB
-    Er1_final_K = Erot1[step] / kB
-    Er2_final_K = Erot2[step] / kB
-
     # Store all 7 variables in the row corresponding to collision 'i'
     # Columns: ["b", "Etr", "Er1", "Er2", "Etrp", "Er1p", "Er2p"]
-    b_arr[i, :] = [
+    collision_results = [
         b / sigma_LJ,  # b (normalized)
         Etr_init_K,  # Initial translational energy of each molecule (already in K)
-        Er1_init_K,  # Initial rotational energy of molecule 1
-        Er2_init_K,  # Initial rotational energy of molecule 2
-        Etr_final_K,  # Final translational energy of each molecule
-        Er1_final_K,  # Final rotational energy of molecule 1
-        Er2_final_K,  # Final rotational energy of molecule 2
+        Erot_tot_1 / kB,  # Initial rotational energy of molecule 1
+        Erot_tot_2 / kB,  # Initial rotational energy of molecule 2
+        Ekin[step] / kB,  # Final translational energy of each molecule
+        Erot1[step] / kB,  # Final rotational energy of molecule 1
+        Erot2[step] / kB,  # Final rotational energy of molecule 2
     ]
+    return collision_results
 
-df = pd.DataFrame(b_arr, columns=pd.Index(varNames))
+
+all_results = [run_collision(i) for i in range(ncoll)]
+
+df = pd.DataFrame(all_results, columns=pd.Index(varNames))
 df.to_csv("CTC_simulation_results.csv", index=False)
 
-print(df.head())
+print(df)
 print("--- %s seconds ---", (time.time() - start_time))
