@@ -4,6 +4,8 @@ import pandas as pd  # for storing the data
 import time
 from random import random, seed  # for randomly initializing particles
 from math import sqrt
+import os
+import multiprocessing
 from CTC_utils import *
 
 start_time = time.time()
@@ -240,10 +242,14 @@ def run_collision(i):
     return collision_results
 
 
-all_results = [run_collision(i) for i in range(ncoll)]
+if __name__ == "__main__":
+    num_processes = min(os.cpu_count(), ncoll)
+    print(f"Using {num_processes} CPU cores for simulation.")
 
-df = pd.DataFrame(all_results, columns=pd.Index(varNames))
-df.to_csv("CTC_simulation_results.csv", index=False)
+    with multiprocessing.Pool(processes=num_processes) as pool:
+        all_results = pool.map(run_collision, range(ncoll))
+    df = pd.DataFrame(all_results, columns=pd.Index(varNames))
+    df.to_csv("CTC_simulation_results.csv", index=False)
 
-print(df)
-print("--- %s seconds ---", (time.time() - start_time))
+    print(df)
+    print("--- %s seconds ---", (time.time() - start_time))
