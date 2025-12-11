@@ -13,7 +13,14 @@ from math import sqrt
 import numpy as np
 from numpy.linalg import norm
 import multiprocessing
+import time
+from math import sqrt
+from random import random, seed  # for randomly initializing particles
+
+import numpy as np
+import pandas as pd  # for storing the data
 from CTC_utils import *
+from numpy.linalg import norm
 
 start_time = time.time()
 
