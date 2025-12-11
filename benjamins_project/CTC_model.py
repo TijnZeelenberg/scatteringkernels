@@ -120,14 +120,10 @@ def run_collision(i):
     V1 = np.array([vtr, 0, 0])  # Particle 1 moves in the positive x direction
     V2 = np.array([-vtr, 0, 0])  # Particle 2 moves in the negative x direction
 
-    Ekin1 = 0
-    Ekin2 = 0
-    Erot1 = 0
-    Erot2 = 0
-    lj13 = 0
-    lj14 = 0
-    lj23 = 0
-    lj24 = 0
+    Ekin1 = 0  # Kinetic energy of molecule 1
+    Ekin2 = 0  # Kinetic energy of molecule 2
+    Erot1 = 0  # Rotational energy of molecule 1
+    Erot2 = 0  # Rotational energy of molecule 2
 
     dr = 0
     step = 0
@@ -144,18 +140,6 @@ def run_collision(i):
         Ekin2 = 0.5 * m2 * (norm(V2) ** 2)
         Erot1 = 0.5 * I * (omega_1[0] ** 2 + omega_1[1] ** 2)
         Erot2 = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
-
-        # Computing Intra-atomic distances
-        dr13 = norm(X11 - X21)
-        dr14 = norm(X11 - X22)
-        dr23 = norm(X12 - X21)
-        dr24 = norm(X12 - X22)
-
-        # Computing interatomic lennard-jones potentials
-        lj13 = lennartjones_potential(float(dr13), sigma_LJ, kB)
-        lj14 = lennartjones_potential(float(dr14), sigma_LJ, kB)
-        lj23 = lennartjones_potential(float(dr23), sigma_LJ, kB)
-        lj24 = lennartjones_potential(float(dr24), sigma_LJ, kB)
 
         # Compute interaction forces between atoms of different molecules
         F13tr = intraatomic_force(X11, X21, sigma_LJ, kB)
@@ -217,14 +201,7 @@ def run_collision(i):
         omega_1 = omega_1_half + (M1_half / I) * (0.5 * dt)
         omega_2 = omega_2_half + (M2_half / I) * (0.5 * dt)
 
-    # Storing final energies after collision
-    Ekin = Ekin1 + Ekin2
-    Erot = Erot1 + Erot2
-    Elj = lj13 + lj14 + lj23 + lj24
-    Etot = Ekin + Erot + Elj
-
-    # Store all 7 variables in the row corresponding to collision 'i'
-    # Columns: ["b", "Etr", "Er1", "Er2", "Etrp", "Er1p", "Er2p"]
+    # Store the initial and final energies in a list
     collision_results = [
         b / sigma_LJ,  # b (normalized)
         Etr_init_K,  # Initial translational energy of each molecule (already in K)
