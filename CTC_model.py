@@ -57,6 +57,8 @@ varNames = [
     "Etr2_final_K",
     "Er1_final_K",
     "Er2_final_K",
+    "V_init",
+    "V_final",
 ]
 
 
@@ -120,14 +122,16 @@ def run_collision(i):
     X21 = X2 + np.transpose(Xv21)
     X22 = X2 + np.transpose(Xv22)
 
-    V1 = np.array([vtr, 0, 0])  # Particle 1 moves in the positive x direction
-    V2 = np.array([-vtr, 0, 0])  # Particle 2 moves in the negative x direction
+    V1_init = np.array([vtr, 0, 0])  # Particle 1 moves in the positive x direction
+    V2_init = np.array([-vtr, 0, 0])  # Particle 2 moves in the negative x direction
 
-    Ekin1 = 0.5 * m1 * (norm(V1) ** 2)
-    Ekin2 = 0.5 * m2 * (norm(V2) ** 2)
+    Ekin1 = 0.5 * m1 * (norm(V1_init) ** 2)
+    Ekin2 = 0.5 * m2 * (norm(V2_init) ** 2)
     Erot1 = 0.5 * I * (omega_1[0] ** 2 + omega_1[1] ** 2)
     Erot2 = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
 
+    V1 = V1_init.copy()
+    V2 = V2_init.copy()
     dr = 0
     step = 0
     # Collision simulation
@@ -214,6 +218,8 @@ def run_collision(i):
         Ekin2 / kB,  # Final kinetic energy of molecule 2
         Erot1 / kB,  # Final rotational energy of molecule 1
         Erot2 / kB,  # Final rotational energy of molecule 2
+        norm(V1_init),  # Initial speed of molecule 1 (= initial speed of molecule 2)
+        norm(V1),  # Final speed of molecule 1 (= final speed of molecule 2)
     ]
     return collision_results
 
