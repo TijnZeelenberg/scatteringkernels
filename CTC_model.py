@@ -53,8 +53,8 @@ varNames = [
     "Etr_init_K",
     "Er1_init_K",
     "Er2_init_K",
-    "Ekin1_final_K",
-    "Ekin2_final_K",
+    "Etr1_final_K",
+    "Etr2_final_K",
     "Er1_final_K",
     "Er2_final_K",
 ]
