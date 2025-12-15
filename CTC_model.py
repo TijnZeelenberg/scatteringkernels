@@ -38,8 +38,8 @@ Etr_min = 100  # Minimum translational energy [K] (to avoid molecules barely mov
 Erot_K_max = 3000  # Maximum rotational energy [K]
 
 # Molecule 1 with 2 atoms 1 and 2
-m11 = m_H  # Atom mass 1 [kg]
-m12 = m_H  # Atom mass 2 [kg]
+m11 = m_H * 3  # Atom mass 1 [kg]
+m12 = m_H * 3  # Atom mass 2 [kg]
 m1 = m11 + m12  # Molecular mass [kg]
 
 # Molecule 2 with 2 atoms 1 and 2
@@ -60,6 +60,7 @@ varNames = [
     "V_init",
     "V_final",
 ]
+outputfile = "CTC_simulation_results_m1_3.csv"
 
 
 def run_collision(i):
@@ -232,7 +233,7 @@ if __name__ == "__main__":
     with multiprocessing.Pool(processes=num_processes) as pool:
         all_results = pool.map(run_collision, range(ncoll))
     df = pd.DataFrame(all_results, columns=pd.Index(varNames))
-    df.to_csv("CTC_simulation_results.csv", index=False)
+    df.to_csv(outputfile, index=False)
 
     print(df)
     print("--- %s seconds ---", (time.time() - start_time))
