@@ -32,22 +32,26 @@ dt = 0.1e-15  # Time-step [s]
 dt2 = dt * dt  # Time-step squared [s^2]
 tsim = 5e-12  # Max. simulation time [s]
 nsteps = tsim / dt  # Max. number of steps
-ncoll = 10000  # Number of collisios
+ncoll = 2000  # Number of collisios
 Etr_K_max = 5900  # Maximum translational velocity [K]
 Etr_min = 100  # Minimum translational energy [K] (to avoid molecules barely moving)
 Erot_K_max = 3000  # Maximum rotational energy [K]
 
 # Molecule 1 with 2 atoms 1 and 2
-m11 = m_H * 3  # Atom mass 1 [kg]
-m12 = m_H * 3  # Atom mass 2 [kg]
+weight_1 = 1
+m11 = m_H * weight_1   # Atom mass 1 [kg]
+m12 = m_H * weight_1   # Atom mass 2 [kg]
 m1 = m11 + m12  # Molecular mass [kg]
 
 # Molecule 2 with 2 atoms 1 and 2
-m21 = m_H  # Atom mass 1 [kg]
-m22 = m_H  # Atom mass 2 [kg]
+weight_2 = 1
+m21 = m_H * weight_2 # Atom mass 1 [kg]
+m22 = m_H * weight_2 # Atom mass 2 [kg]
 m2 = m21 + m22  # Molecular mass [kg]
 
 # data storage
+outputfile = f"CTC_simulation_results_m{weight_1}_m{weight_2}.csv"
+
 varNames = [
     "b",
     "Etr_init_K",
@@ -57,10 +61,11 @@ varNames = [
     "Etr2_final_K",
     "Er1_final_K",
     "Er2_final_K",
-    "V_init",
-    "V_final",
+    "V1_init",
+    "V1_final",
+    "V2_init",
+    "V2_final",
 ]
-outputfile = "CTC_simulation_results_m1_3.csv"
 
 
 def run_collision(i):
@@ -219,8 +224,10 @@ def run_collision(i):
         Ekin2 / kB,  # Final kinetic energy of molecule 2
         Erot1 / kB,  # Final rotational energy of molecule 1
         Erot2 / kB,  # Final rotational energy of molecule 2
-        norm(V1_init),  # Initial speed of molecule 1 (= initial speed of molecule 2)
-        norm(V1),  # Final speed of molecule 1 (= final speed of molecule 2)
+        norm(V1_init),  # Initial speed of molecule 1 
+        norm(V1),  # Final speed of molecule 1
+        norm(V2_init),  # Initial speed of molecule 2
+        norm(V2),  # Final speed of molecule 2
     ]
     return collision_results
 
