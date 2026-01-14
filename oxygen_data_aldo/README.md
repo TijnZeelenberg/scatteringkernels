@@ -1,3 +1,13 @@
+# README for the CTC model
+
+## Notes
+
+- The simulation is run in CT_Collider.f90.
+- The collision models for each of the three colliding species (N2-N2, O2-O2, N2-O2) are implemented in Coll_N2_N2.f90, Coll_O2_O2.f90, and Coll_N2_O2.f90, respectively.
+- For each of the collision models the intermolecular potential is defined in VN2N2.f90, VO2O2.f90, and VN2O2.f90, respectively.
+
+
+
 This e-mail was attached to the data.
 
 Dear Silvia,
