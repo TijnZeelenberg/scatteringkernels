@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-gfortran -O3 -march=native   -o tprops_O2\
+gfortran -O3 -march=native   -o ../Run/tprops_O2\
      ../Sources/Tprops_O2.f90 \
      ../Sources/Precision.f90 \
 	 ../Sources/Particles.f90 \
