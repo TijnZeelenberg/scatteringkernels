@@ -4,7 +4,7 @@ Dear Silvia,
 here is some material for your student, as promised. A few indications:
 1) The code is now tuned for a Monte Carlo estimation of transport
     properties of O_{2}. The main program is called Omega22_O2.f90.
-    For you, the interesting routine is Collision(v1,omega1,v2,omega2,2,2)
+    For you, the interesting routine is Collision(v1,omega1,v2,omega2,2,2) (located in Sources/Sorgenti_cambiate/CT_Collider.f90)
    accepting initial linear and angular velocities of collision pairs and restituting
    the same variables after a trajectory calculation. The last two integers identify
    the colliding species: 1 is Nitrogen, 2 is Oxygen.
