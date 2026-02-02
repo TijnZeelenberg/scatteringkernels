@@ -15,7 +15,6 @@ PROGRAM Omega_O2
   REAL(dp)::omega22,omega11,viscosity,diffusion_coefficient
   REAL(dp)::omega22_tax,Viscosity_tax
   REAL(dp)::fbulk,omega_bulk_tax,bulk_viscosity_tax
-  REAL(dp),DIMENSION(3)::v1_in,v2_in,omega1_in,omega2_in
   !
   ! Thermal conductivity
   !
@@ -24,6 +23,8 @@ PROGRAM Omega_O2
   REAL(dp)::fyy,ifyy,yy_tax
   REAL(dp)::fz,ifz,z_tax
   REAL(dp)::therm_cond_tax
+  ! Per-collision energy diagnostics (written to O2O2_collisions.csv)
+  REAL(dp)::Etr_in,Etr_out,Erot1_in,Erot2_in,Erot1_out,Erot2_out
   !
   OPEN(unit=1,file='Omega.inp')
   OPEN(unit=2,file='Viscosity_O2.dat')
@@ -31,6 +32,8 @@ PROGRAM Omega_O2
   OPEN(Unit=4,file='Diffusion_coeff_O2.dat')
   OPEN(unit=20,file='O2O2_collisions.csv', status='replace', action='write', form='formatted')
   !OPEN(unit=11,file='Scattering.dat')
+
+  WRITE(20,'(A)') 'Etr,Erot1_in,Erot2_in,Etr_out,Erot1_out,Erot2_out'
   !
   READ(1,*)T0
   READ(1,*)P0
@@ -67,11 +70,13 @@ PROGRAM Omega_O2
      trot=trot+0.5D0*momin(2)*Dot_PRODUCT(omega1,omega1)
      trot=trot+0.5D0*momin(2)*Dot_PRODUCT(omega2,omega2)
      vr=v2-v1
-     v1_in=v1
-     v2_in=v2
-     omega1_in=omega1
-     omega2_in=omega2
      g=SQRT(Dot_PRODUCT(vr,vr))
+
+      ! Energies BEFORE collision
+      Etr_in=0.5D0*molmass(2)*Dot_PRODUCT(v1,v1)+0.5D0*molmass(2)*Dot_PRODUCT(v2,v2)
+      Erot1_in=0.5D0*momin(2)*Dot_PRODUCT(omega1,omega1)
+      Erot2_in=0.5D0*momin(2)*Dot_PRODUCT(omega2,omega2)
+
      CALL Collision(v1,omega1,v2,omega2,2,2)
      vrstar=v2-v1
      gstar=SQRT(Dot_PRODUCT(vrstar,vrstar))
@@ -80,11 +85,15 @@ PROGRAM Omega_O2
         ncrit=ncrit+1
         GO TO 111
      END IF
-     WRITE(20,'(*(ES24.16,:,","))') &
-          & v1_in(1), v1_in(2), v1_in(3),  v2_in(1), v2_in(2), v2_in(3), &
-          & omega1_in(1), omega1_in(2), omega1_in(3),  omega2_in(1), omega2_in(2), omega2_in(3), &
-          & v1(1), v1(2), v1(3),  v2(1), v2(2), v2(3), &
-          & omega1(1), omega1(2), omega1(3),  omega2(1), omega2(2), omega2(3)
+
+      ! Energies AFTER collision
+      Etr_out=0.5D0*molmass(2)*Dot_PRODUCT(v1,v1)+0.5D0*molmass(2)*Dot_PRODUCT(v2,v2)
+      Erot1_out=0.5D0*momin(2)*Dot_PRODUCT(omega1,omega1)
+      Erot2_out=0.5D0*momin(2)*Dot_PRODUCT(omega2,omega2)
+
+      WRITE(20,300) Etr_in,Erot1_in,Erot2_in,Etr_out,Erot1_out,Erot2_out
+     
+     
      coschi=Dot_PRODUCT(vr,vrstar)/(g*gstar)
      sinchi2=1.0D0-coschi**2
      erot1_star=0.5D0*momin(2)*Dot_PRODUCT(omega1,omega1)
@@ -166,7 +175,6 @@ PROGRAM Omega_O2
   therm_cond_tax=3.0D0*kb**2*T0/(2.0D0*molmass(2))*(x_tax-5.0D0*y_tax/2.0D0-5.0D0*yy_tax/2.0D0+25.0D0/4.0D0*z_tax)
   therm_cond_tax=therm_cond_tax/(x_tax*z_tax-y_tax*yy_tax)
   WRITE(3,100)T0,x_tax,y_tax,yy_tax,z_tax,therm_cond_tax
-  !
-  CLOSE(20)
 100 FORMAT(10(E13.5,2X))
+  300 FORMAT(ES24.16,',',ES24.16,',',ES24.16,',',ES24.16,',',ES24.16,',',ES24.16)
 END PROGRAM Omega_O2
