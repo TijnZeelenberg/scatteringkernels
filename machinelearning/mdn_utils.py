@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 def sample_mdn(model, inputdata):
     model.eval()
     with torch.no_grad():
+        inputdata = torch.tensor(inputdata, dtype=torch.float32)
         pi, mu, sigma = model(inputdata)
 
         # N is number of data points, K is number of mixtures, D is output dimension
@@ -40,7 +41,7 @@ def plot_scattering_comparison(ctc_data, mdn_model, num_samples=1000):
         None
         """
     
-    samples = sample_mdn(mdn_model, num_samples)
+    samples = sample_mdn(inputdata=ctc_data[:, :3], model=mdn_model)
 
     # Plotting
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
