@@ -4,31 +4,36 @@ from torch.utils.data import DataLoader, TensorDataset, Subset
 import torch.nn as nn
 import torch.nn.functional as F
 
+gas = "H2H2"
+batch_size = 128
+hidden_dim = 128
+
 # import data
-DATA = "machinelearning/datasets/H2H2_collisions_benjamin.csv"
+if gas == "O2O2":
+    DATA = "datasets/O2O2_collisions.csv"
+elif gas == "H2H2":
+    DATA = "datasets/H2H2_collisions.csv"
 rawdata = np.loadtxt(DATA, delimiter=',', skiprows=1)
+
+# Make train/validation split
+train_size = int(0.7 * rawdata.shape[0])
+val_size = rawdata.shape[0] - train_size
 
 # Convert to the variable set (Ec, \eta_trans, \eta_rot_A)
 inputdata = np.zeros((rawdata.shape[0], 3))
-inputdata[:,0] = np.sum(rawdata[:,1:4], axis=1)
-inputdata[:,1] = rawdata[:,1]/inputdata[:,0] 
-inputdata[:,2] = rawdata[:,2] / np.sum(rawdata[:,2:4], axis=1)
+inputdata[:,0] = np.sum(rawdata[:,0:3], axis=1)
+inputdata[:,1] = rawdata[:,0]/inputdata[:,0] 
+inputdata[:,2] = rawdata[:,1] / np.sum(rawdata[:,1:3], axis=1)
 
 outputdata = np.zeros((rawdata.shape[0], 2))
-# outputdata[:,0] = np.sum(rawdata[:,4:7], axis=1)
-outputdata[:,0] = rawdata[:,4]/np.sum(rawdata[:,4:7], axis=1)
-outputdata[:,1] = rawdata[:,5]/ np.sum(rawdata[:,5:7], axis=1)
+outputdata[:,0] = rawdata[:,3]/np.sum(rawdata[:,3:6], axis=1)
+outputdata[:,1] = rawdata[:,4]/ np.sum(rawdata[:,4:6], axis=1)
 
 # Create Dataloaders for training and validation (with normalization)
 inputs = torch.tensor(inputdata, dtype=torch.float32)
 outputs = torch.tensor(outputdata, dtype=torch.float32)
 
 dataset = TensorDataset(inputs, outputs)
-
-# Set machine learning parameters
-train_size = int(0.7 * len(dataset))
-val_size = len(dataset) - train_size
-batch_size = 128
 
 # Create train/validation split 
 generator = torch.Generator().manual_seed(0)
@@ -52,8 +57,8 @@ dataset_norm = TensorDataset(inputs_norm, outputs_norm)
 train_dataset = Subset(dataset_norm, train_idx.tolist())
 val_dataset = Subset(dataset_norm, val_idx.tolist())
 
-train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
 print("Input mean:", in_mean.flatten().tolist())
 print("Input std :", in_std.flatten().tolist())
@@ -62,7 +67,7 @@ print("Output std :", out_std.flatten().tolist())
 
 # Model Definition
 class MixtureDensityNetwork(nn.Module):
-    def __init__(self, input_dim, output_dim, num_mixtures, hidden_dim=128):
+    def __init__(self, input_dim, output_dim, num_mixtures, hidden_dim=hidden_dim):
         super().__init__()
         self.K = num_mixtures
         self.D = output_dim
@@ -122,61 +127,66 @@ def mdn_loss(pi, mu, sigma, y):
     return -torch.mean(log_sum_exp)
 
 # Training the model
-K = 5
-output_dim = 2
+if __name__ == "__main__":
+    K = 5
+    output_dim = 2
 
-model = MixtureDensityNetwork(
-    input_dim=3,
-    output_dim=output_dim,
-    num_mixtures=K
-)
+    model = MixtureDensityNetwork(
+        input_dim=3,
+        output_dim=output_dim,
+        num_mixtures=K
+    )
 
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-num_epochs = 50
-train_loss_hist = np.zeros(num_epochs)
-val_loss_hist = np.zeros(num_epochs)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    num_epochs = 50
+    train_loss_hist = np.zeros(num_epochs)
+    val_loss_hist = np.zeros(num_epochs)
 
-for epoch in range(num_epochs):
-    # Training loop
-    model.train()
-    train_loss = 0.0
-    for inputs, outputs in train_loader:
-        optimizer.zero_grad()
-        pi, mu, sigma = model(inputs)
-        loss = mdn_loss(pi, mu, sigma, outputs)
-        loss.backward()
-        optimizer.step()
-
-        train_loss += loss.item()
-    train_loss /= len(train_loader)
-    train_loss_hist[epoch] = train_loss
-    print(f"Epoch {epoch+1}, Training Loss: {train_loss:.4f}")
-
-    # Validation loop
-    model.eval()
-    with torch.no_grad():
-        val_loss = 0.0
-        for inputs, outputs in val_loader:
+    for epoch in range(num_epochs):
+        # Training loop
+        model.train()
+        train_loss = 0.0
+        for inputs, outputs in train_loader:
+            optimizer.zero_grad()
             pi, mu, sigma = model(inputs)
             loss = mdn_loss(pi, mu, sigma, outputs)
-            val_loss += loss.item()
+            loss.backward()
+            optimizer.step()
 
-        val_loss /= len(val_loader)
-        val_loss_hist[epoch] = val_loss
-    print(f"Epoch {epoch+1}, Validation Loss: {val_loss_hist[epoch]:.4f}")
+            train_loss += loss.item()
+        train_loss /= len(train_loader)
+        train_loss_hist[epoch] = train_loss
+        print(f"Epoch {epoch+1}, Training Loss: {train_loss:.4f}")
 
-# save model
-torch.save(model.state_dict(), "machinelearning/mdn_h2h2_collision_model.pth")
+        # Validation loop
+        model.eval()
+        with torch.no_grad():
+            val_loss = 0.0
+            for inputs, outputs in val_loader:
+                pi, mu, sigma = model(inputs)
+                loss = mdn_loss(pi, mu, sigma, outputs)
+                val_loss += loss.item()
+
+            val_loss /= len(val_loader)
+            val_loss_hist[epoch] = val_loss
+        print(f"Epoch {epoch+1}, Validation Loss: {val_loss_hist[epoch]:.4f}")
+
+    # save model
+    if gas == "O2O2":
+        torch.save(model.state_dict(), "trainedmodels/mdn_o2o2_collision_model.pth")
+    elif gas == "H2H2":
+        torch.save(model.state_dict(), "trainedmodels/mdn_h2h2_collision_model.pth")
 
 
-# Plot loss
-import matplotlib.pyplot as plt
+    # Plot loss
+    import matplotlib.pyplot as plt
 
-plt.plot(range(1, num_epochs + 1), train_loss_hist, label='Training Loss')
-plt.plot(range(1, num_epochs + 1), val_loss_hist, label='Validation Loss')
-plt.legend()
-plt.xlabel('Epoch')
-plt.ylabel('MDN Loss')
-plt.title('Training Loss over Epochs')
-plt.grid()
-plt.show()
+    plt.plot(range(1, num_epochs + 1), train_loss_hist, label='Training Loss')
+    plt.plot(range(1, num_epochs + 1), val_loss_hist, label='Validation Loss')
+    plt.legend()
+    plt.xlabel('Epoch')
+    plt.ylabel('MDN Loss')
+    plt.title('Training Loss over Epochs')
+    plt.grid()
+    plt.show()
+    plt.savefig(f'trainedmodels/mdn_{gas}_collision_loss.jpg')
