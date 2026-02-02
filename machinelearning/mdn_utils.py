@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+from scipy.stats import gaussian_kde
 
 # Sample from the trained MDN (handles the same normalization used during training)
 def sample_mdn(model, inputdata, in_mean, in_std, out_mean, out_std):
@@ -39,9 +40,11 @@ def plot_scattering_comparison(ctc_data, mdn_model):
             [E_c, eta_tr_in, eta_r_A_in, eta_tr_out, eta_r_A_out].
         mdn_model (MixtureDensityNetwork): trained MDN model for predictions.
     """
+    
     samples = sample_mdn(
         model=mdn_model,
         inputdata=ctc_data[:, :3],
+        # TODO: These scaling parameters should either be passed as arguments or recomputed here.
         in_mean=in_mean,
         in_std=in_std,
         out_mean=out_mean,
@@ -49,17 +52,27 @@ def plot_scattering_comparison(ctc_data, mdn_model):
     )
 
     dotsize = 4
+    alpha = 1.0
+    colormap = 'viridis'
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
 
     # CTC ground truth
     ax[0, 0].set_title('CTC Data')
-    ax[0, 0].scatter(ctc_data[:, 1], ctc_data[:, 3], alpha=0.5, s=dotsize)
+    xy1 = np.vstack([ctc_data[:, 1], ctc_data[:, 3]])
+    z1 = gaussian_kde(xy1)(xy1)   # density per point
+    idx1 = z1.argsort()          # plot low-density first
+    x1, y1 = ctc_data[:, 1][idx1], ctc_data[:, 3][idx1]
+    ax[0, 0].scatter(x1, y1, c=z1[idx1], cmap=colormap, alpha=alpha, s=dotsize)
     ax[0,0].set_ylim(0,1)
     ax[0,0].set_xlim(0,1)
     ax[0, 0].set_xlabel(r"$\eta_{tr}$")
     ax[0, 0].set_ylabel(r"$\eta_{tr}'$")
 
-    ax[1, 0].scatter(ctc_data[:, 2], ctc_data[:, 4], alpha=0.5, s=dotsize)
+    xy2 = np.vstack([ctc_data[:, 2], ctc_data[:, 4]])
+    z2 = gaussian_kde(xy2)(xy2)   # density per point
+    idx2 = z2.argsort()          # plot low-density first
+    x2, y2 = ctc_data[:, 2][idx2], ctc_data[:, 4][idx2]
+    ax[1, 0].scatter(x2, y2, c=z2[idx2], cmap=colormap, alpha=alpha, s=dotsize)
     ax[1,0].set_ylim(0,1)
     ax[1,0].set_xlim(0,1)
     ax[1, 0].set_xlabel(r"$\eta_{r,A}$")
@@ -67,13 +80,21 @@ def plot_scattering_comparison(ctc_data, mdn_model):
 
     # MDN predictions
     ax[0, 1].set_title('MDN Predictions')
-    ax[0, 1].scatter(ctc_data[:, 1], samples[:, 0], alpha=0.5, s=dotsize)
+    xy3 = np.vstack([ctc_data[:, 1], samples[:, 0]])
+    z3 = gaussian_kde(xy3)(xy3)   # density per point
+    idx3 = z3.argsort()          # plot low-density first
+    x3, y3 = ctc_data[:, 1][idx3], samples[:, 0][idx3]
+    ax[0, 1].scatter(x3, y3, c=z3[idx3], cmap=colormap, alpha=alpha, s=dotsize)
     ax[0,1].set_ylim(0,1)
     ax[0,1].set_xlim(0,1)
     ax[0, 1].set_xlabel(r"$\eta_{tr}$")
     ax[0, 1].set_ylabel(r"$\eta_{tr}'$")
 
-    ax[1, 1].scatter(ctc_data[:, 2], samples[:, 1], alpha=0.5, s=dotsize)
+    xy4 = np.vstack([ctc_data[:, 2], samples[:, 1]])
+    z4 = gaussian_kde(xy4)(xy4)   # density per point
+    idx4 = z4.argsort()          # plot low-density first
+    x4, y4 = ctc_data[:, 2][idx4], samples[:, 1][idx4]
+    ax[1, 1].scatter(x4, y4, c=z4[idx4], cmap=colormap, alpha=alpha, s=dotsize)
     ax[1,1].set_ylim(0,1)
     ax[1,1].set_xlim(0,1)
     ax[1, 1].set_xlabel(r"$\eta_{r,A}$")
