@@ -45,20 +45,20 @@ def plot_scattering_comparison(ctc_data, mdn_model, num_samples=1000):
     # Plotting
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
     ax[0, 0].set_title('CTC Data')
-    ax[0, 0].scatter(e_tr_in, e_tr_out, alpha=0.5, label='CTC Data')
+    ax[0, 0].scatter(ctc_data[:,1], ctc_data[:,3], alpha=0.5, label='CTC Data')
     ax[0, 0].set_xlabel(r"$\eta_{tr}$")
     ax[0, 0].set_ylabel(r"$\eta_{tr}'$")
 
-    ax[1, 0].scatter(e_r_A_in, e_r_A_out, alpha=0.5, label='CTC Data')
+    ax[1, 0].scatter(ctc_data[:,2], ctc_data[:,4], alpha=0.5, label='CTC Data')
     ax[1, 0].set_xlabel(r"$\eta_{r,A}$")
     ax[1, 0].set_ylabel(r"$\eta_{r,A}'$")
 
     ax[0,1].set_title('MDN Predictions')
-    ax[0, 1].scatter(e_tr_in, mdn_samples[:,0], alpha=0.5, label='CTC Data')
+    ax[0, 1].scatter(ctc_data[:,1], samples[:,0], alpha=0.5, label='MDN Samples')
     ax[0, 1].set_xlabel(r"$\eta_{r,A}$")
     ax[0, 1].set_ylabel(r"$\eta_{r,A}'$")
 
-    ax[1, 1].scatter(e_tr_in, mdn_samples[:,1], alpha=0.5, label='CTC Data')
+    ax[1, 1].scatter(ctc_data[:,2], samples[:,1], alpha=0.5, label='MDN Samples')
     ax[1, 1].set_xlabel(r"$\eta_{r,A}$")
     ax[1, 1].set_ylabel(r"$\eta_{r,A}'$")
 
