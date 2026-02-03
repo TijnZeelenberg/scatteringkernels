@@ -61,10 +61,6 @@ varNames = [
     "Etr2_final_K",
     "Er1_final_K",
     "Er2_final_K",
-    "V1_init",
-    "V1_final",
-    "V2_init",
-    "V2_final",
 ]
 
 
@@ -224,10 +220,6 @@ def run_collision(i):
         Ekin2 / kB,  # Final kinetic energy of molecule 2
         Erot1 / kB,  # Final rotational energy of molecule 1
         Erot2 / kB,  # Final rotational energy of molecule 2
-        norm(V1_init),  # Initial speed of molecule 1 
-        norm(V1),  # Final speed of molecule 1
-        norm(V2_init),  # Initial speed of molecule 2
-        norm(V2),  # Final speed of molecule 2
     ]
     return collision_results
 
