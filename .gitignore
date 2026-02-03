@@ -3,5 +3,6 @@
 .vscode/
 
 # Ignore large data files
+/machinelearning/datasets/
 O2O2_collisions.csv
 H2H2_collisions_benjamin.csv

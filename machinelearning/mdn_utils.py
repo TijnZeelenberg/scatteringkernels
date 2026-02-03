@@ -33,18 +33,46 @@ def sample_mdn(model, inputdata, in_mean, in_std, out_mean, out_std):
     return samples
 
 
-def plot_scattering_comparison(ctc_data, mdn_model):
+def plot_scattering_comparison(ctc_data, mdn_model, in_mean=None, in_std=None, out_mean=None, out_std=None):
     """Visualize the comparison between CTC scattering data and MDN model predictions.
     Args:
         ctc_data (np.ndarray): array of shape (N, 5) with columns
             [E_c, eta_tr_in, eta_r_A_in, eta_tr_out, eta_r_A_out].
         mdn_model (MixtureDensityNetwork): trained MDN model for predictions.
+        in_mean (torch.Tensor | np.ndarray | None): input normalization mean.
+        in_std (torch.Tensor | np.ndarray | None): input normalization std.
+        out_mean (torch.Tensor | np.ndarray | None): output normalization mean.
+        out_std (torch.Tensor | np.ndarray | None): output normalization std.
     """
+    eps = 1e-8
+    inputs = ctc_data[:, :3]
+    outputs = ctc_data[:, 3:]
+
+    if in_mean is None:
+        in_mean = torch.tensor(inputs.mean(axis=0, keepdims=True), dtype=torch.float32)
+    elif not isinstance(in_mean, torch.Tensor):
+        in_mean = torch.tensor(in_mean, dtype=torch.float32)
+
+    if in_std is None:
+        in_std_np = inputs.std(axis=0, ddof=0, keepdims=True)
+        in_std = torch.tensor(np.maximum(in_std_np, eps), dtype=torch.float32)
+    elif not isinstance(in_std, torch.Tensor):
+        in_std = torch.tensor(in_std, dtype=torch.float32)
+
+    if out_mean is None:
+        out_mean = torch.tensor(outputs.mean(axis=0, keepdims=True), dtype=torch.float32)
+    elif not isinstance(out_mean, torch.Tensor):
+        out_mean = torch.tensor(out_mean, dtype=torch.float32)
+
+    if out_std is None:
+        out_std_np = outputs.std(axis=0, ddof=0, keepdims=True)
+        out_std = torch.tensor(np.maximum(out_std_np, eps), dtype=torch.float32)
+    elif not isinstance(out_std, torch.Tensor):
+        out_std = torch.tensor(out_std, dtype=torch.float32)
     
     samples = sample_mdn(
         model=mdn_model,
         inputdata=ctc_data[:, :3],
-        # TODO: These scaling parameters should either be passed as arguments or recomputed here.
         in_mean=in_mean,
         in_std=in_std,
         out_mean=out_mean,
