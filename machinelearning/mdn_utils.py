@@ -133,4 +133,5 @@ def plot_scattering_comparison(ctc_data, mdn_model, in_mean=None, in_std=None, o
     print("Finished plot 4")
 
     plt.tight_layout()
+    plt.savefig("scattering_comparison.png", dpi=300)
     plt.show()
