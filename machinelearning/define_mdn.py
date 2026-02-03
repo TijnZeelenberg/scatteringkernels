@@ -33,37 +33,58 @@ outputdata[:,1] = rawdata[:,4]/ np.sum(rawdata[:,4:6], axis=1)
 inputs = torch.tensor(inputdata, dtype=torch.float32)
 outputs = torch.tensor(outputdata, dtype=torch.float32)
 
-dataset = TensorDataset(inputs, outputs)
 
-# Create train/validation split 
-generator = torch.Generator().manual_seed(0)
-train_subset, val_subset = torch.utils.data.random_split(dataset, [train_size, val_size], generator=generator)
+def data_preparation(dataset, train_size, val_size, batch_size):
+    """
+    Prepare DataLoaders for training and validation with normalization.
+    
+    :param dataset: input tensors
+    :param train_size: number of training samples
+    :param val_size: number of validation samples
+    :param batch_size: batch size for DataLoaders
+    :return: train_loader, val_loader, in_mean, in_std, out_mean, out_std
+    """
+    from torch.utils.data import DataLoader, Subset
 
-train_idx = torch.tensor(train_subset.indices, dtype=torch.long)
-val_idx = torch.tensor(val_subset.indices, dtype=torch.long)
+    dataset = TensorDataset(inputs, outputs)
 
-# Compute normalization statistics on training data only
-eps = 1e-8
-in_mean = inputs[train_idx].mean(dim=0, keepdim=True)
-in_std = inputs[train_idx].std(dim=0, unbiased=False, keepdim=True).clamp_min(eps)
-out_mean = outputs[train_idx].mean(dim=0, keepdim=True)
-out_std = outputs[train_idx].std(dim=0, unbiased=False, keepdim=True).clamp_min(eps)
+    # Create train/validation split 
+    generator = torch.Generator().manual_seed(0)
+    train_subset, val_subset = torch.utils.data.random_split(dataset, [train_size, val_size], generator=generator)
 
-# Normalize tensors, then re-wrap
-inputs_norm = (inputs - in_mean) / in_std
-outputs_norm = (outputs - out_mean) / out_std
-dataset_norm = TensorDataset(inputs_norm, outputs_norm)
+    train_idx = torch.tensor(train_subset.indices, dtype=torch.long)
+    val_idx = torch.tensor(val_subset.indices, dtype=torch.long)
 
-train_dataset = Subset(dataset_norm, train_idx.tolist())
-val_dataset = Subset(dataset_norm, val_idx.tolist())
+    # Compute normalization statistics on training data only
+    eps = 1e-8
+    in_mean = inputs[train_idx].mean(dim=0, keepdim=True)
+    in_std = inputs[train_idx].std(dim=0, unbiased=False, keepdim=True).clamp_min(eps)
+    out_mean = outputs[train_idx].mean(dim=0, keepdim=True)
+    out_std = outputs[train_idx].std(dim=0, unbiased=False, keepdim=True).clamp_min(eps)
 
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    # Normalize tensors, then re-wrap
+    inputs_norm = (inputs - in_mean) / in_std
+    outputs_norm = (outputs - out_mean) / out_std
+    dataset_norm = TensorDataset(inputs_norm, outputs_norm)
 
-print("Input mean:", in_mean.flatten().tolist())
-print("Input std :", in_std.flatten().tolist())
-print("Output mean:", out_mean.flatten().tolist())
-print("Output std :", out_std.flatten().tolist())
+    train_dataset = Subset(dataset_norm, train_idx.tolist())
+    val_dataset = Subset(dataset_norm, val_idx.tolist())
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+    print("Input mean:", in_mean.flatten().tolist())
+    print("Input std :", in_std.flatten().tolist())
+    print("Output mean:", out_mean.flatten().tolist())
+    print("Output std :", out_std.flatten().tolist())
+    return train_loader, val_loader, in_mean, in_std, out_mean, out_std
+
+train_loader, val_loader, in_mean, in_std, out_mean, out_std = data_preparation(
+    dataset=(inputs, outputs),
+    train_size=train_size,
+    val_size=val_size,
+    batch_size=batch_size
+)
 
 # Model Definition
 class MixtureDensityNetwork(nn.Module):
@@ -171,11 +192,23 @@ if __name__ == "__main__":
             val_loss_hist[epoch] = val_loss
         print(f"Epoch {epoch+1}, Validation Loss: {val_loss_hist[epoch]:.4f}")
 
-    # save model
+    # save model and normalization stats
     if gas == "O2O2":
-        torch.save(model.state_dict(), "trainedmodels/mdn_o2o2_collision_model.pth")
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'in_mean': in_mean,
+            'in_std': in_std,
+            'out_mean': out_mean,
+            'out_std': out_std
+        }, "trainedmodels/mdn_o2o2_collision_model.pth")
     elif gas == "H2H2":
-        torch.save(model.state_dict(), "trainedmodels/mdn_h2h2_collision_model.pth")
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'in_mean': in_mean,
+            'in_std': in_std,
+            'out_mean': out_mean,
+            'out_std': out_std
+        }, "trainedmodels/mdn_h2h2_collision_model.pth")
 
 
     # Plot loss
