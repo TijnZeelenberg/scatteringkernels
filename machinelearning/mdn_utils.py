@@ -33,7 +33,7 @@ def sample_mdn(model, inputdata, in_mean, in_std, out_mean, out_std):
     return samples
 
 
-def plot_scattering_comparison(ctc_data, mdn_model, in_mean=None, in_std=None, out_mean=None, out_std=None):
+def plot_scattering_comparison(ctc_data,mdn_model, nr_samples=10000, in_mean=None, in_std=None, out_mean=None, out_std=None):
     """Visualize the comparison between CTC scattering data and MDN model predictions.
     Args:
         ctc_data (np.ndarray): array of shape (N, 5) with columns
@@ -45,8 +45,8 @@ def plot_scattering_comparison(ctc_data, mdn_model, in_mean=None, in_std=None, o
         out_std (torch.Tensor | np.ndarray | None): output normalization std.
     """
     eps = 1e-8
-    inputs = ctc_data[:, :3]
-    outputs = ctc_data[:, 3:]
+    inputs = ctc_data[:nr_samples, :3]
+    outputs = ctc_data[:nr_samples, 3:]
 
     if in_mean is None:
         in_mean = torch.tensor(inputs.mean(axis=0, keepdims=True), dtype=torch.float32)
@@ -72,64 +72,64 @@ def plot_scattering_comparison(ctc_data, mdn_model, in_mean=None, in_std=None, o
     
     samples = sample_mdn(
         model=mdn_model,
-        inputdata=ctc_data[:, :3],
+        inputdata=ctc_data[:nr_samples, :3],
         in_mean=in_mean,
         in_std=in_std,
         out_mean=out_mean,
         out_std=out_std,
     )
 
-    dotsize = 4
+    dotsize = 3
     alpha = 1.0
     colormap = 'viridis'
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
 
     # CTC ground truth
     ax[0, 0].set_title('CTC Data')
-    xy1 = np.vstack([ctc_data[:, 1], ctc_data[:, 3]])
+    xy1 = np.vstack([ctc_data[:nr_samples, 1], ctc_data[:nr_samples, 3]])
     z1 = gaussian_kde(xy1)(xy1)   # density per point
     idx1 = z1.argsort()          # plot low-density first
-    x1, y1 = ctc_data[:, 1][idx1], ctc_data[:, 3][idx1]
+    x1, y1 = ctc_data[:nr_samples, 1][idx1], ctc_data[:nr_samples, 3][idx1]
     ax[0, 0].scatter(x1, y1, c=z1[idx1], cmap=colormap, alpha=alpha, s=dotsize)
     ax[0,0].set_ylim(0,1)
     ax[0,0].set_xlim(0,1)
-    ax[0, 0].set_xlabel(r"$\eta_{tr}$")
-    ax[0, 0].set_ylabel(r"$\eta_{tr}'$")
+    ax[0, 0].set_xlabel(r"$\epsilon_{tr}$")
+    ax[0, 0].set_ylabel(r"$\epsilon_{tr}'$")
     print("Finished plot 1")
 
-    xy2 = np.vstack([ctc_data[:, 2], ctc_data[:, 4]])
+    xy2 = np.vstack([ctc_data[:nr_samples, 2], ctc_data[:nr_samples, 4]])
     z2 = gaussian_kde(xy2)(xy2)   # density per point
     idx2 = z2.argsort()          # plot low-density first
-    x2, y2 = ctc_data[:, 2][idx2], ctc_data[:, 4][idx2]
+    x2, y2 = ctc_data[:nr_samples, 2][idx2], ctc_data[:nr_samples, 4][idx2]
     ax[1, 0].scatter(x2, y2, c=z2[idx2], cmap=colormap, alpha=alpha, s=dotsize)
     ax[1,0].set_ylim(0,1)
     ax[1,0].set_xlim(0,1)
-    ax[1, 0].set_xlabel(r"$\eta_{r,A}$")
-    ax[1, 0].set_ylabel(r"$\eta_{r,A}'$")
+    ax[1, 0].set_xlabel(r"$\epsilon_{r,A}$")
+    ax[1, 0].set_ylabel(r"$\epsilon_{r,A}'$")
     print("Finished plot 2")
 
     # MDN predictions
     ax[0, 1].set_title('MDN Predictions')
-    xy3 = np.vstack([ctc_data[:, 1], samples[:, 0]])
+    xy3 = np.vstack([ctc_data[:nr_samples, 1], samples[:nr_samples, 0]])
     z3 = gaussian_kde(xy3)(xy3)   # density per point
     idx3 = z3.argsort()          # plot low-density first
-    x3, y3 = ctc_data[:, 1][idx3], samples[:, 0][idx3]
+    x3, y3 = ctc_data[:nr_samples, 1][idx3], samples[:nr_samples, 0][idx3]
     ax[0, 1].scatter(x3, y3, c=z3[idx3], cmap=colormap, alpha=alpha, s=dotsize)
     ax[0,1].set_ylim(0,1)
     ax[0,1].set_xlim(0,1)
-    ax[0, 1].set_xlabel(r"$\eta_{tr}$")
-    ax[0, 1].set_ylabel(r"$\eta_{tr}'$")
+    ax[0, 1].set_xlabel(r"$\epsilon_{tr}$")
+    ax[0, 1].set_ylabel(r"$\epsilon_{tr}'$")
     print("Finished plot 3")
 
-    xy4 = np.vstack([ctc_data[:, 2], samples[:, 1]])
+    xy4 = np.vstack([ctc_data[:nr_samples, 2], samples[:nr_samples, 1]])
     z4 = gaussian_kde(xy4)(xy4)   # density per point
     idx4 = z4.argsort()          # plot low-density first
-    x4, y4 = ctc_data[:, 2][idx4], samples[:, 1][idx4]
+    x4, y4 = ctc_data[:nr_samples, 2][idx4], samples[:nr_samples, 1][idx4]
     ax[1, 1].scatter(x4, y4, c=z4[idx4], cmap=colormap, alpha=alpha, s=dotsize)
     ax[1,1].set_ylim(0,1)
     ax[1,1].set_xlim(0,1)
-    ax[1, 1].set_xlabel(r"$\eta_{r,A}$")
-    ax[1, 1].set_ylabel(r"$\eta_{r,A}'$")
+    ax[1, 1].set_xlabel(r"$\epsilon_{r,A}$")
+    ax[1, 1].set_ylabel(r"$\epsilon_{r,A}'$")
     print("Finished plot 4")
 
     plt.tight_layout()
