@@ -32,7 +32,7 @@ dt = 0.1e-15  # Time-step [s]
 dt2 = dt * dt  # Time-step squared [s^2]
 tsim = 5e-12  # Max. simulation time [s]
 nsteps = tsim / dt  # Max. number of steps
-ncoll = 2000  # Number of collisios
+ncoll = 100  # Number of collisios
 Etr_K_max = 5900  # Maximum translational velocity [K]
 Etr_min = 100  # Minimum translational energy [K] (to avoid molecules barely moving)
 Erot_K_max = 3000  # Maximum rotational energy [K]
@@ -50,7 +50,7 @@ m22 = m_H * weight_2 # Atom mass 2 [kg]
 m2 = m21 + m22  # Molecular mass [kg]
 
 # data storage
-outputfile = f"CTC_simulation_results_m{weight_1}_m{weight_2}.csv"
+outputfile = f"machinelearning/datasets/H2H2_collisions.csv"
 
 varNames = [
     "b",
@@ -65,8 +65,8 @@ varNames = [
 
 
 def run_collision(i):
-    if i % 50 == 0:
-        print(f"Running collision {i}")
+    # if i % 50 == 0:
+    #     print(f"Running collision {i}")
     seed(i)
 
     # Translational energy of each particle [K]
@@ -225,14 +225,23 @@ def run_collision(i):
 
 
 if __name__ == "__main__":
+    from tqdm import tqdm
+
     print(f"You have {os.cpu_count()} CPU cores available.")
     num_processes = 6
     print(f"Using {num_processes} CPU cores for simulation.")
 
     with multiprocessing.Pool(processes=num_processes) as pool:
-        all_results = pool.map(run_collision, range(ncoll))
+        all_results = list(
+            tqdm(
+                pool.imap_unordered(run_collision, range(ncoll)),
+                total=ncoll,
+                desc="Running collisions",
+                unit="collisions"
+            )
+        )
     df = pd.DataFrame(all_results, columns=pd.Index(varNames))
     df.to_csv(outputfile, index=False)
 
-    print(df)
+    print(df.head(5))
     print("--- %s seconds ---", (time.time() - start_time))
