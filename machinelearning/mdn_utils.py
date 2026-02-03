@@ -95,6 +95,7 @@ def plot_scattering_comparison(ctc_data, mdn_model, in_mean=None, in_std=None, o
     ax[0,0].set_xlim(0,1)
     ax[0, 0].set_xlabel(r"$\eta_{tr}$")
     ax[0, 0].set_ylabel(r"$\eta_{tr}'$")
+    print("Finished plot 1")
 
     xy2 = np.vstack([ctc_data[:, 2], ctc_data[:, 4]])
     z2 = gaussian_kde(xy2)(xy2)   # density per point
@@ -105,6 +106,7 @@ def plot_scattering_comparison(ctc_data, mdn_model, in_mean=None, in_std=None, o
     ax[1,0].set_xlim(0,1)
     ax[1, 0].set_xlabel(r"$\eta_{r,A}$")
     ax[1, 0].set_ylabel(r"$\eta_{r,A}'$")
+    print("Finished plot 2")
 
     # MDN predictions
     ax[0, 1].set_title('MDN Predictions')
@@ -117,6 +119,7 @@ def plot_scattering_comparison(ctc_data, mdn_model, in_mean=None, in_std=None, o
     ax[0,1].set_xlim(0,1)
     ax[0, 1].set_xlabel(r"$\eta_{tr}$")
     ax[0, 1].set_ylabel(r"$\eta_{tr}'$")
+    print("Finished plot 3")
 
     xy4 = np.vstack([ctc_data[:, 2], samples[:, 1]])
     z4 = gaussian_kde(xy4)(xy4)   # density per point
@@ -127,6 +130,7 @@ def plot_scattering_comparison(ctc_data, mdn_model, in_mean=None, in_std=None, o
     ax[1,1].set_xlim(0,1)
     ax[1, 1].set_xlabel(r"$\eta_{r,A}$")
     ax[1, 1].set_ylabel(r"$\eta_{r,A}'$")
+    print("Finished plot 4")
 
     plt.tight_layout()
     plt.show()
