@@ -1,7 +1,113 @@
 import numpy as np
 import torch
+from torch.utils.data import DataLoader, TensorDataset, Subset
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
+from tqdm import tqdm
+from mdn import mdn_loss
+
+def data_preparation(DATAFILE, nr_samples=40000):
+    # import data
+    rawdata = np.loadtxt(DATAFILE, delimiter=',', skiprows=1)[:nr_samples,:]
+
+    # Make train/validation split
+    train_size = int(0.7 * rawdata.shape[0])
+    val_size = rawdata.shape[0] - train_size
+
+    # Convert to the variable set (Ec, \eta_trans, \eta_rot_A)
+    inputdata = np.zeros((rawdata.shape[0], 3))
+    inputdata[:,0] = np.sum(rawdata[:,0:3], axis=1)
+    inputdata[:,1] = rawdata[:,0]/inputdata[:,0] 
+    inputdata[:,2] = rawdata[:,1] / np.sum(rawdata[:,1:3], axis=1)
+
+    outputdata = np.zeros((rawdata.shape[0], 2))
+    outputdata[:,0] = rawdata[:,3]/np.sum(rawdata[:,3:6], axis=1)
+    outputdata[:,1] = rawdata[:,4]/ np.sum(rawdata[:,4:6], axis=1)
+
+    # Create Dataloaders for training and validation (with normalization)
+    inputs = torch.tensor(inputdata, dtype=torch.float32)
+    outputs = torch.tensor(outputdata, dtype=torch.float32)
+    return inputs, outputs, train_size, val_size
+
+
+def create_dataloaders(inputs, outputs, train_size, val_size, batch_size):
+    """
+    Prepare DataLoaders for training and validation with normalization.
+    
+    :param dataset: input tensors
+    :param train_size: number of training samples
+    :param val_size: number of validation samples
+    :param batch_size: batch size for DataLoaders
+    :return: train_loader, val_loader, in_mean, in_std, out_mean, out_std
+    """
+
+    dataset = TensorDataset(inputs, outputs)
+
+    # Create train/validation split 
+    generator = torch.Generator().manual_seed(0)
+    train_subset, val_subset = torch.utils.data.random_split(dataset, [train_size, val_size], generator=generator)
+
+    train_idx = torch.tensor(train_subset.indices, dtype=torch.long)
+    val_idx = torch.tensor(val_subset.indices, dtype=torch.long)
+
+    # Compute normalization statistics on training data only
+    eps = 1e-8
+    in_mean = inputs[train_idx].mean(dim=0, keepdim=True)
+    in_std = inputs[train_idx].std(dim=0, unbiased=False, keepdim=True).clamp_min(eps)
+    out_mean = outputs[train_idx].mean(dim=0, keepdim=True)
+    out_std = outputs[train_idx].std(dim=0, unbiased=False, keepdim=True).clamp_min(eps)
+
+    # Normalize tensors, then re-wrap
+    inputs_norm = (inputs - in_mean) / in_std
+    outputs_norm = (outputs - out_mean) / out_std
+    dataset_norm = TensorDataset(inputs_norm, outputs_norm)
+
+    train_dataset = Subset(dataset_norm, train_idx.tolist())
+    val_dataset = Subset(dataset_norm, val_idx.tolist())
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+    return train_loader, val_loader, in_mean, in_std, out_mean, out_std
+
+
+# Train the model
+def train_model(model, train_loader, val_loader, in_mean, in_std, out_mean, out_std, num_epochs=50):
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    num_epochs = 50
+    train_loss_hist = np.zeros(num_epochs)
+    val_loss_hist = np.zeros(num_epochs)
+
+    print(f"Starting training using {train_loader.dataset.__len__()} training samples and {val_loader.dataset.__len__()} validation samples.")
+    for epoch in tqdm(range(num_epochs), desc="Training MDN", unit="epoch", colour="green"):
+        # Training loop
+        model.train()
+        train_loss = 0.0
+        for inputs, outputs in train_loader:
+            optimizer.zero_grad()
+            pi, mu, sigma = model(inputs)
+            loss = mdn_loss(pi, mu, sigma, outputs)
+            loss.backward()
+            optimizer.step()
+
+            train_loss += loss.item()
+        train_loss /= len(train_loader)
+        train_loss_hist[epoch] = train_loss
+
+        # Validation loop
+        model.eval()
+        with torch.no_grad():
+            val_loss = 0.0
+            for inputs, outputs in val_loader:
+                pi, mu, sigma = model(inputs)
+                loss = mdn_loss(pi, mu, sigma, outputs)
+                val_loss += loss.item()
+
+            val_loss /= len(val_loader)
+            val_loss_hist[epoch] = val_loss
+    return train_loss_hist, val_loss_hist
+
 
 # Sample from the trained MDN (handles the same normalization used during training)
 def sample_mdn(model, inputdata, in_mean, in_std, out_mean, out_std):
