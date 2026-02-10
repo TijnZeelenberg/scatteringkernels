@@ -154,7 +154,5 @@ def train_model(model, train_loader, val_loader, in_mean, in_std, out_mean, out_
     plt.plot(range(1, num_epochs + 1), val_loss_hist, label='Validation Loss')
     plt.legend()
     plt.xlabel('Epoch')
-    plt.ylabel('MDN Loss')
-    plt.title('Training Loss over Epochs')
-    plt.grid()
+    plt.ylabel('Negative Log-Likelihood Loss')
     plt.show()
