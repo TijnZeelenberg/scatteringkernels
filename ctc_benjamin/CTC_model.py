@@ -32,10 +32,10 @@ dt = 0.1e-15  # Time-step [s]
 dt2 = dt * dt  # Time-step squared [s^2]
 tsim = 5e-12  # Max. simulation time [s]
 nsteps = tsim / dt  # Max. number of steps
-ncoll = 100  # Number of collisios
-Etr_K_max = 5900  # Maximum translational velocity [K]
-Etr_min = 100  # Minimum translational energy [K] (to avoid molecules barely moving)
-Erot_K_max = 3000  # Maximum rotational energy [K]
+ncoll = 40000  # Number of collisios
+Etr_max = 5900 * kB  # Maximum translational energy [J]
+Etr_min = 100 * kB  # Minimum translational energy [J] (to avoid molecules barely moving)
+Erot_max = 3000 * kB  # Maximum rotational energy [J]
 
 # Molecule 1 with 2 atoms 1 and 2
 weight_1 = 1
@@ -53,14 +53,12 @@ m2 = m21 + m22  # Molecular mass [kg]
 outputfile = f"machinelearning/datasets/H2H2_collisions.csv"
 
 varNames = [
-    "b",
-    "Etr_init_K",
-    "Er1_init_K",
-    "Er2_init_K",
-    "Etr1_final_K",
-    "Etr2_final_K",
-    "Er1_final_K",
-    "Er2_final_K",
+    "Etr",
+    "Erot1_in",
+    "Erot2_in",
+    "Etr_out",
+    "Erot1_out",
+    "Erot2_out",
 ]
 
 
@@ -69,16 +67,16 @@ def run_collision(i):
     #     print(f"Running collision {i}")
     seed(i)
 
-    # Translational energy of each particle [K]
-    Etr_init_K = Etr_min + random() * Etr_K_max
-    vtr = sqrt(Etr_init_K * kB / m_H2)  # Velocity of each particle [m/s]
+    # Initial translational energy of each particle [J]
+    Etr_init = (Etr_min + random() * (Etr_max - Etr_min))
+    vtr = sqrt(Etr_init / (2 * m_H2))  # Velocity of each particle [m/s] (divided by 2 because each particle gets half of the total translational energy)
 
     bmax = 1.5 * sigma_LJ  # Max impact parameter
     b = random() * bmax  # Impact parameter
 
     # Rotational energies
-    Erot1_initial = random() * Erot_K_max * kB  # Rotational energy of particle 1 [J]
-    Erot2_initial = random() * Erot_K_max * kB  # Rotational energy of particle 2 [J]
+    Erot1_initial = random() * Erot_max  # Rotational energy of particle 1 [J]
+    Erot2_initial = random() * Erot_max  # Rotational energy of particle 2 [J]
 
     frac11 = random()  # Fraction of rotational energy in mode 1
     frac21 = random()  # Fraction of rotational energy in mode 2
@@ -211,15 +209,15 @@ def run_collision(i):
         Erot2 = 0.5 * I * (omega_2[0] ** 2 + omega_2[1] ** 2)
 
     # Store the initial and final energies in a list
+    Etr_final = Ekin1+Ekin2
+
     collision_results = [
-        b / sigma_LJ,  # b (normalized)
-        Etr_init_K,  # Initial translational energy of each molecule (already in K)
-        Erot1_initial / kB,  # Initial rotational energy of molecule 1
-        Erot2_initial / kB,  # Initial rotational energy of molecule 2
-        Ekin1 / kB,  # Final kinetic energy of molecule 1
-        Ekin2 / kB,  # Final kinetic energy of molecule 2
-        Erot1 / kB,  # Final rotational energy of molecule 1
-        Erot2 / kB,  # Final rotational energy of molecule 2
+        Etr_init,  # Initial translational energy of each molecule
+        Erot1_initial,  # Initial rotational energy of molecule 1
+        Erot2_initial,  # Initial rotational energy of molecule 2
+        Etr_final,  # Final translational energy of both molecules 
+        Erot1,  # Final rotational energy of molecule 1
+        Erot2,  # Final rotational energy of molecule 2
     ]
     return collision_results
 
@@ -243,5 +241,5 @@ if __name__ == "__main__":
     df = pd.DataFrame(all_results, columns=pd.Index(varNames))
     df.to_csv(outputfile, index=False)
 
-    print(df.head(5))
+    print(df.head(1))
     print("--- %s seconds ---", (time.time() - start_time))

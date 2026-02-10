@@ -45,6 +45,10 @@ def plot_scattering_comparison(ctc_data,mdn_model, nr_samples=10000, in_mean=Non
         out_std (torch.Tensor | np.ndarray | None): output normalization std.
     """
     eps = 1e-8
+    if nr_samples > ctc_data.shape[0]:
+        print(f"Number of samples requested ({nr_samples}) exceeds available CTC data ({ctc_data.shape[0]}). Using all available data.")
+        nr_samples = ctc_data.shape[0]
+    
     inputs = ctc_data[:nr_samples, :3]
     outputs = ctc_data[:nr_samples, 3:]
 
