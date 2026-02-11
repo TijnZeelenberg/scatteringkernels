@@ -1,38 +1,55 @@
-## Milestones
-- [x] Literature Review on Rarefied gas dynamics
-- [x] Convert Benjamin Vollebregt's CTC code to Python and generate hydrogen collision data
-- [x] Adapt Aldo Frezzotti's code to generate oxygen collision data
-- [x] Explore and visualize collision data to understand underlying patterns
-- [x] Create MDN model for energy fraction prediction
-- [x] Train MDN model on hydrogen and oxygen collision data
-- [ ] Generate large training dataset for hydrogen and oxygen collisions on HPC cluster
-- [ ] Implement ML scattering kernel in Sven Bendermacher's DSMC code
-- [ ] Validate ML scattering kernel by predicting viscosity and bulk viscosity.
-- [ ] Come up with different ML architectures for scattering kernel prediction (e.g. normalizing flows, GANs, etc.)
-- [ ] Compare different ML architectures for scattering kernel prediction 
-- [ ] Generate figures comparing ML scattering kernel predictions to CTC results for in report
-- [ ] Write report on results and future work
+## Timeline
 
-## Project Planning 
-| Task | Start date | End date | Status |
-|-----|------|--------|-------|
-| Phase 0 | Week 1 | Week 2 | Finished |
-| Literature review | | | ✅ |
-| Phase 1: CTC Simulation | Week 3 | Week 10 | Finished |
-| Research  CTC & DSMC | | | ✅|
-| Set up CTC simulations  | | | ✅|
-| Generate hydrogen collision data | | | ✅|
-| Generate oxygen collision data | | | ✅|
-| Explore data | | | ✅|
-| Phase 2: Machine Learning | Week 11 | Week 20 | |
-| Set up MDN model | | | ✅|
-| Train MDN model | | | ✅| 
-| Generate training data on HPC cluster | | | |
-| Implement ML scattering kernel in DSMC code | | | |
-| Validate ML scattering kernel in DSMC | | | |
-| Create different ML architectures | | | |
-| Compare ML algorithms | | | |
-| Phase 3: Results | Week 21 | Week 29 | |
-| Dive back into the literature | | | |
-| Generate useful figures | | | |
-| Write report | | | |
+| Phase | Weeks | Focus |
+|---|---|---|
+| Phase 0 | 1–2 | Literature review |
+| Phase 1 | 3–10 | CTC simulations & datasets |
+| Phase 2 | 11–20 | ML models & DSMC integration |
+| Phase 3 | 21–29 | Validation & thesis writing |
+
+
+## Roadmap
+
+Phase 0 — Literature Review
+- Study rarefied gas dynamics, CTC, and DSMC methods
+- Review ML techniques for regression and density estimation
+
+Phase 1 — Data & Simulation
+- Generate hydrogen and oxygen collision datasets
+- Understand statistical structure of scattering outcomes
+
+Phase 2 — Machine Learning Models
+- Train MDN baseline
+- Explore alternative architectures
+- Integrate ML kernel into DSMC
+
+Phase 3 — Validation & Reporting
+- Physical validation (viscosity, bulk viscosity)
+- Figures, comparison, thesis writing
+
+
+## Tasks
+
+### Literature Review
+- [x] Review Benjamin Vollebregt's master thesis
+- [x] Review Aldo Frezzotti's research
+- [x] Review papers on ML for rarefied gas dynamics
+
+### Data & HPC
+- [x] Convert Benjamin's CTC code to Python
+- [x] Adapt Aldo's code for oxygen collisions
+- [x] Generate hydrogen data
+- [x] Generate oxygen data
+- [ ] Generate large HPC dataset
+
+### Machine Learning
+- [x] Implement MDN
+- [x] Train MDN baseline
+- [ ] Implement ML scattering kernel in Sven Bendermacher's DSMC
+- [ ] Validate via viscosity tests
+- [ ] Explore different ML architectures
+- [ ] Compare architectures
+
+### Results & Writing
+- [ ] Generate figures comparing ML predictions to CTC results
+- [ ] Write report
