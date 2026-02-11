@@ -72,10 +72,9 @@ def create_dataloaders(inputs, outputs, train_size, val_size, batch_size):
 
 
 # Train the model
-def train_model(model, train_loader, val_loader, in_mean, in_std, out_mean, out_std, num_epochs=50):
+def train_model(model, train_loader, val_loader, in_mean, in_std, out_mean, out_std, num_epochs=50, lr=1e-4):
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    num_epochs = 50
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     train_loss_hist = np.zeros(num_epochs)
     val_loss_hist = np.zeros(num_epochs)
 
