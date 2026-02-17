@@ -110,13 +110,25 @@ def train_model(model, train_loader, val_loader, in_mean, in_std, out_mean, out_
 
 # Sample from the trained MDN (handles the same normalization used during training)
 def sample_mdn(model, inputdata, in_mean, in_std, out_mean, out_std):
+    """
+    Sample from the trained MDN model given input data and normalization parameters.
+    
+    :param model: trained MDN model
+    :param inputdata: array of shape (N, 3) with columns [E_c, eta_tr_in, eta_r_A_in]
+    :param in_mean: input normalization mean (shape (1, 3))
+    :param in_std: input normalization std (shape (1, 3))
+    :param out_mean: output normalization mean (shape (1, 2))
+    :param out_std: output normalization std (shape (1, 2))
+
+    :return: samples of shape (N, 2) with columns [eta_tr_out, eta_r_A_out]
+    """
     model.eval()
     with torch.no_grad():
         x = torch.tensor(inputdata, dtype=torch.float32)
         x = (x - in_mean) / in_std
         pi, mu, sigma = model(x)
 
-        # Move to CPU numpy for sampling
+        # Move to CPU for sampling
         pi_np = pi.detach().cpu().numpy()
         mu_np = mu.detach().cpu().numpy()
         sigma_np = sigma.detach().cpu().numpy()
