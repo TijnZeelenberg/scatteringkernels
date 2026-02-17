@@ -4,3 +4,6 @@
 
 # Ignore large data files
 /machinelearning/datasets/
+
+# Ignore produces images and plots
+.png
