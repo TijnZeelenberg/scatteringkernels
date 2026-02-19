@@ -4,6 +4,22 @@ import torch.nn.functional as F
 
 # Model Definition
 class MixtureDensityNetwork(nn.Module):
+    """
+    Mixture Density Network for modeling scattering kernels.
+    This model predicts a mixture of Gaussians for the scattering kernel, allowing it to capture complex distributions.
+    
+    Args:
+        input_dim (int): Dimensionality of the input features.
+        output_dim (int): Dimensionality of the output (e.g., scattering angles).
+        num_mixtures (int): Number of Gaussian mixtures to use.
+        hidden_dim (int, optional): Number of hidden units in the fully connected layers. Default is 128.
+    
+    Returns:
+        pi (torch.Tensor): Mixture weights, shape (batch_size, num_mixtures).
+        mu (torch.Tensor): Means of the mixtures, shape (batch_size, num_mixtures, output_dim).
+        sigma (torch.Tensor): Standard deviations of the mixtures, shape (batch_size, num_mixtures, output_dim).
+    """
+    
     def __init__(self, input_dim, output_dim, num_mixtures, hidden_dim=128):
         super().__init__()
         self.K = num_mixtures
@@ -16,9 +32,9 @@ class MixtureDensityNetwork(nn.Module):
             nn.ReLU(),
         )
 
-        self.pi_layer = nn.Linear(hidden_dim, self.K)
-        self.mu_layer = nn.Linear(hidden_dim, self.K * self.D)
-        self.sigma_layer = nn.Linear(hidden_dim, self.K * self.D)
+        self.pi_layer = nn.Linear(hidden_dim, self.K) # Mixture weights
+        self.mu_layer = nn.Linear(hidden_dim, self.K * self.D) # Mixture means
+        self.sigma_layer = nn.Linear(hidden_dim, self.K * self.D) # Mixture standard deviations
 
     def forward(self, x):
         h = self.net(x)
