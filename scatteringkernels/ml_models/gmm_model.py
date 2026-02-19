@@ -3,7 +3,7 @@ from typing import Literal
 
 CovarianceType = Literal['full', 'tied', 'diag', 'spherical']
 
-class GMMModel:
+class GaussianMixtureModel:
     """
     Gaussian Mixture Model for modeling scattering kernels.
     This model fits a mixture of Gaussians to the scattering kernel data, allowing it to capture complex distributions.
