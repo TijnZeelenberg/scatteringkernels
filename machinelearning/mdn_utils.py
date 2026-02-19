@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 from tqdm import tqdm
 from mdn import mdn_loss
+from sklearn.mixture import GaussianMixture
 
 def data_preparation(DATAFILE, nr_samples=40000):
     # import data
@@ -191,7 +192,7 @@ def plot_scattering_comparison(ctc_data,mdn_model, nr_samples=10000, in_mean=Non
     elif not isinstance(out_std, torch.Tensor):
         out_std = torch.tensor(out_std, dtype=torch.float32)
     
-    samples = sample_mdn(
+    mdn_samples = sample_mdn(
         model=mdn_model,
         inputdata=ctc_data[:nr_samples, :3],
         in_mean=in_mean,
@@ -200,10 +201,17 @@ def plot_scattering_comparison(ctc_data,mdn_model, nr_samples=10000, in_mean=Non
         out_std=out_std,
     )
 
+    # fit GMM
+    number_of_mixtures = 3
+    gmm = GaussianMixture(n_components=number_of_mixtures, covariance_type='full')
+    gmm.fit(outputs)
+    gmm_samples, _ = gmm.sample(n_samples=nr_samples)
+
+
     dotsize = 3
     alpha = 1.0
     colormap = 'viridis'
-    fig, ax = plt.subplots(2, 2, figsize=(10, 10))
+    fig, ax = plt.subplots(2, 3, figsize=(15, 10))
 
     # CTC ground truth
     ax[0, 0].set_title('CTC Data')
@@ -225,16 +233,16 @@ def plot_scattering_comparison(ctc_data,mdn_model, nr_samples=10000, in_mean=Non
     ax[1, 0].scatter(x2, y2, c=z2[idx2], cmap=colormap, alpha=alpha, s=dotsize)
     ax[1,0].set_ylim(0,1)
     ax[1,0].set_xlim(0,1)
-    ax[1, 0].set_xlabel(r"$\epsilon_{r,A}$")
-    ax[1, 0].set_ylabel(r"$\epsilon_{r,A}'$")
+    ax[1, 0].set_xlabel(r"$\epsilon_{rot,A}$")
+    ax[1, 0].set_ylabel(r"$\epsilon_{rot,A}'$")
     print("Finished plot 2")
 
     # MDN predictions
-    ax[0, 1].set_title('MDN Predictions')
-    xy3 = np.vstack([ctc_data[:nr_samples, 1], samples[:nr_samples, 0]])
+    ax[0, 1].set_title('MDN samples')
+    xy3 = np.vstack([ctc_data[:nr_samples, 1], mdn_samples[:nr_samples, 0]])
     z3 = gaussian_kde(xy3)(xy3)   # density per point
     idx3 = z3.argsort()          # plot low-density first
-    x3, y3 = ctc_data[:nr_samples, 1][idx3], samples[:nr_samples, 0][idx3]
+    x3, y3 = ctc_data[:nr_samples, 1][idx3], mdn_samples[:nr_samples, 0][idx3]
     ax[0, 1].scatter(x3, y3, c=z3[idx3], cmap=colormap, alpha=alpha, s=dotsize)
     ax[0,1].set_ylim(0,1)
     ax[0,1].set_xlim(0,1)
@@ -242,17 +250,41 @@ def plot_scattering_comparison(ctc_data,mdn_model, nr_samples=10000, in_mean=Non
     ax[0, 1].set_ylabel(r"$\epsilon_{tr}'$")
     print("Finished plot 3")
 
-    xy4 = np.vstack([ctc_data[:nr_samples, 2], samples[:nr_samples, 1]])
+    xy4 = np.vstack([ctc_data[:nr_samples, 2], mdn_samples[:nr_samples, 1]])
     z4 = gaussian_kde(xy4)(xy4)   # density per point
     idx4 = z4.argsort()          # plot low-density first
-    x4, y4 = ctc_data[:nr_samples, 2][idx4], samples[:nr_samples, 1][idx4]
+    x4, y4 = ctc_data[:nr_samples, 2][idx4], mdn_samples[:nr_samples, 1][idx4]
     ax[1, 1].scatter(x4, y4, c=z4[idx4], cmap=colormap, alpha=alpha, s=dotsize)
     ax[1,1].set_ylim(0,1)
     ax[1,1].set_xlim(0,1)
-    ax[1, 1].set_xlabel(r"$\epsilon_{r,A}$")
-    ax[1, 1].set_ylabel(r"$\epsilon_{r,A}'$")
+    ax[1, 1].set_xlabel(r"$\epsilon_{rot,A}$")
+    ax[1, 1].set_ylabel(r"$\epsilon_{rot,A}'$")
     print("Finished plot 4")
 
+    # GMM samples
+    ax[0, 2].set_title('GMM Samples')
+    xy5 = np.vstack([ctc_data[:nr_samples, 1], gmm_samples[:nr_samples, 0]])
+    z5 = gaussian_kde(xy5)(xy5)   # density per point
+    idx5 = z5.argsort()          # plot low-density first
+    x5, y5 = ctc_data[:nr_samples, 1][idx5], gmm_samples[:nr_samples, 0][idx5]
+    ax[0, 2].scatter(x5, y5, c=z5[idx5], cmap=colormap, alpha=alpha, s=dotsize)
+    ax[0,2].set_ylim(0,1)
+    ax[0,2].set_xlim(0,1)
+    ax[0, 2].set_xlabel(r"$\epsilon_{tr}$")
+    ax[0, 2].set_ylabel(r"$\epsilon_{tr}'$")
+    print("Finished plot 5")
+
+    xy6 = np.vstack([ctc_data[:nr_samples, 2], gmm_samples[:nr_samples, 1]])
+    z6 = gaussian_kde(xy6)(xy6)   # density per point
+    idx6 = z6.argsort()          # plot low-density first
+    x6, y6 = ctc_data[:nr_samples, 2][idx6], gmm_samples[:nr_samples, 1][idx6]
+    ax[1, 2].scatter(x6, y6, c=z6[idx6], cmap=colormap, alpha=alpha, s=dotsize)
+    ax[1,2].set_ylim(0,1)
+    ax[1,2].set_xlim(0,1)
+    ax[1, 2].set_xlabel(r"$\epsilon_{rot,A}$")
+    ax[1, 2].set_ylabel(r"$\epsilon_{rot,A}'$")
+    print("Finished plot 6")
+
+
     plt.tight_layout()
-    plt.savefig("scattering_comparison.png", dpi=300)
     plt.show()
