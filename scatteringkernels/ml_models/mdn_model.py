@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader, TensorDataset, random_split
+
 
 # Model Definition
 class MixtureDensityNetwork(nn.Module):
@@ -36,7 +38,12 @@ class MixtureDensityNetwork(nn.Module):
         self.mu_layer = nn.Linear(hidden_dim, self.K * self.D) # Mixture means
         self.sigma_layer = nn.Linear(hidden_dim, self.K * self.D) # Mixture standard deviations
 
-    def forward(self, x):
+        self.input_mean: torch.Tensor | None = None
+        self.input_std: torch.Tensor | None = None
+        self.output_mean: torch.Tensor | None = None
+        self.output_std: torch.Tensor | None = None
+
+    def forward(self, x: torch.Tensor):
         h = self.net(x)
 
         # Mixture weights
@@ -53,6 +60,159 @@ class MixtureDensityNetwork(nn.Module):
         sigma = sigma.view(-1, self.K, self.D)
 
         return pi, mu, sigma
+    
+    def create_dataloaders(self, X, y, batch_size, shuffle, trainval_split, random_seed): 
+        """
+        Creates a DataLoader for the given dataset.
+        
+        Args:
+            X (torch.Tensor): Input features, shape (n_samples, input_dim).
+            y (torch.Tensor): Target values, shape (n_samples, output_dim).
+            batch_size (int): Number of samples per batch.
+            shuffle (bool): Whether to shuffle the data at every epoch.
+        Returns:
+            dataloader (DataLoader): DataLoader for the dataset.
+        """
+        # Normalize the data
+        self.input_mean = X.mean(dim=0)
+        self.input_std = X.std(dim=0) + 1e-6
+        self.output_mean = y.mean(dim=0)
+        self.output_std = y.std(dim=0) + 1e-6
+        X = (X - self.input_mean) / self.input_std
+        y = (y - self.output_mean) / self.output_std
+
+        # Split the dataset into training and validation sets
+        dataset = TensorDataset(X, y)
+        train_size = int(trainval_split * len(dataset))
+        val_size = len(dataset) - train_size
+        generator = torch.Generator().manual_seed(random_seed)
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size],generator=generator) 
+
+        # Create DataLoaders
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+        return train_loader, val_loader
+
+    def train_model(self, train_loader:DataLoader, val_loader:DataLoader, optimizer:torch.optim.Optimizer, num_epochs, lr):
+        """
+        Trains the Mixture Density Network using the provided training data.
+        
+        Args:
+            train_loader (DataLoader): DataLoader for the training data.
+            val_loader (DataLoader): DataLoader for the validation data.
+            optimizer (torch.optim.Optimizer): Optimizer for training.
+            num_epochs (int): Number of epochs to train the model.
+            lr (float): Learning rate for the optimizer.
+        """
+        # Training loop
+        for epoch in range(num_epochs):
+            self.train()
+            total_loss = 0
+            for x_batch, y_batch in train_loader:
+                optimizer.zero_grad()
+                pi, mu, sigma = self.forward(x_batch)
+                loss = mdn_loss(pi, mu, sigma, y_batch)
+                loss.backward()
+                optimizer.step()
+                total_loss += loss.item()
+
+            avg_loss = total_loss / len(train_loader)
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+
+            # Validation loop
+            if val_loader is not None:
+                self.eval()
+                val_loss = 0
+                with torch.no_grad():
+                    for x_val, y_val in val_loader:
+                        pi_val, mu_val, sigma_val = self.forward(x_val)
+                        val_loss += mdn_loss(pi_val, mu_val, sigma_val, y_val).item()
+                avg_val_loss = val_loss / len(val_loader)
+                print(f"Validation Loss: {avg_val_loss:.4f}")
+
+        
+
+    def predict(self, x: torch.Tensor):
+        """
+        Predicts the mixture parameters for the input data.
+        
+        Args:
+            x (torch.Tensor): Input data, shape (batch_size, input_dim).
+        
+        Returns:
+            [pi, mu, sigma]: Tuple containing mixture weights, means, and standard deviations.
+                pi (torch.Tensor): Mixture weights, shape (batch_size, num_mixtures).
+                mu (torch.Tensor): Means of the mixtures, shape (batch_size, num_mixtures, output_dim).
+                sigma (torch.Tensor): Standard deviations of the mixtures, shape (batch_size, num_mixtures, output_dim).
+        """
+        return self.forward(x)
+
+    def sample(self, x: torch.Tensor, n_samples: int):
+        """
+        Generates samples from the predicted mixture of Gaussians.
+        
+        Args:
+            x (torch.Tensor): Input features, shape (batch_size, input_dim).
+            n_samples (int): Number of samples to generate per input.
+        Returns:
+            samples (torch.Tensor): Generated samples, shape (batch_size, n_samples, output_dim).
+        """
+        if self.input_mean is None or self.input_std is None or self.output_mean is None or self.output_std is None:
+            raise ValueError("Normalization parameters are not set. Ensure the model has been trained or loaded before sampling.")
+
+        self.eval()
+        with torch.no_grad():
+            # Normalize the input
+            x = (x - self.input_mean) / self.input_std
+
+            pi, mu, sigma = self.forward(x)
+            samples = torch.zeros(n_samples, self.D)
+
+            # Select a mixture component for each sample
+            component = torch.multinomial(pi, num_samples=n_samples, replacement=True)
+
+            # Generate samples for each selected component
+            for i in range(n_samples):
+                comp = component[i]
+                samples[i] = torch.normal(mu[i, comp], sigma[i, comp])
+
+            # Denormalize the output
+            samples = samples * self.output_std + self.output_mean
+
+        return samples
+
+    def save_model(self, path):
+        """
+        Saves the model state dictionary to a .pt file.
+        
+        Args:
+            path (str): Path to save the model, must end with .pt.
+        """
+        if self.input_mean is None or self.input_std is None or self.output_mean is None or self.output_std is None:
+            raise ValueError("Model has not been trained yet. Cannot save untrained model.")
+        model_dict = {
+            "state_dict": self.state_dict(),
+            "input_mean": self.input_mean,
+            "input_std": self.input_std,
+            "output_mean": self.output_mean,
+            "output_std": self.output_std
+        }
+        torch.save(model_dict, path)
+
+    def load_model(self, path):
+        """
+        Loads the model state dictionary from a .pt file.
+        
+        Args:
+            path (str): Path to load the model from, must end with .pt.
+        """
+        model_dict = torch.load(path)
+        self.load_state_dict(model_dict["state_dict"])
+        self.input_mean = model_dict["input_mean"]
+        self.input_std = model_dict["input_std"]
+        self.output_mean = model_dict["output_mean"]
+        self.output_std = model_dict["output_std"]
+
 
 # Define loss function
 def mdn_loss(pi, mu, sigma, y):
