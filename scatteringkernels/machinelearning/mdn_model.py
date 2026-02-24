@@ -150,13 +150,13 @@ class MixtureDensityNetwork(nn.Module):
         """
         return self.forward(x)
 
-    def sample(self, x: torch.Tensor, num_samples: int):
+    def sample(self, x: torch.Tensor, num_samples_per_input: int):
         """
         Generates samples from the predicted mixture of Gaussians.
         
         Args:
             x (torch.Tensor): Input features, shape (batch_size, input_dim).
-            n_samples (int): Number of samples to generate per input.
+            num_samples_per_input (int): Number of samples to generate per input sample.
         Returns:
             samples (torch.Tensor): Generated samples, shape (batch_size, n_samples, output_dim).
         """
@@ -170,23 +170,19 @@ class MixtureDensityNetwork(nn.Module):
 
             pi, mu, sigma = self.forward(x)
 
-            # Sample component indices per input: (batchsize, samples)
-            components = torch.multinomial(pi, num_samples=num_samples, replacement=True)
+            # Sample one component per input according to the mixture weights
+            components = torch.multinomial(pi, num_samples=num_samples_per_input, replacement=True) 
 
-            # Gather selected mu/sigma: (batchsize, samples, output_dim)
-            idx = components.unsqueeze(-1).expand(-1, -1, self.D)
-            mu_sel = torch.gather(mu, dim=1, index=idx)
-            sigma_sel = torch.gather(sigma, dim=1, index=idx)
+            # select mu and sigma for the chosen components
+            mu_sel = mu[torch.arange(mu.size(0)), components]
+            sigma_sel = sigma[torch.arange(sigma.size(0)), components]
 
             # Draw Gaussian samples
-            eps = torch.randn_like(mu_sel)
-            samples = mu_sel + eps * sigma_sel
+            samples = mu_sel + torch.randn_like(mu_sel) * sigma_sel
 
             # De-normalize outputs
-            samples = samples * self.output_std.view(1, 1, -1) + self.output_mean.view(1, 1, -1)
-            
+            samples = samples * self.output_std + self.output_mean 
             return samples
-
 
     def save_model(self, path):
         """
