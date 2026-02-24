@@ -1,6 +1,8 @@
 from sklearn.mixture import GaussianMixture
 from typing import Literal
 
+import torch
+
 CovarianceType = Literal['full', 'tied', 'diag', 'spherical']
 
 class GaussianMixtureModel:
@@ -60,4 +62,8 @@ class GaussianMixtureModel:
         if self.gmm is None:
             raise ValueError("Model has not been fitted yet.")
         samples, _ = self.gmm.sample(num_samples)
+
+        # Convert samples back to torch.Tensor
+        samples = torch.tensor(samples)
+
         return samples

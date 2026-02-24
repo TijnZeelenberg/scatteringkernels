@@ -105,8 +105,8 @@ class MixtureDensityNetwork(nn.Module):
             lr (float): Learning rate for the optimizer.
         """
         # Training loop
-        train_loss_history = []
-        val_loss_history = []
+        self.train_loss_history = []
+        self.val_loss_history = []
         for epoch in tqdm(range(num_epochs), unit="epoch"):
             self.train()
             total_loss = 0
@@ -119,7 +119,7 @@ class MixtureDensityNetwork(nn.Module):
                 total_loss += loss.item()
 
             avg_loss = total_loss / len(train_loader)
-            train_loss_history.append(avg_loss)
+            self.train_loss_history.append(avg_loss)
 
             # Validation loop
             self.eval()
@@ -129,9 +129,9 @@ class MixtureDensityNetwork(nn.Module):
                     pi_val, mu_val, sigma_val = self.forward(x_val)
                     val_loss += mdn_loss(pi_val, mu_val, sigma_val, y_val).item()
             avg_val_loss = val_loss / len(val_loader)
-            val_loss_history.append(avg_val_loss)
+            self.val_loss_history.append(avg_val_loss)
 
-        return train_loss_history, val_loss_history
+        return self.train_loss_history, self.val_loss_history
 
         
 
@@ -150,7 +150,7 @@ class MixtureDensityNetwork(nn.Module):
         """
         return self.forward(x)
 
-    def sample(self, x: torch.Tensor, num_samples_per_input: int):
+    def sample(self, x: torch.Tensor):
         """
         Generates samples from the predicted mixture of Gaussians.
         
@@ -171,7 +171,7 @@ class MixtureDensityNetwork(nn.Module):
             pi, mu, sigma = self.forward(x)
 
             # Sample one component per input according to the mixture weights
-            components = torch.multinomial(pi, num_samples=num_samples_per_input, replacement=True) 
+            components = torch.multinomial(pi, num_samples=1, replacement=True).squeeze(1) 
 
             # select mu and sigma for the chosen components
             mu_sel = mu[torch.arange(mu.size(0)), components]
@@ -198,7 +198,9 @@ class MixtureDensityNetwork(nn.Module):
             "input_mean": self.input_mean,
             "input_std": self.input_std,
             "output_mean": self.output_mean,
-            "output_std": self.output_std
+            "output_std": self.output_std,
+            "train_loss_history": self.train_loss_history,
+            "val_loss_history": self.val_loss_history
         }
         torch.save(model_dict, path)
 
