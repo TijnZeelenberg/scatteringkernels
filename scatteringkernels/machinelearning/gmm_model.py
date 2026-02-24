@@ -21,41 +21,43 @@ class GaussianMixtureModel:
         self.covariance_type: CovarianceType = covariance_type
         self.gmm: GaussianMixture | None = None
 
-    def fit(self, X):
+    def fit(self, x):
         """
         Fits the GMM to the data.
         
         Args:
-            X (array-like): Training data, shape (n_samples, n_features).
+            x (torch.Tensor): Training data, shape (n_samples, n_features).
         """
         self.gmm = GaussianMixture(n_components=self.n_components, covariance_type=self.covariance_type)
-        self.gmm.fit(X)
+        x = x.cpu().numpy()
+        self.gmm.fit(x)
 
-    def predict(self, X):
+    def predict(self, x):
         """
         Predicts the labels for the data samples in X using the fitted GMM.
         
         Args:
-            X (array-like): Input data, shape (n_samples, n_features).
+            x (torch.Tensor): Input data, shape (n_samples, n_features).
         
         Returns:
             labels (array): Predicted labels for each sample, shape (n_samples,).
         """
         if self.gmm is None:
             raise ValueError("Model has not been fitted yet.")
-        return self.gmm.predict(X)
+        x = x.cpu().numpy()
+        return self.gmm.predict(x)
 
-    def sample(self, n_samples):
+    def sample(self, num_samples):
         """
         Generates random samples from the fitted GMM.
         
         Args:
-            n_samples (int): Number of samples to generate.
+            num_samples (int): Number of samples to generate.
         
         Returns:
             samples (array): Generated samples, shape (n_samples, n_features).
         """
         if self.gmm is None:
             raise ValueError("Model has not been fitted yet.")
-        samples, _ = self.gmm.sample(n_samples)
+        samples, _ = self.gmm.sample(num_samples)
         return samples

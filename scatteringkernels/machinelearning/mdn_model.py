@@ -150,7 +150,7 @@ class MixtureDensityNetwork(nn.Module):
         """
         return self.forward(x)
 
-    def sample(self, x: torch.Tensor, n_samples: int):
+    def sample(self, x: torch.Tensor, num_samples: int):
         """
         Generates samples from the predicted mixture of Gaussians.
         
@@ -169,20 +169,24 @@ class MixtureDensityNetwork(nn.Module):
             x = (x - self.input_mean) / self.input_std
 
             pi, mu, sigma = self.forward(x)
-            samples = torch.zeros(n_samples, self.D)
 
-            # Select a mixture component for each sample
-            component = torch.multinomial(pi, num_samples=n_samples, replacement=True)
+            # Sample component indices per input: (batchsize, samples)
+            components = torch.multinomial(pi, num_samples=num_samples, replacement=True)
 
-            # Generate samples for each selected component
-            for i in range(n_samples):
-                comp = component[i]
-                samples[i] = torch.normal(mu[i, comp], sigma[i, comp])
+            # Gather selected mu/sigma: (batchsize, samples, output_dim)
+            idx = components.unsqueeze(-1).expand(-1, -1, self.D)
+            mu_sel = torch.gather(mu, dim=1, index=idx)
+            sigma_sel = torch.gather(sigma, dim=1, index=idx)
 
-            # Denormalize the output
-            samples = samples * self.output_std + self.output_mean
+            # Draw Gaussian samples
+            eps = torch.randn_like(mu_sel)
+            samples = mu_sel + eps * sigma_sel
 
-        return samples
+            # De-normalize outputs
+            samples = samples * self.output_std.view(1, 1, -1) + self.output_mean.view(1, 1, -1)
+            
+            return samples
+
 
     def save_model(self, path):
         """
