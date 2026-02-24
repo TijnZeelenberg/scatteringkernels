@@ -1,6 +1,7 @@
 # Ignore virtual environment and VSCode settings
 .venv/
 .vscode/
+__pycache__/
 
 # Ignore large data files
 /machinelearning/datasets/
