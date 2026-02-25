@@ -25,3 +25,19 @@ class DSMC_Simulation:
         self.boundary = boundary
         self._cells = None
 
+    def select_collision_pairs(self):
+        # Placeholder for collision pair selection logic
+        pass
+
+    def perform_collisions(self, collision_ids):
+        # Placeholder for collision handling logic
+        pass
+
+    def update_positions(self):
+        # Placeholder for position update logic
+        pass
+
+    def run_simulation(self, nr_steps):
+        # Placeholder for the main simulation loop
+        pass
+
