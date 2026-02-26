@@ -45,7 +45,9 @@ Phase 3 — Validation & Reporting
 ### Machine Learning
 - [x] Implement MDN
 - [x] Train MDN baseline
-- [ ] Implement ML scattering kernel in Sven Bendermacher's DSMC
+- [x] Implement GMM
+- [ ] Implement Borgnakke Larsen
+- [ ] Implement ML scattering kernel in DSMC
 - [ ] Validate via viscosity tests
 - [ ] Explore different ML architectures
 - [ ] Compare architectures

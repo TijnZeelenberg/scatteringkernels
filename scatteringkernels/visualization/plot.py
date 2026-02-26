@@ -36,6 +36,7 @@ class Plotter:
     def plot_density_scatter(self, datasets: dict):
         """"Plots a scatter plot of the CTC, MDN and GMM datapoints colored by their density.
         """
+        # TODO: use seaborn kdeplot for quicker density estimation and plotting
         figsize_x = self.config.figsize[0] * 3
         figsize_y = self.config.figsize[1] * 2
         fig, ax = plt.subplots(2,3, figsize=(figsize_x, figsize_y))
@@ -60,7 +61,9 @@ class Plotter:
         fig, ax = plt.subplots(1,2, figsize=(self.config.figsize[0]*2, self.config.figsize[1]))
         for i, dataset_name in enumerate(datasetnames):
             ax[0].hist(datasets[dataset_name][:,0], bins=self.config.bin_count, density=self.config.hist_density, alpha=self.config.hist_alpha, label=f'{dataset_name}')
+            ax[0].vlines(x=[0.0, 1.0], ymin=0, ymax=ax[0].get_ylim()[1], color='black', linestyle='--', alpha=0.5)
             ax[1].hist(datasets[dataset_name][:,1], bins=self.config.bin_count, density=self.config.hist_density, alpha=self.config.hist_alpha, label=f'{dataset_name}')
+            ax[1].vlines(x=[0.0, 1.0], ymin=0, ymax=ax[1].get_ylim()[1], color='black', linestyle='--', alpha=0.5)
             ax[0].set_xlabel('Value', fontsize=self.config.label_fontsize, fontweight=self.config.label_fontweight)
             ax[0].set_ylabel('Density', fontsize=self.config.label_fontsize, fontweight=self.config.label_fontweight)
             ax[1].set_xlabel('Value', fontsize=self.config.label_fontsize, fontweight=self.config.label_fontweight)

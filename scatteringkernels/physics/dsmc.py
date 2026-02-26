@@ -39,7 +39,10 @@ class DSMC_Simulation:
 
     def select_collision_pairs(self):
         # Placeholder for collision pair selection logic
-        pass
+        for i in range(self.nr_cells):
+            particle_idx = np.asarray(self.cell_indices == i)
+            print("particle_idx", particle_idx)
+
 
     def perform_collisions(self, collision_ids):
         # Placeholder for collision handling logic

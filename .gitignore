@@ -3,8 +3,6 @@
 .vscode/
 __pycache__/
 
-# Ignore large data files
-/machinelearning/datasets/
-
 # Ignore produces images and plots
+results/
 .png
