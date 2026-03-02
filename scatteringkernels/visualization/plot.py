@@ -54,8 +54,6 @@ class Plotter:
         plt.savefig(save_path)
         plt.close()
 
-
-
     def plot_histogram(self, datasets: dict):
         """Plots histograms of the CTC, MDN and GMM datasets for both output variables.""" 
         fig, ax = plt.subplots(1,2, figsize=(self.config.figsize[0]*2, self.config.figsize[1]))
@@ -76,3 +74,5 @@ class Plotter:
         save_path = f"{self.config.save_dir}/plots/histograms.png"
         plt.savefig(save_path)
         plt.close()
+        
+    

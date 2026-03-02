@@ -28,8 +28,8 @@ class borgnakke_larssen_model:
         else:
             # Inelastic collision: randomize velocities based on a distribution
             total_energy = 0.5 * (np.linalg.norm(velocity_i)**2 + np.linalg.norm(velocity_j)**2)
-            new_velocity_i = np.random.normal(0, np.sqrt(k_B*T/m), size=velocity_i.shape)
-            new_velocity_j = np.random.normal(0, np.sqrt(k_B*T/m), size=velocity_j.shape)
+            new_velocity_i = self.rng.normal(0, np.sqrt(k_B*T/m), size=velocity_i.shape)
+            new_velocity_j = self.rng.normal(0, np.sqrt(k_B*T/m), size=velocity_j.shape)
 
             # Adjust velocities to conserve total energy
             new_total_energy = 0.5 * (np.linalg.norm(new_velocity_i)**2 + np.linalg.norm(new_velocity_j)**2)
