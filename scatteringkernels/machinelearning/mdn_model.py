@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset, random_split
+import numpy as np
 from tqdm import tqdm
 
 # Model Definition
@@ -184,6 +185,21 @@ class MixtureDensityNetwork(nn.Module):
             samples = samples * self.output_std + self.output_mean 
             return samples
 
+    #TODO: add method to take in velocity vectors and output new velocity vectors sampled from the predicted energy distribution
+    def sample_velocities(self, v_i, v_j):
+        """
+        Generates samples of velocity vectors from the predicted mixture of Gaussians.
+        
+        Args:
+            v_i (np.ndarray): Input velocity vector i, shape (batch_size, input_dim).
+            v_j (np.ndarray): Input velocity vector j, shape (batch_size, input_dim).
+        
+        Returns:
+            samples (np.ndarray): Generated velocity vector.
+        """
+        #TODO: add function logic to handle velocity sampling using predicted energy fraction from self.sample(x)
+        pass
+        
     def save_model(self, path):
         """
         Saves the model state dictionary to a .pt file.

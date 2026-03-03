@@ -48,28 +48,29 @@ class DSMC_Simulation:
         #TODO: refactor particle distribution into seperate method that takes particle positions as input
         # Initialize particle data structures
         if particle_distribution == "uniform":
-            self.positions = self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float64)
+            self.positions = self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float128)
         elif particle_distribution == "central":
-            self.positions = np.empty((nr_particles, dimensions), dtype=np.float64)
-            self.positions[:,0] = np.full(nr_particles, self.box_size/2, dtype=np.float64)
-            self.positions[:,1] = self.rng.uniform(0.0, self.box_size, size=nr_particles).astype(np.float64)
+            self.positions = np.empty((nr_particles, dimensions), dtype=np.float128)
+            self.positions[:,0] = np.full(nr_particles, self.box_size/2, dtype=np.float128)
+            self.positions[:,1] = self.rng.uniform(0.0, self.box_size, size=nr_particles).astype(np.float128)
         elif particle_distribution == "gaussian":
-            self.positions = self.rng.normal(self.box_size/2, self.box_size/32, size=(nr_particles, dimensions)).astype(np.float64)
+            self.positions = self.rng.normal(self.box_size/2, self.box_size/32, size=(nr_particles, dimensions)).astype(np.float128)
         elif particle_distribution == "left_biased_gaussian":
-            self.positions = np.empty((nr_particles, dimensions), dtype=np.float64)
+            self.positions = np.empty((nr_particles, dimensions), dtype=np.float128)
             self.positions[:, 0] = self.rng.uniform(0.0, 0.25 * self.box_size, size=nr_particles)
             self.positions[:, 1] = self.rng.uniform(0.0, self.box_size, size=nr_particles)
         elif particle_distribution == "left_wall":
-            self.positions = np.empty((nr_particles, dimensions), dtype=np.float64)
-            self.positions[:, 0] = np.zeros(nr_particles, dtype=np.float64)
-            self.positions[:, 1] = self.rng.uniform(0.0, self.box_size, size=nr_particles).astype(np.float64)
+            self.positions = np.empty((nr_particles, dimensions), dtype=np.float128)
+            self.positions[:, 0] = np.zeros(nr_particles, dtype=np.float128)
+            self.positions[:, 1] = self.rng.uniform(0.0, self.box_size, size=nr_particles).astype(np.float128)
         else:
             raise ValueError(
                 f"Unknown particle_distribution: {particle_distribution}. "
                 "Use 'uniform', 'central', 'gaussian', 'left_biased_gaussian', or 'left_wall'."
             )
 
-        self.velocities = self.rng.normal(0, np.sqrt(self._kB * temperature), size=(nr_particles,dimensions)).astype(np.float64)
+        self.velocities = self.rng.normal(0, np.sqrt(self._kB * temperature), size=(nr_particles,dimensions)).astype(np.float128)
+        self.rotational_energies = np.zeros(nr_particles, dtype=np.float128) # TODO: add support for rotational and vibrational energy modes
         self.cell_indices = self.rng.integers(0, self.nr_cells, size=(nr_particles,))
         self.particle_init = True
 
@@ -96,7 +97,7 @@ class DSMC_Simulation:
         """Perform collisions for the selected pairs of particles using the given collision model.
         
         Args:
-            collision_model: Function that takes 
+            collision_model: Function that takes two velocity vectors and returns new velocity vectors.
             collision_pairs: List of arrays containing the indices of the selected collision pairs for each cell.
         """
 
@@ -107,6 +108,7 @@ class DSMC_Simulation:
                 v_j = self.velocities[j]
 
                 # Perform collision using the provided collision model
+                #TODO: define standard interface for collision models
                 new_v_i, new_v_j = collision_model.postsample(v_i, v_j, m=self.mass, T=self.temperature)
 
                 # Update the velocities of the particles
