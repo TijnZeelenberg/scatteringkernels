@@ -4,7 +4,7 @@ from time import time
 
 BoundaryCondition = Literal["specular", "absorbing"]
 ParticleDistribution = Literal["uniform","central", "gaussian", "left_biased_gaussian", "left_wall"]
-dimensions = 2
+dimensions = 3
 
 class DSMC_Simulation:
     """Direct Simulation Monte Carlo (DSMC) implementation.
@@ -12,9 +12,9 @@ class DSMC_Simulation:
 
     def __init__(
         self,
-        seed=None,
+        random_seed=None,
     ):
-        self.rng = np.random.default_rng(seed)
+        self.rng = np.random.default_rng(random_seed)
         self._kB = 1.380649e-23
         self.domain_init = False
         self.particle_init = False
@@ -33,11 +33,11 @@ class DSMC_Simulation:
         dimensions: int,
     ) -> np.ndarray:
         if distribution_type == "uniform":
-            return self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float128)
+            return self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float64)
         if distribution_type == "gaussian":
-            return self.rng.normal(self.box_size / 2, self.box_size / 32, size=(nr_particles, dimensions)).astype(np.float128)
+            return self.rng.normal(self.box_size / 2, self.box_size / 32, size=(nr_particles, dimensions)).astype(np.float64)
 
-        positions = self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float128)
+        positions = self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float64)
         if distribution_type == "central":
             positions[:, 0] = self.box_size / 2
             return positions
@@ -77,8 +77,8 @@ class DSMC_Simulation:
             dimensions=dimensions,
         )
 
-        self.velocities = self.rng.normal(0, np.sqrt(self._kB * temperature/self.mass), size=(nr_particles,dimensions)).astype(np.float128)
-        self.rotational_energies = np.zeros(nr_particles, dtype=np.float128) # TODO: add support for rotational and vibrational energy modes
+        self.velocities = self.rng.normal(0, np.sqrt(self._kB * temperature/self.mass), size=(nr_particles,dimensions)).astype(np.float64)
+        self.rotational_energies = np.zeros(nr_particles, dtype=np.float64) # TODO: add support for rotational and vibrational energy modes
         self.cell_indices = self.rng.integers(0, self.nr_cells, size=(nr_particles,))
         self.particle_init = True
 

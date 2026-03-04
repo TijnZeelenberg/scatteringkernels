@@ -2,7 +2,7 @@ import numpy as np
 from physics.dsmc import DSMC_Simulation
 from physics.borgnakkelarssen_model import borgnakke_larssen_model
 
-Dsmc = DSMC_Simulation(seed=41)
+Dsmc = DSMC_Simulation(random_seed=41)
 rng = Dsmc.rng
 molecules_per_particle = 100
 nr_particles = 100

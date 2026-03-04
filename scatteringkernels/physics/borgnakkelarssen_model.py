@@ -5,7 +5,7 @@ class borgnakke_larssen_model:
     def __init__(self, rng=None):
         self.rng = rng if rng is not None else np.random.default_rng()
     
-    def postsample(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, T=300.0):
+    def postsample(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, T):
         """
         Perform a collision between two particles using the Borgnakke-Larssen model.
         

@@ -23,8 +23,9 @@ class MixtureDensityNetwork(nn.Module):
         sigma (torch.Tensor): Standard deviations of the mixtures, shape (batch_size, num_mixtures, output_dim).
     """
     
-    def __init__(self, input_dim, output_dim, num_mixtures, hidden_dim=128):
+    def __init__(self, input_dim, output_dim, num_mixtures, hidden_dim, randomseed):
         super().__init__()
+        self.rng = np.random.default_rng(randomseed)
         self.K = num_mixtures
         self.D = output_dim
 
@@ -67,8 +68,8 @@ class MixtureDensityNetwork(nn.Module):
         Creates a DataLoader for the given dataset.
         
         Args:
-            X (torch.Tensor): Input features, shape (n_samples, input_dim).
-            y (torch.Tensor): Target values, shape (n_samples, output_dim).
+            X (torch.Tensor): Input features
+            y (torch.Tensor): Target values
             batch_size (int): Number of samples per batch.
             shuffle (bool): Whether to shuffle the data at every epoch.
         Returns:
@@ -153,13 +154,13 @@ class MixtureDensityNetwork(nn.Module):
 
     def sample(self, x: torch.Tensor):
         """
-        Generates samples from the predicted mixture of Gaussians.
+        Generates data samples from the predicted mixture of Gaussians.
         
         Args:
-            x (torch.Tensor): Input features, shape (batch_size, input_dim).
+            x (torch.Tensor): Input features
             num_samples_per_input (int): Number of samples to generate per input sample.
         Returns:
-            samples (torch.Tensor): Generated samples, shape (batch_size, n_samples, output_dim).
+            samples (torch.Tensor): Generated data samples
         """
         if self.input_mean is None or self.input_std is None or self.output_mean is None or self.output_std is None:
             raise ValueError("Normalization parameters are not set. Ensure the model has been trained or loaded before sampling.")
@@ -185,20 +186,57 @@ class MixtureDensityNetwork(nn.Module):
             samples = samples * self.output_std + self.output_mean 
             return samples
 
-    #TODO: add method to take in velocity vectors and output new velocity vectors sampled from the predicted energy distribution
-    def sample_velocities(self, v_i, v_j):
+    def _sample_unit_direction(self, shape):
         """
-        Generates samples of velocity vectors from the predicted mixture of Gaussians.
+        Samples random unit vectors uniformly distributed on the surface of a hyper sphere.
         
         Args:
-            v_i (np.ndarray): Input velocity vector i, shape (batch_size, input_dim).
-            v_j (np.ndarray): Input velocity vector j, shape (batch_size, input_dim).
+            shape (tuple): Desired shape of the output tensor, should be (batch_size, output_dim).
         
         Returns:
-            samples (np.ndarray): Generated velocity vector.
+            directions (torch.Tensor): Sampled unit direction vectors, shape (batch_size, output_dim).
         """
-        #TODO: add function logic to handle velocity sampling using predicted energy fraction from self.sample(x)
-        pass
+        while True:
+            d = self.rng.normal(size=shape)
+            n = np.linalg.norm(d)
+            if n > 0.0:
+                return d / n
+    #TODO: Write method to take in velocity vectors and rotation energies, and output new velocity vectors sampled from the predicted energy distribution
+    def postsample(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, T):
+        if velocity_i.shape != velocity_j.shape:
+            raise ValueError("Input velocity vectors must have the same shape.")
+
+        # Compute precollisional energy fractions
+        Etr = 0.5 * m * (np.dot(velocity_i, velocity_i) + np.dot(velocity_j, velocity_j))
+        Etot = Etr + e_rot_i + e_rot_j
+        eta_tr = Etr / Etot
+        eta_rot_A = e_rot_i / Etot
+
+        # Sample new energy fractions from the predicted mixture of Gaussians
+        input_features = torch.tensor([[Etot, eta_tr, eta_rot_A]]) 
+        etap_tr, etap_rot_A = self.sample(input_features).squeeze(0).numpy()
+
+        # Compute post-collision energies from sampled fractions
+        Etr_post = etap_tr * Etot
+        Etr_i_post = Etr_post * 0.5  # Assume equal split of translational energy for simplicity
+        Etr_j_post = Etr_post - Etr_i_post
+        E_rot_i_post = etap_rot_A * (Etot - Etr_post)
+        E_rot_j_post = (1 - etap_rot_A) * (Etot - Etr_post)
+
+        # Sample new velocity directions uniformly on the sphere
+        direction_i = self._sample_unit_direction(velocity_i.shape)
+        direction_j = self._sample_unit_direction(velocity_j.shape)
+        
+        # scale directions to match the post-collision translational energy
+        v_i_post = direction_i * np.sqrt(2 * Etr_i_post / m)
+        v_j_post = direction_j * np.sqrt(2 * Etr_j_post / m)
+        
+        return v_i_post, E_rot_i_post, v_j_post, E_rot_j_post
+        #TODO: create function to sample random directions
+        #TODO: create function to convert translational energy to velocity magnitude
+         
+
+
         
     def save_model(self, path):
         """

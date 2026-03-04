@@ -1,9 +1,13 @@
+from networkx import config
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from physics.dsmc import DSMC_Simulation
 from physics.borgnakkelarssen_model import borgnakke_larssen_model
+from machinelearning.mdn_model import MixtureDensityNetwork
+from config.experiment_config import ExperimentConfig
 
+config = ExperimentConfig()
 # --- simulation parameters ---
 nr_particles = 1000
 molecules_per_particle = 10
@@ -17,7 +21,7 @@ bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
 dx = bin_edges[1] - bin_edges[0]
 
 # --- run simulation and record x-density ---
-Dsmc = DSMC_Simulation(seed=42)
+Dsmc = DSMC_Simulation(random_seed=42)
 Dsmc.initialize_domain(box_size=box_size, nr_cells=50, boundary="specular")
 Dsmc.initialize_particles(
     molecules_per_particle=molecules_per_particle, nr_particles=nr_particles, mass=mass, temperature=300.0,
@@ -27,7 +31,44 @@ Dsmc.initialize_particles(
 E_total = 0.5 * mass * np.sum(np.sum(Dsmc.velocities**2, axis=1)) + np.sum(Dsmc.rotational_energies)
 print("initial total energy:", E_total)
 
-collision_model = borgnakke_larssen_model(rng=Dsmc.rng)
+# collision_model = borgnakke_larssen_model(rng=Dsmc.rng)
+
+# density_xt = np.empty((n_steps, n_bins), dtype=float)
+
+# # Simulation loop
+# for t in range(n_steps):
+#     Dsmc.update_positions(dt=dt)
+#     pairs = Dsmc.select_collision_pairs()
+#     Dsmc.perform_collisions(collision_model, pairs)
+
+#     counts, _ = np.histogram(Dsmc.positions[:, 0], bins=bin_edges)
+#     density_xt[t] = counts / (nr_particles)  # normalized 1D density
+
+# E_total = 0.5 * mass * np.sum(np.sum(Dsmc.velocities**2, axis=1)) + np.sum(Dsmc.rotational_energies)
+# print("final total energy:", E_total)
+
+# # --- plot 1: space-time density heatmap ---
+# plt.figure()
+# plt.imshow(
+#     density_xt,
+#     aspect="auto",
+#     origin="lower",
+#     norm="log",
+#     cmap="viridis",
+#  )
+# plt.xlabel("x [meters]", fontweight="bold")
+# plt.ylabel("time [seconds]", fontweight="bold")
+# plt.xticks(ticks=np.linspace(0, n_bins, 5), labels=[f"{x:.2e}" for x in np.linspace(0, box_size, 5)])
+# plt.yticks(ticks=np.linspace(0, n_steps, 5), labels=[f"{t*dt:.2e}" for t in np.linspace(0, n_steps, 5)])
+# plt.colorbar(label="normalized particle density")
+# plt.tight_layout()
+# plt.show()
+
+# --- Simulate with mdn model ---
+mdn = MixtureDensityNetwork(input_dim=config.input_dim, output_dim=config.output_dim, num_mixtures=config.num_mixtures, hidden_dim=config.hidden_dim, randomseed=config.random_seed) 
+mdn.load_model("results/models/mdn_H2H2.pth")
+collision_model_mdn = mdn
+
 
 density_xt = np.empty((n_steps, n_bins), dtype=float)
 
@@ -35,7 +76,7 @@ density_xt = np.empty((n_steps, n_bins), dtype=float)
 for t in range(n_steps):
     Dsmc.update_positions(dt=dt)
     pairs = Dsmc.select_collision_pairs()
-    Dsmc.perform_collisions(collision_model, pairs)
+    Dsmc.perform_collisions(collision_model_mdn, pairs)
 
     counts, _ = np.histogram(Dsmc.positions[:, 0], bins=bin_edges)
     density_xt[t] = counts / (nr_particles)  # normalized 1D density
