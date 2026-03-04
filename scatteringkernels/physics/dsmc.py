@@ -26,6 +26,33 @@ class DSMC_Simulation:
         self.boundary = boundary
         self.domain_init = True
 
+    def set_particle_positions(
+        self,
+        nr_particles: int,
+        distribution_type: ParticleDistribution | str,
+        dimensions: int,
+    ) -> np.ndarray:
+        if distribution_type == "uniform":
+            return self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float128)
+        if distribution_type == "gaussian":
+            return self.rng.normal(self.box_size / 2, self.box_size / 32, size=(nr_particles, dimensions)).astype(np.float128)
+
+        positions = self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float128)
+        if distribution_type == "central":
+            positions[:, 0] = self.box_size / 2
+            return positions
+        if distribution_type == "left_biased_gaussian":
+            positions[:, 0] = self.rng.uniform(0.0, 0.25 * self.box_size, size=nr_particles)
+            return positions
+        if distribution_type == "left_wall":
+            positions[:, 0] = 0.0
+            return positions
+
+        raise ValueError(
+            f"Unknown particle_distribution: {distribution_type}. "
+            "Use 'uniform', 'central', 'gaussian', 'left_biased_gaussian', or 'left_wall'."
+        )
+
     def initialize_particles(
         self,
         nr_particles:int,
@@ -44,32 +71,13 @@ class DSMC_Simulation:
         self.mass = mass
         self.temperature = temperature # TODO: add support for temperature gradients and non-equilibrium distributions
 
-        
-        #TODO: refactor particle distribution into seperate method that takes particle positions as input
-        # Initialize particle data structures
-        if particle_distribution == "uniform":
-            self.positions = self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float128)
-        elif particle_distribution == "central":
-            self.positions = np.empty((nr_particles, dimensions), dtype=np.float128)
-            self.positions[:,0] = np.full(nr_particles, self.box_size/2, dtype=np.float128)
-            self.positions[:,1] = self.rng.uniform(0.0, self.box_size, size=nr_particles).astype(np.float128)
-        elif particle_distribution == "gaussian":
-            self.positions = self.rng.normal(self.box_size/2, self.box_size/32, size=(nr_particles, dimensions)).astype(np.float128)
-        elif particle_distribution == "left_biased_gaussian":
-            self.positions = np.empty((nr_particles, dimensions), dtype=np.float128)
-            self.positions[:, 0] = self.rng.uniform(0.0, 0.25 * self.box_size, size=nr_particles)
-            self.positions[:, 1] = self.rng.uniform(0.0, self.box_size, size=nr_particles)
-        elif particle_distribution == "left_wall":
-            self.positions = np.empty((nr_particles, dimensions), dtype=np.float128)
-            self.positions[:, 0] = np.zeros(nr_particles, dtype=np.float128)
-            self.positions[:, 1] = self.rng.uniform(0.0, self.box_size, size=nr_particles).astype(np.float128)
-        else:
-            raise ValueError(
-                f"Unknown particle_distribution: {particle_distribution}. "
-                "Use 'uniform', 'central', 'gaussian', 'left_biased_gaussian', or 'left_wall'."
-            )
+        self.positions = self.set_particle_positions(
+            nr_particles=nr_particles,
+            distribution_type=particle_distribution,
+            dimensions=dimensions,
+        )
 
-        self.velocities = self.rng.normal(0, np.sqrt(self._kB * temperature), size=(nr_particles,dimensions)).astype(np.float128)
+        self.velocities = self.rng.normal(0, np.sqrt(self._kB * temperature/self.mass), size=(nr_particles,dimensions)).astype(np.float128)
         self.rotational_energies = np.zeros(nr_particles, dtype=np.float128) # TODO: add support for rotational and vibrational energy modes
         self.cell_indices = self.rng.integers(0, self.nr_cells, size=(nr_particles,))
         self.particle_init = True
@@ -103,17 +111,20 @@ class DSMC_Simulation:
 
         for pairs in collision_pairs:
             for i, j in pairs:
-                # Get the velocities of the two particles
+                # Get the velocities and rotational energies of the two particles
                 v_i = self.velocities[i]
                 v_j = self.velocities[j]
+                e_rot_i = self.rotational_energies[i]
+                e_rot_j = self.rotational_energies[j]
 
                 # Perform collision using the provided collision model
-                #TODO: define standard interface for collision models
-                new_v_i, new_v_j = collision_model.postsample(v_i, v_j, m=self.mass, T=self.temperature)
+                new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.postsample(v_i, e_rot_i, v_j, e_rot_j, m=self.mass, T=self.temperature)
 
-                # Update the velocities of the particles
+                # Update the velocities and rotational energies of the particles
                 self.velocities[i] = new_v_i
                 self.velocities[j] = new_v_j
+                self.rotational_energies[i] = new_e_rot_i
+                self.rotational_energies[j] = new_e_rot_j
 
     def update_positions(self, dt):
         """Update particle positions based on their velocities and the time step.
@@ -128,16 +139,15 @@ class DSMC_Simulation:
 
         # Handle boundary conditions
         if self.boundary == "specular":
-            # Reflect particles that go out of bounds
+            # Reflect particles that go out of bounds.
+            # Use a 2L periodic fold so particles remain inside the domain even
+            # when a time step crosses multiple walls.
             for d in range(dimensions):
-                out_of_bounds_low = self.positions[:, d] < 0
-                out_of_bounds_high = self.positions[:, d] >= self.box_size
-
-                self.velocities[out_of_bounds_low, d] *= -1
-                self.velocities[out_of_bounds_high, d] *= -1
-
-                self.positions[out_of_bounds_low, d] = -self.positions[out_of_bounds_low, d]
-                self.positions[out_of_bounds_high, d] = 2 * self.box_size - self.positions[out_of_bounds_high, d]
+                period = 2.0 * self.box_size
+                folded = np.mod(self.positions[:, d], period)
+                reflected = folded >= self.box_size
+                self.positions[:, d] = np.where(reflected, period - folded, folded)
+                self.velocities[reflected, d] *= -1
         elif self.boundary == "absorbing":
             # Remove particles that go out of bounds
             mask = np.all((self.positions >= 0) & (self.positions < self.box_size), axis=1)

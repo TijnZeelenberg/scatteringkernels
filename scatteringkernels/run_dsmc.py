@@ -21,7 +21,7 @@ collision_model = borgnakke_larssen_model(rng=rng)
 
 print(
     "total energy before simulation:",
-    0.5 * np.sum(np.linalg.norm(Dsmc.velocities, axis=1) ** 2),
+    0.5 * mass * np.sum(np.linalg.norm(Dsmc.velocities, axis=1) ** 2),
 )
 print("Average location of particles before simulation:", np.mean(Dsmc.positions, axis=0))
 
@@ -29,6 +29,6 @@ Dsmc.run_simulation(collision_model, nr_steps=nr_steps, dt=dt)
 
 print(
     "total energy after simulation:",
-    0.5 * np.sum(np.linalg.norm(Dsmc.velocities, axis=1) ** 2),
+    0.5 * mass * np.sum(np.linalg.norm(Dsmc.velocities, axis=1) ** 2),
 )
 print("Average location of particles after simulation:", np.mean(Dsmc.positions, axis=0))

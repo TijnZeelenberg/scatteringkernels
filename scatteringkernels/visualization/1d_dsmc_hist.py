@@ -6,8 +6,10 @@ from physics.borgnakkelarssen_model import borgnakke_larssen_model
 
 # --- simulation parameters ---
 nr_particles = 1000
-dt = 0.0004
-box_size = 1e-11
+molecules_per_particle = 10
+mass = (molecules_per_particle * 2.016 / 6.022e23)
+dt = 4e-7
+box_size = 1e-3
 n_steps = 2000
 n_bins = 100
 bin_edges = np.linspace(0, box_size, n_bins + 1)
@@ -18,15 +20,14 @@ dx = bin_edges[1] - bin_edges[0]
 Dsmc = DSMC_Simulation(seed=42)
 Dsmc.initialize_domain(box_size=box_size, nr_cells=50, boundary="specular")
 Dsmc.initialize_particles(
-    molecules_per_particle=10, nr_particles=nr_particles, mass=1.0, temperature=300.0,
+    molecules_per_particle=molecules_per_particle, nr_particles=nr_particles, mass=mass, temperature=300.0,
     particle_distribution="central"
 )
-print(
-    "total energy before simulation:",
-    0.5 * np.sum(np.linalg.norm(Dsmc.velocities, axis=1) ** 2),
-)
-collision_model = borgnakke_larssen_model(rng=Dsmc.rng)
 
+E_total = 0.5 * mass * np.sum(np.sum(Dsmc.velocities**2, axis=1)) + np.sum(Dsmc.rotational_energies)
+print("initial total energy:", E_total)
+
+collision_model = borgnakke_larssen_model(rng=Dsmc.rng)
 
 density_xt = np.empty((n_steps, n_bins), dtype=float)
 
@@ -39,10 +40,8 @@ for t in range(n_steps):
     counts, _ = np.histogram(Dsmc.positions[:, 0], bins=bin_edges)
     density_xt[t] = counts / (nr_particles)  # normalized 1D density
 
-print(
-    "total energy after simulation:",
-    0.5 * np.sum(np.linalg.norm(Dsmc.velocities, axis=1) ** 2),
-)
+E_total = 0.5 * mass * np.sum(np.sum(Dsmc.velocities**2, axis=1)) + np.sum(Dsmc.rotational_energies)
+print("final total energy:", E_total)
 
 # --- plot 1: space-time density heatmap ---
 plt.figure()
@@ -53,10 +52,10 @@ plt.imshow(
     norm="log",
     cmap="viridis",
  )
-plt.xlabel("x [meters]")
-plt.ylabel("time [seconds]")
+plt.xlabel("x [meters]", fontweight="bold")
+plt.ylabel("time [seconds]", fontweight="bold")
 plt.xticks(ticks=np.linspace(0, n_bins, 5), labels=[f"{x:.2e}" for x in np.linspace(0, box_size, 5)])
-plt.yticks(ticks=np.linspace(0, n_steps, 5), labels=[f"{t*dt:.2f}" for t in np.linspace(0, n_steps, 5)])
+plt.yticks(ticks=np.linspace(0, n_steps, 5), labels=[f"{t*dt:.2e}" for t in np.linspace(0, n_steps, 5)])
 plt.colorbar(label="normalized particle density")
 plt.tight_layout()
 plt.show()

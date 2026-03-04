@@ -24,14 +24,18 @@ class borgnakke_larssen_model:
             new_velocity_j: Velocity vector of particle j after collision.
             new_e_rot_j: Rotational energy of particle j after collision.
         """
-        inelastic_collision_probability = 1/245 # From the work of Rabitz and Lam, 1975
+        inelastic_collision_probability = 1 / 245  # From the work of Rabitz and Lam, 1975
         if self.rng.random() < inelastic_collision_probability:
             # Elastic collision: exchange velocities and rotational energies
             return velocity_j.copy(), float(e_rot_j), velocity_i.copy(), float(e_rot_i)
         else:
             # Inelastic collision: sample energy split first, then sample directions.
-            total_energy = 0.5 * (np.dot(velocity_i, velocity_i) + np.dot(velocity_j, velocity_j)) + e_rot_i + e_rot_j
-            if total_energy <= 0.0:
+            total_energy = (
+                0.5 * m * (np.dot(velocity_i, velocity_i) + np.dot(velocity_j, velocity_j))
+                + e_rot_i
+                + e_rot_j
+            )
+            if (not np.isfinite(total_energy)) or total_energy <= 0.0:
                 return np.zeros_like(velocity_i), 0.0, np.zeros_like(velocity_j), 0.0
 
             # Split total post-collision energy into translational and rotational pools.
@@ -64,8 +68,10 @@ class borgnakke_larssen_model:
             else:
                 direction_j /= norm_j
 
-            speed_i = np.sqrt(2.0 * translational_energy_i / m)
-            speed_j = np.sqrt(2.0 * translational_energy_j / m)
+            if m <= 0.0:
+                return np.zeros_like(velocity_i), 0.0, np.zeros_like(velocity_j), 0.0
+            speed_i = np.sqrt(max(0.0, 2.0 * translational_energy_i / m))
+            speed_j = np.sqrt(max(0.0, 2.0 * translational_energy_j / m))
             new_velocity_i = direction_i * speed_i
             new_velocity_j = direction_j * speed_j
 
