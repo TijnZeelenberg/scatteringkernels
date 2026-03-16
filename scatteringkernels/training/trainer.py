@@ -29,7 +29,7 @@ for dataset in DATASETS:
 
     # Initialize model and training parameters
     config = ExperimentConfig()
-    model = MixtureDensityNetwork(input_dim=3, output_dim=2, num_mixtures=config.num_mixtures, hidden_dim=config.hidden_dim)
+    model = MixtureDensityNetwork(input_dim=3, output_dim=2, num_mixtures=config.num_mixtures, hidden_dim=config.hidden_dim, randomseed=config.random_seed)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
     # Train the model

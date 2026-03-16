@@ -33,11 +33,11 @@ class DSMC_Simulation:
         dimensions: int,
     ) -> np.ndarray:
         if distribution_type == "uniform":
-            return self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float64)
+            return self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float32)
         if distribution_type == "gaussian":
-            return self.rng.normal(self.box_size / 2, self.box_size / 32, size=(nr_particles, dimensions)).astype(np.float64)
+            return self.rng.normal(self.box_size / 2, self.box_size / 32, size=(nr_particles, dimensions)).astype(np.float32)
 
-        positions = self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float64)
+        positions = self.rng.uniform(0.0, self.box_size, size=(nr_particles, dimensions)).astype(np.float32)
         if distribution_type == "central":
             positions[:, 0] = self.box_size / 2
             return positions
@@ -77,8 +77,8 @@ class DSMC_Simulation:
             dimensions=dimensions,
         )
 
-        self.velocities = self.rng.normal(0, np.sqrt(self._kB * temperature/self.mass), size=(nr_particles,dimensions)).astype(np.float64)
-        self.rotational_energies = np.zeros(nr_particles, dtype=np.float64) # TODO: add support for rotational and vibrational energy modes
+        self.velocities = self.rng.normal(0, np.sqrt(self._kB * temperature/self.mass), size=(nr_particles,dimensions)).astype(np.float32)
+        self.rotational_energies = np.zeros(nr_particles, dtype=np.float32) # TODO: add support for rotational and vibrational energy modes
         self.cell_indices = self.rng.integers(0, self.nr_cells, size=(nr_particles,))
         self.particle_init = True
 

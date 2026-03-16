@@ -62,6 +62,22 @@ class MixtureDensityNetwork(nn.Module):
         sigma = sigma.view(-1, self.K, self.D)
 
         return pi, mu, sigma
+
+    def _param_device_dtype(self) -> tuple[torch.device, torch.dtype]:
+        """Return (device, dtype) of the model parameters."""
+        try:
+            p = next(self.parameters())
+        except StopIteration:
+            return torch.device("cpu"), torch.float32
+        return p.device, p.dtype
+
+    def _cast_normalization_tensors(self) -> None:
+        """Keep normalization tensors on same device/dtype as model parameters."""
+        device, dtype = self._param_device_dtype()
+        for attr in ("input_mean", "input_std", "output_mean", "output_std"):
+            t = getattr(self, attr)
+            if t is not None:
+                setattr(self, attr, t.to(device=device, dtype=dtype))
     
     def create_dataloaders(self, X, y, batch_size, shuffle, trainval_split, random_seed): 
         """
@@ -165,12 +181,27 @@ class MixtureDensityNetwork(nn.Module):
         if self.input_mean is None or self.input_std is None or self.output_mean is None or self.output_std is None:
             raise ValueError("Normalization parameters are not set. Ensure the model has been trained or loaded before sampling.")
 
+        device, dtype = self._param_device_dtype()
+        self._cast_normalization_tensors()
+        x = x.to(device=device, dtype=dtype)
+
         self.eval()
         with torch.no_grad():
             # Normalize the input
             x = (x - self.input_mean) / self.input_std
 
+            # Guard against pathological inputs (e.g. Etot=0 -> NaNs).
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+            x = x.clamp(min=-1e4, max=1e4)
+
             pi, mu, sigma = self.forward(x)
+
+            # Ensure probabilities are valid for multinomial.
+            pi = torch.nan_to_num(pi, nan=0.0, posinf=0.0, neginf=0.0)
+            pi = torch.clamp(pi, min=0.0)
+            pi_sum = pi.sum(dim=-1, keepdim=True)
+            uniform = torch.full_like(pi, 1.0 / pi.size(-1))
+            pi = torch.where(pi_sum > 0, pi / pi_sum, uniform)
 
             # Sample one component per input according to the mixture weights
             components = torch.multinomial(pi, num_samples=1, replacement=True).squeeze(1) 
@@ -209,30 +240,50 @@ class MixtureDensityNetwork(nn.Module):
         # Compute precollisional energy fractions
         Etr = 0.5 * m * (np.dot(velocity_i, velocity_i) + np.dot(velocity_j, velocity_j))
         Etot = Etr + e_rot_i + e_rot_j
+
+        # Degenerate (near-zero) collisions: keep state unchanged.
+        if not np.isfinite(Etot) or Etot <= 0.0:
+            return velocity_i, e_rot_i, velocity_j, e_rot_j
+
         eta_tr = Etr / Etot
         eta_rot_A = e_rot_i / Etot
 
+        if not (np.isfinite(eta_tr) and np.isfinite(eta_rot_A)):
+            return velocity_i, e_rot_i, velocity_j, e_rot_j
+
         # Sample new energy fractions from the predicted mixture of Gaussians
-        input_features = torch.tensor([[Etot, eta_tr, eta_rot_A]]) 
-        etap_tr, etap_rot_A = self.sample(input_features).squeeze(0).numpy()
+        device, dtype = self._param_device_dtype()
+        input_features = torch.tensor(
+            [[Etot, eta_tr, eta_rot_A]],
+            device=device,
+            dtype=dtype,
+        )
+        etap_tr, etap_rot_A = self.sample(input_features).squeeze(0).detach().cpu().numpy()
+
+        # Physical constraints: energy fractions must lie in [0, 1].
+        etap_tr = float(np.clip(etap_tr, 0.0, 1.0))
+        etap_rot_A = float(np.clip(etap_rot_A, 0.0, 1.0))
 
         # Compute post-collision energies from sampled fractions
-        Etr_post = etap_tr * Etot
+        Etr_post = float(np.clip(etap_tr * Etot, 0.0, Etot))
         Etr_i_post = Etr_post * 0.5  # Assume equal split of translational energy for simplicity
         Etr_j_post = Etr_post - Etr_i_post
-        E_rot_i_post = etap_rot_A * (Etot - Etr_post)
-        E_rot_j_post = (1 - etap_rot_A) * (Etot - Etr_post)
+        E_rot_pool = max(0.0, float(Etot - Etr_post))
+        E_rot_i_post = etap_rot_A * E_rot_pool
+        E_rot_j_post = (1.0 - etap_rot_A) * E_rot_pool
 
         # Sample new velocity directions uniformly on the sphere
         direction_i = self._sample_unit_direction(velocity_i.shape)
         direction_j = self._sample_unit_direction(velocity_j.shape)
         
         # scale directions to match the post-collision translational energy
-        v_i_post = direction_i * np.sqrt(2 * Etr_i_post / m)
-        v_j_post = direction_j * np.sqrt(2 * Etr_j_post / m)
+        if not np.isfinite(m) or m <= 0.0:
+            return velocity_i, e_rot_i, velocity_j, e_rot_j
+
+        v_i_post = direction_i * np.sqrt(max(0.0, 2.0 * Etr_i_post / m))
+        v_j_post = direction_j * np.sqrt(max(0.0, 2.0 * Etr_j_post / m))
         
         return v_i_post, E_rot_i_post, v_j_post, E_rot_j_post
-        #TODO: create function to sample random directions
         #TODO: create function to convert translational energy to velocity magnitude
          
 
@@ -271,6 +322,7 @@ class MixtureDensityNetwork(nn.Module):
         self.input_std = model_dict["input_std"]
         self.output_mean = model_dict["output_mean"]
         self.output_std = model_dict["output_std"]
+        self._cast_normalization_tensors()
 
 
 # Define loss function
