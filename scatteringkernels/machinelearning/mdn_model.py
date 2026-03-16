@@ -260,6 +260,7 @@ class MixtureDensityNetwork(nn.Module):
         )
         etap_tr, etap_rot_A = self.sample(input_features).squeeze(0).detach().cpu().numpy()
 
+        #TODO: integrate the [0,1] interval constraint into the sampling process, instead of clipping after sampling.
         # Physical constraints: energy fractions must lie in [0, 1].
         etap_tr = float(np.clip(etap_tr, 0.0, 1.0))
         etap_rot_A = float(np.clip(etap_rot_A, 0.0, 1.0))
@@ -272,6 +273,7 @@ class MixtureDensityNetwork(nn.Module):
         E_rot_i_post = etap_rot_A * E_rot_pool
         E_rot_j_post = (1.0 - etap_rot_A) * E_rot_pool
 
+        #TODO: sample new velocities such that momentum is conserved
         # Sample new velocity directions uniformly on the sphere
         direction_i = self._sample_unit_direction(velocity_i.shape)
         direction_j = self._sample_unit_direction(velocity_j.shape)

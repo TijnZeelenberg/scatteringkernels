@@ -83,6 +83,7 @@ class DSMC_Simulation:
         self.particle_init = True
 
     def select_collision_pairs(self, collision_probability=0.5):
+        #TODO: implement proper No-Time-Counter method for selecting collision pairs based on relative velocities and collision cross-sections, instead of using a fixed collision probability.
         """
         Select collision pairs with given collision probability.
         
