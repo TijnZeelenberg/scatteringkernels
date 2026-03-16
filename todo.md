@@ -7,3 +7,4 @@
 - [x] Add support for rotational and vibrational energy modes in the DSMC code, which may require changes to the particle data structure and collision handling logic.
 - [x] Implement the 'sample_velocities()' method in the MDN model to generate new velocity vectors based on the predicted energy distribution, which may involve sampling from the predicted mixture of Gaussians and applying the appropriate transformations to obtain velocity vectors.
 - [ ] Change DSMC and MDN accuracy from float32 to float64
+- [ ] Plot the total energy of the system over time for both the DSMC and MDN simulations to verify that energy is conserved in both cases.

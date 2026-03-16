@@ -238,8 +238,9 @@ class MixtureDensityNetwork(nn.Module):
             raise ValueError("Input velocity vectors must have the same shape.")
 
         # Compute precollisional energy fractions
+        # Etot here includes center-of-mass kinetic energy (because it uses absolute velocities).
         Etr = 0.5 * m * (np.dot(velocity_i, velocity_i) + np.dot(velocity_j, velocity_j))
-        Etot = Etr + e_rot_i + e_rot_j
+        Etot = float(Etr + e_rot_i + e_rot_j)
 
         # Degenerate (near-zero) collisions: keep state unchanged.
         if not np.isfinite(Etot) or Etot <= 0.0:
@@ -265,26 +266,34 @@ class MixtureDensityNetwork(nn.Module):
         etap_tr = float(np.clip(etap_tr, 0.0, 1.0))
         etap_rot_A = float(np.clip(etap_rot_A, 0.0, 1.0))
 
-        # Compute post-collision energies from sampled fractions
-        Etr_post = float(np.clip(etap_tr * Etot, 0.0, Etot))
-        Etr_i_post = Etr_post * 0.5  # Assume equal split of translational energy for simplicity
-        Etr_j_post = Etr_post - Etr_i_post
-        E_rot_pool = max(0.0, float(Etot - Etr_post))
-        E_rot_i_post = etap_rot_A * E_rot_pool
-        E_rot_j_post = (1.0 - etap_rot_A) * E_rot_pool
-
-        #TODO: sample new velocities such that momentum is conserved
-        # Sample new velocity directions uniformly on the sphere
-        direction_i = self._sample_unit_direction(velocity_i.shape)
-        direction_j = self._sample_unit_direction(velocity_j.shape)
-        
-        # scale directions to match the post-collision translational energy
+        # Enforce momentum conservation by working in the COM frame.
+        # Center-of-mass velocity (equal masses assumed)
         if not np.isfinite(m) or m <= 0.0:
-            return velocity_i, e_rot_i, velocity_j, e_rot_j
+            return velocity_i, float(e_rot_i), velocity_j, float(e_rot_j)
+        V = 0.5 * (velocity_i + velocity_j)
+        E_com = float(m * np.dot(V, V))
 
-        v_i_post = direction_i * np.sqrt(max(0.0, 2.0 * Etr_i_post / m))
-        v_j_post = direction_j * np.sqrt(max(0.0, 2.0 * Etr_j_post / m))
-        
+        # Interpret the sampled translational fraction as target *total* translational energy,
+        # but COM kinetic energy is fixed, so only the relative part can change.
+        Etr_target = float(np.clip(etap_tr * Etot, 0.0, Etot))
+        E_rel_post = max(0.0, Etr_target - E_com)
+
+        # Relative translational energy cannot exceed the available non-COM energy.
+        E_available = max(0.0, Etot - E_com)
+        E_rel_post = float(np.clip(E_rel_post, 0.0, E_available))
+
+        # Remaining energy goes into rotation.
+        E_rot_pool = float(max(0.0, E_available - E_rel_post))
+        E_rot_i_post = float(etap_rot_A * E_rot_pool)
+        E_rot_j_post = float((1.0 - etap_rot_A) * E_rot_pool)
+
+        # Sample isotropic relative velocity direction and set magnitude from E_rel_post.
+        direction = self._sample_unit_direction(velocity_i.shape)
+        g_mag = float(np.sqrt(max(0.0, 4.0 * E_rel_post / m)))
+        g_post = direction * g_mag
+
+        v_i_post = V + 0.5 * g_post
+        v_j_post = V - 0.5 * g_post
         return v_i_post, E_rot_i_post, v_j_post, E_rot_j_post
         #TODO: create function to convert translational energy to velocity magnitude
          

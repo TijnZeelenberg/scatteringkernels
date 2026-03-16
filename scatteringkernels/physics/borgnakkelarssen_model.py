@@ -24,58 +24,61 @@ class borgnakke_larssen_model:
             new_velocity_j: Velocity vector of particle j after collision.
             new_e_rot_j: Rotational energy of particle j after collision.
         """
-        inelastic_collision_probability = 1 / 245  # From the work of Rabitz and Lam, 1975
+        # NOTE:
+        # For transport properties (viscosity, etc.) each binary collision must conserve
+        # pair momentum and total energy (translational + internal).
+        # We enforce this by working in the center-of-mass (COM) frame.
+
+        inelastic_collision_probability = 1 / 245  # Rabitz & Lam (1975)
+
+        # Center-of-mass velocity (equal masses assumed)
+        V = 0.5 * (velocity_i + velocity_j)
+        g = velocity_i - velocity_j
+        if (not np.isfinite(m)) or m <= 0.0:
+            return velocity_i, float(e_rot_i), velocity_j, float(e_rot_j)
+
+        # Energy decomposition:
+        # E_total = E_com + E_rel + E_rot_i + E_rot_j
+        E_com = float(m * np.dot(V, V))
+        E_rel = float(0.25 * m * np.dot(g, g))
+        E_available = E_rel + float(e_rot_i) + float(e_rot_j)
+        if (not np.isfinite(E_available)) or E_available < 0.0:
+            return velocity_i, float(e_rot_i), velocity_j, float(e_rot_j)
+
+        # With probability, perform a purely elastic collision (swap labels).
+        # This is momentum- and energy-conserving.
         if self.rng.random() < inelastic_collision_probability:
-            # Elastic collision: exchange velocities and rotational energies
             return velocity_j.copy(), float(e_rot_j), velocity_i.copy(), float(e_rot_i)
+
+        # Inelastic collision (Borgnakke–Larsen style): redistribute energy between
+        # relative translation and rotation, while conserving COM momentum.
+        translational_fraction = float(self.rng.random())
+        E_rel_post = E_available * translational_fraction
+        E_rot_pool_post = E_available - E_rel_post
+
+        # Split rotational pool between particles
+        rot_fraction_i = float(self.rng.random())
+        new_e_rot_i = E_rot_pool_post * rot_fraction_i
+        new_e_rot_j = E_rot_pool_post - new_e_rot_i
+
+        # Sample isotropic relative velocity direction
+        direction = self.rng.normal(size=velocity_i.shape)
+        norm = float(np.linalg.norm(direction))
+        if norm == 0.0 or (not np.isfinite(norm)):
+            direction = np.zeros_like(velocity_i)
+            direction[0] = 1.0
+            norm = 1.0
         else:
-            # Inelastic collision: sample energy split first, then sample directions.
-            total_energy = (
-                0.5 * m * (np.dot(velocity_i, velocity_i) + np.dot(velocity_j, velocity_j))
-                + e_rot_i
-                + e_rot_j
-            )
-            if (not np.isfinite(total_energy)) or total_energy <= 0.0:
-                return np.zeros_like(velocity_i), 0.0, np.zeros_like(velocity_j), 0.0
+            direction = direction / norm
 
-            # Split total post-collision energy into translational and rotational pools.
-            translational_fraction = self.rng.random()
-            translational_energy = total_energy * translational_fraction
-            rotational_energy = total_energy - translational_energy
+        g_mag = float(np.sqrt(max(0.0, 4.0 * E_rel_post / m)))
+        g_post = direction * g_mag
+        new_velocity_i = V + 0.5 * g_post
+        new_velocity_j = V - 0.5 * g_post
 
-            # Split each pool across particles.
-            translational_fraction_i = self.rng.random()
-            rotational_fraction_i = self.rng.random()
-            translational_energy_i = translational_energy * translational_fraction_i
-            translational_energy_j = translational_energy - translational_energy_i
-            new_e_rot_i = rotational_energy * rotational_fraction_i
-            new_e_rot_j = rotational_energy - new_e_rot_i
-
-            # Sample isotropic velocity directions.
-            direction_i = self.rng.normal(size=velocity_i.shape)
-            direction_j = self.rng.normal(size=velocity_j.shape)
-
-            norm_i = np.sqrt(np.dot(direction_i, direction_i))
-            norm_j = np.sqrt(np.dot(direction_j, direction_j))
-            if norm_i == 0.0:
-                direction_i.fill(0.0)
-                direction_i[0] = 1.0
-            else:
-                direction_i /= norm_i
-            if norm_j == 0.0:
-                direction_j.fill(0.0)
-                direction_j[0] = 1.0
-            else:
-                direction_j /= norm_j
-
-            if m <= 0.0:
-                return np.zeros_like(velocity_i), 0.0, np.zeros_like(velocity_j), 0.0
-            speed_i = np.sqrt(max(0.0, 2.0 * translational_energy_i / m))
-            speed_j = np.sqrt(max(0.0, 2.0 * translational_energy_j / m))
-            new_velocity_i = direction_i * speed_i
-            new_velocity_j = direction_j * speed_j
-
-        return new_velocity_i, new_e_rot_i, new_velocity_j, new_e_rot_j
+        # Total energy is conserved by construction:
+        # E_com + E_rel_post + new_e_rot_i + new_e_rot_j == E_com + E_available.
+        return new_velocity_i, float(new_e_rot_i), new_velocity_j, float(new_e_rot_j)
         
 
         # TODO: add support for different collision models and energy exchange mechanisms such as VHS or VSS
