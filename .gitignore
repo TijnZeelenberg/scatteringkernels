@@ -1,4 +1,5 @@
 # Ignore virtual environment and VSCode settings
+.mise.toml
 .venv/
 .vscode/
 __pycache__/
