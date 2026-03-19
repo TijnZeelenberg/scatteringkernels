@@ -21,7 +21,7 @@ NR_PARTICLES = 5000
 MOLECULES_PER_PARTICLE = 100  # statistical weight (does not change molecular speed scale)
 TEMPERATURE = 300.0
 BOX_SIZE = 1e-3
-NR_CELLS = 50
+NR_CELLS = 100 
 DT = 4e-7
 N_STEPS = 3000
 
