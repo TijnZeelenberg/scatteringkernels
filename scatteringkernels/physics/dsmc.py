@@ -47,33 +47,39 @@ class DSMC_Simulation:
             self.positions = self.rng.uniform(
                 0.0, self.box_size, size=(nr_particles, dimensions)
             ).astype(np.float32)
+            return
         if distribution_type == "gaussian":
             self.positions = self.rng.normal(
                 self.box_size / 2, self.box_size / 32, size=(nr_particles, dimensions)
             ).astype(np.float32)
+            return
 
         self.positions = self.rng.uniform(
             0.0, self.box_size, size=(nr_particles, dimensions)
         ).astype(np.float32)
         if distribution_type == "central":
             self.positions[:, 0] = self.box_size / 2
+            return
         if distribution_type == "left_biased_gaussian":
             self.positions[:, 0] = self.rng.uniform(
                 0.0, 0.25 * self.box_size, size=nr_particles
             )
+            return
         if distribution_type == "left_wall":
             self.positions[:, 0] = 0.0
+            return
 
     def create_particles(
         self,
         nr_particles: int,
         mass: float,
         particle_distribution: ParticleDistribution,
-        temperature: float,
+        trans_temperature: float,
+        rot_temperature: float,
     ):
         self.nr_particles = nr_particles
         self.mass = mass
-        self.temperature = temperature  # TODO: add support for temperature gradients and non-equilibrium distributions
+        self.temperature = trans_temperature  # TODO: add support for temperature gradients and non-equilibrium distributions
 
         self.set_particle_positions(
             nr_particles=nr_particles,
@@ -83,12 +89,14 @@ class DSMC_Simulation:
 
         self.velocities = self.rng.normal(
             0,
-            np.sqrt(self._kB * temperature / self.mass),
+            np.sqrt(self._kB * trans_temperature / self.mass),
             size=(nr_particles, dimensions),
         ).astype(np.float32)
         print("Velocities set")
 
-        self.rotational_energies = np.zeros(nr_particles, dtype=np.float32)
+        self.rotational_energies = self.rng.exponential(
+            scale=self._kB * rot_temperature, size=nr_particles
+        ).astype(np.float32)
         self.cell_indices = self.rng.integers(0, self.nr_cells, size=(nr_particles,))
 
     def update_cell_indices(self):
