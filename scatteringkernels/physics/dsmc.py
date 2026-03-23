@@ -12,35 +12,43 @@ dimensions = 3
 class DSMC_Simulation:
     """Direct Simulation Monte Carlo (DSMC) implementation."""
 
-    def __init__(self, dimensions, random_seed=None):
+    def __init__(self, random_seed=None):
         self.rng = np.random.default_rng(random_seed)
-        self.dimensions = dimensions
         self._kB = 1.380649e-23
         self.positions = None
         self.velocities = None
         self.box_size = None
         self.nr_cells = None
+        self.particle_cell_idx = None
         self._track_momentum_transfer = False
 
     def create_box(self, box_size: float):
         self.box_size = box_size
 
-    def create_grid(self, nr_cells: int):
+    def create_grid(self, x_cells: int, y_cells: int, z_cells: int):
+        """Initialize the grid for cell-based collision selection.
+        Args:
+            x: Number of cells along the x-axis.
+            y: Number of cells along the y-axis.
+            z: Number of cells along the z-axis.
+        """
         if self.box_size is None:
             raise ValueError(
                 "Simulation domain must be initialized before creating the grid."
             )
-
-        self.nr_cells = nr_cells
-        self.cell_size = self.box_size / nr_cells
-        self.cell_indices = np.zeros(0, dtype=int)
+        self.cell_sizes = (
+            self.box_size / x_cells,
+            self.box_size / y_cells,
+            self.box_size / z_cells,
+        )
+        self.nr_cells = x_cells * y_cells * z_cells
 
     def set_particle_positions(
-        self,
-        nr_particles: int,
-        distribution_type: ParticleDistribution,
-        dimensions: int,
+        self, nr_particles: int, distribution_type: ParticleDistribution
     ):
+        self.nr_particles = nr_particles
+        self.particle_cell_idx = np.zeros(self.nr_particles, dtype=int)
+
         if self.box_size is None:
             raise ValueError(
                 "Simulation domain must be initialized before setting particle positions."
@@ -81,13 +89,13 @@ class DSMC_Simulation:
     ):
         self.nr_particles = nr_particles
         self.mass = mass
-        self.temperature = trans_temperature  # TODO: add support for temperature gradients and non-equilibrium distributions
+        self.temperature = trans_temperature
 
         self.set_particle_positions(
-            nr_particles=nr_particles,
-            distribution_type=particle_distribution,
-            dimensions=dimensions,
+            nr_particles=nr_particles, distribution_type=particle_distribution
         )
+        self.particle_cell_idx = np.zeros((nr_particles, dimensions), dtype=int)
+        self.update_cell_indices()
 
         self.velocities = self.rng.normal(
             0,
@@ -99,24 +107,37 @@ class DSMC_Simulation:
         self.rotational_energies = self.rng.exponential(
             scale=self._kB * rot_temperature, size=nr_particles
         ).astype(np.float32)
-        self.cell_indices = self.rng.integers(0, self.nr_cells, size=(nr_particles,))
 
     def track_stats(self, momentum_transfer=False):
         self._track_momentum_transfer = momentum_transfer
 
     def update_cell_indices(self):
-        """Update the x-axis cell indices for each particle based on their current positions."""
-        # TODO: add support for 2D and 3D cell indexing, currently only supports 1D cell indexing along the x-axis.
+        """Update the cell indices for each particle based on their current positions."""
 
-        if self.nr_cells is None:
-            raise ValueError("Grid must be initialized before updating cell indices.")
         if self.positions is None:
             raise ValueError(
                 "Particle positions must be initialized before updating cell indices."
             )
+        if self.particle_cell_idx is None:
+            raise ValueError(
+                "Particles must be initialized before updating cell indices."
+            )
 
-        self.cell_indices = np.floor(self.positions[:, 0] / self.cell_size).astype(int)
-        self.cell_indices = np.clip(self.cell_indices, 0, self.nr_cells - 1)
+        for particle in range(self.nr_particles):
+            x_idx = np.floor(self.positions[particle, 0] / self.cell_sizes[0]).astype(
+                int
+            )
+            y_idx = np.floor(self.positions[particle, 1] / self.cell_sizes[1]).astype(
+                int
+            )
+            z_idx = np.floor(self.positions[particle, 2] / self.cell_sizes[2]).astype(
+                int
+            )
+
+            # use flat cell indices
+            self.particle_cell_idx[particle] = (
+                x_idx + y_idx * x_idx + z_idx * x_idx * y_idx
+            )
 
     def select_collision_pairs(self, collision_probability=0.5):
         # TODO: implement proper No-Time-Counter method for selecting collision pairs based on relative velocities and collision cross-sections, instead of using a fixed collision probability.
@@ -134,9 +155,8 @@ class DSMC_Simulation:
                 "Grid must be initialized before selecting collision pairs."
             )
 
-        # create arrays to hold the particles in each cell
         cell_particles = [
-            np.where(self.cell_indices == i)[0] for i in range(self.nr_cells)
+            np.where(self.particle_cell_idx == cell)[0] for cell in range(self.nr_cells)
         ]
 
         # Choose random pairs of particles
@@ -170,8 +190,8 @@ class DSMC_Simulation:
             )
 
         momentum_transfer = 0.0
-        for pairs in collision_pairs:
-            for i, j in pairs:
+        for pair in collision_pairs:
+            for i, j in pair:
                 # Get the velocities and rotational energies of the two particles
                 v_i = self.velocities[i].copy()
                 v_j = self.velocities[j].copy()
@@ -180,7 +200,7 @@ class DSMC_Simulation:
 
                 # Perform collision using the provided collision model
                 new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.collide(
-                    v_i, e_rot_i, v_j, e_rot_j, m=self.mass, T=self.temperature
+                    v_i, e_rot_i, v_j, e_rot_j, m=self.mass
                 )
 
                 # Update the velocities and rotational energies of the particles

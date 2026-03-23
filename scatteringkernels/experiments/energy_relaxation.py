@@ -4,17 +4,16 @@ from visualization.plot import plot_energy_relaxation
 
 # --- simulation parameters ---
 pressure = 1  # Pa
-box_size = 1e-5  # m
+box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 gas_constant = 8.314  # J/(mol*K)
-molecules_per_particle = (
+moles_per_particle = (
     pressure * volume / (gas_constant * trans_temperature)
 )  # ideal gas law: n = PV/RT
-mass = molecules_per_particle * 2.016 / 6.022e23
-print("molecules_per_particle:", molecules_per_particle)
-# FIX: why is this 4.009e-19?
+mass = moles_per_particle * 2.016
+print("molecules_per_particle:", moles_per_particle * 6.022e23)
 
 # --- set up collision model ---
 bl_model = borgnakke_larssen_model(randomseed=42)
@@ -22,7 +21,7 @@ bl_model = borgnakke_larssen_model(randomseed=42)
 # --- set up DSMC simulation ---
 dsmc = DSMC_Simulation(random_seed=42)
 dsmc.create_box(box_size=1e-5)
-dsmc.create_grid(nr_cells=100)
+dsmc.create_grid(x_cells=10, y_cells=10, z_cells=10)
 dsmc.create_particles(
     nr_particles=10000,
     mass=mass,

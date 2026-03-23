@@ -5,7 +5,7 @@ class borgnakke_larssen_model:
     def __init__(self, randomseed: int = 42):
         self.rng = np.random.default_rng(randomseed)
 
-    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, T):
+    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m):
         """
         Perform a collision between two particles using the Borgnakke-Larssen model.
 

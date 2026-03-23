@@ -254,8 +254,7 @@ class MixtureDensityNetwork(nn.Module):
             if n > 0.0:
                 return d / n
 
-    # TODO: Write method to take in velocity vectors and rotation energies, and output new velocity vectors sampled from the predicted energy distribution
-    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, T):
+    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m):
         if velocity_i.shape != velocity_j.shape:
             raise ValueError("Input velocity vectors must have the same shape.")
 

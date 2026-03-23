@@ -46,13 +46,6 @@ volume = box_size**3  # m^3
 trans_temperature = 300.0  # K
 rot_temperature = 300.0  # K
 
-gas_constant = 8.314
-molecules_per_particle = pressure * volume / (gas_constant * trans_temperature)
-mass = molecules_per_particle * 2.016 / 6.022e23
-
-print("molecules_per_particle:", molecules_per_particle)
-
-
 # --- run parameters ---
 nr_particles = 10_000
 nr_cells = 100
@@ -60,6 +53,12 @@ dt = 1e-5
 nr_steps = 10_000
 equilibration_steps = 1_000
 max_lag = 2_000
+
+gas_constant = 8.314
+n_moles = pressure * volume / (gas_constant * trans_temperature)
+mass = n_moles * 2.016e-3 / nr_particles  # effective mass per simulated particle (kg)
+
+print("mass per simulated particle:", mass)
 
 
 # --- models ---
@@ -75,7 +74,7 @@ dsmc.create_particles(
     rot_temperature=rot_temperature,
     particle_distribution="uniform",
 )
-dsmc.track_stats(momentum_transfer=True)
+dsmc.track_stats(momentum_transfer=False)
 
 
 shear_stress_series = np.zeros(nr_steps)
@@ -90,22 +89,14 @@ for step in tqdm(range(nr_steps)):
     # Select collision pairs
     collision_pairs = dsmc.select_collision_pairs()
 
-    momentum_transfer = dsmc.perform_collisions(
-        collision_model=bl_model, collision_pairs=collision_pairs
-    )
+    dsmc.perform_collisions(collision_model=bl_model, collision_pairs=collision_pairs)
 
-    # Normalize collisional contribution
-    P_xy_coll = momentum_transfer / (volume * dt)
-
-    # Kinetic contribution
-    P_xy_kin = compute_kinetic_shear_stress(
+    # Kinetic contribution (post-collision; correct for dilute-gas DSMC)
+    shear_stress_series[step] = compute_kinetic_shear_stress(
         velocities=dsmc.velocities,
         mass=mass,
         volume=volume,
     )
-
-    # Total shear stress
-    shear_stress_series[step] = P_xy_kin + P_xy_coll
 
     # Temperature
     trans_energies = 0.5 * mass * np.sum(dsmc.velocities**2, axis=1)
@@ -140,4 +131,3 @@ results = {
     "time_lags": time_lags,
     "estimated_viscosity": viscosity,
 }
-
