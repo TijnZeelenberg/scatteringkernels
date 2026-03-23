@@ -3,7 +3,6 @@
 .venv/
 .vscode/
 __pycache__/
-.github/
 
 # Ignore produces images and plots
 results/

@@ -12,8 +12,9 @@ dimensions = 3
 class DSMC_Simulation:
     """Direct Simulation Monte Carlo (DSMC) implementation."""
 
-    def __init__(self, random_seed=None):
+    def __init__(self, dimensions, random_seed=None):
         self.rng = np.random.default_rng(random_seed)
+        self.dimensions = dimensions
         self._kB = 1.380649e-23
         self.positions = None
         self.velocities = None
@@ -178,7 +179,7 @@ class DSMC_Simulation:
                 e_rot_j = self.rotational_energies[j].copy()
 
                 # Perform collision using the provided collision model
-                new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.postsample(
+                new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.collide(
                     v_i, e_rot_i, v_j, e_rot_j, m=self.mass, T=self.temperature
                 )
 
@@ -189,12 +190,10 @@ class DSMC_Simulation:
                 self.rotational_energies[j] = new_e_rot_j
 
                 if self._track_momentum_transfer:
-                    # Store momentum transfer for viscosity calculation
-                    dv_i = new_v_i - v_i
-                    dv_j = new_v_j - v_j
-
+                    # Collisional change in v_x*v_y: Δ(v_xi*v_yi) + Δ(v_xj*v_yj)
                     momentum_transfer += self.mass * (
-                        dv_i[0] * new_v_i[1] + dv_j[0] * new_v_j[1]
+                        (new_v_i[0] * new_v_i[1] - v_i[0] * v_i[1])
+                        + (new_v_j[0] * new_v_j[1] - v_j[0] * v_j[1])
                     )
 
         if self._track_momentum_transfer:

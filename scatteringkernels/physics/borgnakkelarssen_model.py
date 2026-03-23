@@ -5,7 +5,7 @@ class borgnakke_larssen_model:
     def __init__(self, randomseed: int = 42):
         self.rng = np.random.default_rng(randomseed)
 
-    def postsample(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, T):
+    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, T):
         """
         Perform a collision between two particles using the Borgnakke-Larssen model.
 
@@ -83,5 +83,16 @@ class borgnakke_larssen_model:
                 float(new_e_rot_j),
             )
         else:
-            # Elastic collision: hard-sphere deflection
-            return velocity_j.copy(), float(e_rot_j), velocity_i.copy(), float(e_rot_i)
+            # Elastic collision: isotropic hard-sphere deflection
+            # Randomize relative velocity direction, preserve speed and COM velocity
+            V_com = 0.5 * (velocity_i + velocity_j)
+            g_mag = float(np.linalg.norm(g))
+            direction = self.rng.normal(size=velocity_i.shape)
+            direction /= np.linalg.norm(direction)
+            g_post = direction * g_mag
+            return (
+                V_com + 0.5 * g_post,
+                float(e_rot_i),
+                V_com - 0.5 * g_post,
+                float(e_rot_j),
+            )
