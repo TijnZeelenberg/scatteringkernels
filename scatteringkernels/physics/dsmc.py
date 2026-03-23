@@ -19,6 +19,7 @@ class DSMC_Simulation:
         self.velocities = None
         self.box_size = None
         self.nr_cells = None
+        self._track_momentum_transfer = False
 
     def create_box(self, box_size: float):
         self.box_size = box_size
@@ -99,6 +100,9 @@ class DSMC_Simulation:
         ).astype(np.float32)
         self.cell_indices = self.rng.integers(0, self.nr_cells, size=(nr_particles,))
 
+    def track_stats(self, momentum_transfer=False):
+        self._track_momentum_transfer = momentum_transfer
+
     def update_cell_indices(self):
         """Update the x-axis cell indices for each particle based on their current positions."""
         # TODO: add support for 2D and 3D cell indexing, currently only supports 1D cell indexing along the x-axis.
@@ -159,13 +163,19 @@ class DSMC_Simulation:
                 "Particle velocities and rotational energies must be initialized before performing collisions."
             )
 
+        if self.box_size is None:
+            raise ValueError(
+                "Simulation domain must be initialized before performing collisions."
+            )
+
+        momentum_transfer = 0.0
         for pairs in collision_pairs:
             for i, j in pairs:
                 # Get the velocities and rotational energies of the two particles
-                v_i = self.velocities[i]
-                v_j = self.velocities[j]
-                e_rot_i = self.rotational_energies[i]
-                e_rot_j = self.rotational_energies[j]
+                v_i = self.velocities[i].copy()
+                v_j = self.velocities[j].copy()
+                e_rot_i = self.rotational_energies[i].copy()
+                e_rot_j = self.rotational_energies[j].copy()
 
                 # Perform collision using the provided collision model
                 new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.postsample(
@@ -177,6 +187,20 @@ class DSMC_Simulation:
                 self.velocities[j] = new_v_j
                 self.rotational_energies[i] = new_e_rot_i
                 self.rotational_energies[j] = new_e_rot_j
+
+                if self._track_momentum_transfer:
+                    # Store momentum transfer for viscosity calculation
+                    dv_i = new_v_i - v_i
+                    dv_j = new_v_j - v_j
+
+                    momentum_transfer += self.mass * (
+                        dv_i[0] * new_v_i[1] + dv_j[0] * new_v_j[1]
+                    )
+
+        if self._track_momentum_transfer:
+            return momentum_transfer
+
+        return
 
     def update_positions_and_indices(self, dt):
         """Update particle positions based on their velocities and the time step.

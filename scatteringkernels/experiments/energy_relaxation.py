@@ -14,6 +14,7 @@ molecules_per_particle = (
 )  # ideal gas law: n = PV/RT
 mass = molecules_per_particle * 2.016 / 6.022e23
 print("molecules_per_particle:", molecules_per_particle)
+# FIX: why is this 4.009e-19?
 
 # --- set up collision model ---
 bl_model = borgnakke_larssen_model(randomseed=42)
