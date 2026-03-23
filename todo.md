@@ -9,4 +9,5 @@
 - [ ] Define standard interface for collision models in the DSMC code to allow for easy integration of different collision models (e.g., hard sphere, variable hard sphere, etc.)
 - [ ] Change DSMC and MDN accuracy from float32 to float64
 - [ ] !! Make the DSMC use the same configuration format as SPARTA to facilitate easy comparison and validation against SPARTA results. This is also a nice structure for the code as sparta input files are well-structured and easy to read.
+- [ ] Add method for extracting viscosity to Dsmc
 - [ ] Add support for Bulk-viscosity calculation using a compression wave in the DSMC.
