@@ -1,5 +1,6 @@
 from physics.dsmc import DSMC_Simulation
 from physics.borgnakkelarssen_model import borgnakke_larssen_model
+from machinelearning.mdn import MixtureDensityNetwork
 from visualization.plot import plot_energy_relaxation
 
 # --- simulation parameters ---
@@ -16,6 +17,10 @@ mass = moles_per_particle * 2.016
 
 # --- set up collision model ---
 bl_model = borgnakke_larssen_model(randomseed=42)
+mdn_model = MixtureDensityNetwork(
+    input_dim=3, output_dim=2, num_mixtures=5, hidden_dim=128, randomseed=42
+)
+mdn_model.load_model("results/models/mdn_H2H2.pth")
 
 # --- set up DSMC simulation ---
 dsmc = DSMC_Simulation(random_seed=42)
@@ -30,9 +35,9 @@ dsmc.create_particles(
 )
 
 dsmc.run_simulation(
-    nr_steps=7000,
+    nr_steps=2000,
     dt=1e-5,
-    collision_model=bl_model,
+    collision_model=mdn_model,
 )
 
 # --- plot energy relaxation ---

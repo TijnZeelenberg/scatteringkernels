@@ -188,6 +188,7 @@ class DSMC_Simulation:
             new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.collide(
                 v_i, e_rot_i, v_j, e_rot_j, m=self.mass
             )
+            # OPTIMIZE: add batch_collide method to vastly improve simulation speed
 
             # Update the velocities and rotational energies of the particles
             self.velocities[i] = new_v_i
@@ -208,7 +209,7 @@ class DSMC_Simulation:
                 (new_v_i[1] * new_v_i[2] - v_i[1] * v_i[2])
                 + (new_v_j[1] * new_v_j[2] - v_j[1] * v_j[2])
             )
-
+        # HACK: returning the pressure tensors in the collision method is not ideal
         return Pxy, Pxz, Pyz
 
     def update_positions(self, dt):

@@ -16,18 +16,19 @@ nr_particles = 10_000
 nr_cells = 100
 equilibration_steps = 1_000
 max_lag = 2_000
-
+kB = 1.380649e-23
+dt = 1e-5
 gas_constant = 8.314
 n_moles = pressure * volume / (gas_constant * trans_temperature)
 mass = n_moles * 2.016e-3 / nr_particles  # effective mass per simulated particle (kg)
 
 
 # --- models ---
-bl_model = borgnakke_larssen_model(randomseed=42)
-mdn_model = MixtureDensityNetwork(
+bl = borgnakke_larssen_model(randomseed=42)
+mdn = MixtureDensityNetwork(
     input_dim=3, output_dim=2, num_mixtures=5, hidden_dim=128, randomseed=42
 )
-mdn_model.load_model("results/models/mdn_H2H2.pth")
+mdn.load_model("results/models/mdn_H2H2.pth")
 
 dsmc = DSMC_Simulation(random_seed=42)
 dsmc.create_box(box_size=box_size)
@@ -41,6 +42,50 @@ dsmc.create_particles(
 )
 
 print("Running DSMC for Green-Kubo viscosity...")
-dsmc.run_simulation(nr_steps=7000, dt=1e-5, collision_model=bl_model)
+dsmc.run_simulation(nr_steps=7000, dt=dt, collision_model=bl)
 
 stats = dsmc.get_stats()
+
+# --- compute viscosity via Green-Kubo ---
+
+# Discard equilibration period
+Pxy = stats["Pxy"][equilibration_steps:]
+Pxz = stats["Pxz"][equilibration_steps:]
+Pyz = stats["Pyz"][equilibration_steps:]
+
+# Subtract means (should be ~0 at equilibrium, helps numerically)
+Pxy -= np.mean(Pxy)
+Pxz -= np.mean(Pxz)
+Pyz -= np.mean(Pyz)
+
+n = len(Pxy)
+
+
+def autocorrelation_fft(signal, max_lag):
+    """Compute normalized autocorrelation using FFT."""
+    n = len(signal)
+    # Zero-pad to avoid circular correlation artifacts
+    padded = np.zeros(2 * n)
+    padded[:n] = signal
+    fft = np.fft.rfft(padded)
+    acf_full = np.fft.irfft(fft * np.conj(fft))[:max_lag]
+    # Normalize by number of overlapping points at each lag
+    counts = np.arange(n, n - max_lag, -1)
+    return acf_full / counts
+
+
+acf_xy = autocorrelation_fft(Pxy, max_lag)
+acf_xz = autocorrelation_fft(Pxz, max_lag)
+acf_yz = autocorrelation_fft(Pyz, max_lag)
+
+# Average the three independent estimates
+acf_avg = (acf_xy + acf_xz + acf_yz) / 3.0
+
+# Green-Kubo: eta = (V / kB T) * integral_0^inf <Pxy(0) Pxy(t)> dt
+T_eq = float(np.mean(stats["T_trans_mean"][equilibration_steps:]))
+viscosity = (volume / (kB * T_eq)) * float(np.trapezoid(acf_avg, dx=dt))
+
+print(f"Equilibrium temperature: {T_eq:.2f} K")
+print(f"Computed viscosity: {viscosity:.6e} Pa·s")
+
+# For reference: H2 at 300K ~ 8.9e-6 Pa·s
