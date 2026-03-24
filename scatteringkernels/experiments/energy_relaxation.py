@@ -16,11 +16,11 @@ moles_per_particle = (
 mass = moles_per_particle * 2.016
 
 # --- set up collision model ---
-bl_model = borgnakke_larssen_model(randomseed=42)
-mdn_model = MixtureDensityNetwork(
+bl = borgnakke_larssen_model(randomseed=42)
+mdn = MixtureDensityNetwork(
     input_dim=3, output_dim=2, num_mixtures=5, hidden_dim=128, randomseed=42
 )
-mdn_model.load_model("results/models/mdn_H2H2.pth")
+mdn.load_model("results/models/mdn_H2H2.pth")
 
 # --- set up DSMC simulation ---
 dsmc = DSMC_Simulation(random_seed=42)
@@ -37,7 +37,7 @@ dsmc.create_particles(
 dsmc.run_simulation(
     nr_steps=5000,
     dt=1e-5,
-    collision_model=mdn_model,
+    collision_model=bl,
 )
 
 # --- plot energy relaxation ---

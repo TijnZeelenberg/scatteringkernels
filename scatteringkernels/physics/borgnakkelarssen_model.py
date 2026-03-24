@@ -96,3 +96,64 @@ class borgnakke_larssen_model:
                 V_com - 0.5 * g_post,
                 float(e_rot_j),
             )
+
+    def batch_collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m):
+        """
+        Vectorized Borgnakke-Larssen collision for N pairs at once.
+
+        Args:
+            velocity_i, velocity_j: (N, 3) numpy arrays
+            e_rot_i, e_rot_j: (N,) numpy arrays
+            m: scalar mass
+        Returns:
+            new_v_i, new_e_rot_i, new_v_j, new_e_rot_j
+        """
+        N = len(velocity_i)
+        inelastic_collision_probability = 1 / 245
+
+        # Center-of-mass frame
+        V = 0.5 * (velocity_i + velocity_j)  # (N, 3)
+        g = velocity_i - velocity_j  # (N, 3)
+        g_speed = np.linalg.norm(g, axis=1)  # (N,)
+
+        E_rel = 0.25 * m * g_speed**2  # (N,)
+
+        # --- Isotropic random scattering direction for all pairs ---
+        raw = self.rng.normal(size=(N, 3))
+        norms = np.linalg.norm(raw, axis=1, keepdims=True)
+        norms = np.where(norms > 0, norms, 1.0)
+        directions = raw / norms  # (N, 3)
+
+        # --- Default: elastic collision (just rotate g, keep rotational energies) ---
+        g_post = directions * g_speed[:, None]
+        new_v_i = V + 0.5 * g_post
+        new_v_j = V - 0.5 * g_post
+        new_e_rot_i = e_rot_i.copy()
+        new_e_rot_j = e_rot_j.copy()
+
+        # --- Inelastic collisions: overwrite the selected subset ---
+        inelastic = self.rng.random(N) < inelastic_collision_probability
+        n_inel = int(np.sum(inelastic))
+
+        if n_inel > 0:
+            E_rel_inel = E_rel[inelastic]
+            E_available = E_rel_inel + e_rot_i[inelastic] + e_rot_j[inelastic]
+
+            # Energy redistribution
+            trans_fraction = self.rng.beta(1.5, 2.0, size=n_inel)
+            E_rel_post = E_available * trans_fraction
+            E_rot_pool = E_available - E_rel_post
+
+            # Split rotational energy
+            rot_fraction = self.rng.random(n_inel)
+            new_e_rot_i[inelastic] = E_rot_pool * rot_fraction
+            new_e_rot_j[inelastic] = E_rot_pool * (1.0 - rot_fraction)
+
+            # New relative speed from redistributed energy
+            g_mag_inel = np.sqrt(np.maximum(0.0, 4.0 * E_rel_post / m))
+            g_post_inel = directions[inelastic] * g_mag_inel[:, None]
+
+            new_v_i[inelastic] = V[inelastic] + 0.5 * g_post_inel
+            new_v_j[inelastic] = V[inelastic] - 0.5 * g_post_inel
+
+        return new_v_i, new_e_rot_i, new_v_j, new_e_rot_j
