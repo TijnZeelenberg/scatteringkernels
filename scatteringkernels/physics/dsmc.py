@@ -284,14 +284,27 @@ class DSMC_Simulation:
             Pxy_col, Pxz_col, Pyz_col = self.perform_collisions(
                 collision_model, collision_pairs
             )
+            volume = self.box_size**3
 
-            Pxy_kin = self.mass * np.sum(self.velocities[:, 0] * self.velocities[:, 1])
-            Pxz_kin = self.mass * np.sum(self.velocities[:, 0] * self.velocities[:, 2])
-            Pyz_kin = self.mass * np.sum(self.velocities[:, 1] * self.velocities[:, 2])
+            Pxy_kin = (
+                self.mass
+                * np.sum(self.velocities[:, 0] * self.velocities[:, 1])
+                / volume
+            )
+            Pxz_kin = (
+                self.mass
+                * np.sum(self.velocities[:, 0] * self.velocities[:, 2])
+                / volume
+            )
+            Pyz_kin = (
+                self.mass
+                * np.sum(self.velocities[:, 1] * self.velocities[:, 2])
+                / volume
+            )
 
-            stats["Pxy"][step] = Pxy_kin + (Pxy_col / (self.box_size**3 * dt))
-            stats["Pxz"][step] = Pxz_kin + (Pxz_col / (self.box_size**3 * dt))
-            stats["Pyz"][step] = Pyz_kin + (Pyz_col / (self.box_size**3 * dt))
+            stats["Pxy"][step] = Pxy_kin + (Pxy_col / (volume))
+            stats["Pxz"][step] = Pxz_kin + (Pxz_col / (volume))
+            stats["Pyz"][step] = Pyz_kin + (Pyz_col / (volume))
 
             # Store energy statistics
             stats["timestep"][step] = step * dt
