@@ -20,7 +20,6 @@ class DSMC_Simulation:
         self.box_size = None
         self.nr_cells = None
         self.Xref = None
-        self._track_momentum_transfer = False
 
     def create_box(self, box_size: float):
         self.box_size = box_size
@@ -91,9 +90,6 @@ class DSMC_Simulation:
             scale=self._kB * rot_temperature, size=nr_particles
         ).astype(np.float32)
 
-    def track_stats(self, momentum_transfer=False):
-        self._track_momentum_transfer = momentum_transfer
-
     def update_cell_indices(self):
         """Update the cell indices for each particle based on their current positions."""
 
@@ -111,7 +107,6 @@ class DSMC_Simulation:
         z_idx = np.floor(self.positions[:, 2] / self.cell_sizes[2]).astype(int)
         self.Xref = x_idx + y_idx * self.nx + z_idx * self.nx * self.ny
 
-
     def select_collision_pairs(self, collision_probability=0.5):
         # TODO: implement proper No-Time-Counter method for selecting collision pairs based on relative velocities and collision cross-sections, instead of using a fixed collision probability.
         """
@@ -124,7 +119,9 @@ class DSMC_Simulation:
             pairs (list of arrays): List of arrays containing the indices of the selected collision pairs for each cell.
         """
         if self.nr_cells is None:
-            raise ValueError("Grid must be initialized before selecting collision pairs.")
+            raise ValueError(
+                "Grid must be initialized before selecting collision pairs."
+            )
 
         if self.Xref is None:
             raise ValueError(
@@ -149,7 +146,7 @@ class DSMC_Simulation:
                 continue
             # Shuffle and take consecutive pairs
             shuffled = self.rng.permutation(particles)
-            pairs = shuffled[:2 * nr_pairs].reshape(nr_pairs, 2)
+            pairs = shuffled[: 2 * nr_pairs].reshape(nr_pairs, 2)
             collision_pairs.append(pairs)
 
         return collision_pairs
@@ -171,39 +168,50 @@ class DSMC_Simulation:
                 "Simulation domain must be initialized before performing collisions."
             )
 
-        momentum_transfer = 0.0
-        for pair in collision_pairs:
-            for i, j in pair:
-                # Get the velocities and rotational energies of the two particles
-                v_i = self.velocities[i].copy()
-                v_j = self.velocities[j].copy()
-                e_rot_i = self.rotational_energies[i].copy()
-                e_rot_j = self.rotational_energies[j].copy()
+        Pxy = 0.0
+        Pxz = 0.0
+        Pyz = 0.0
 
-                # Perform collision using the provided collision model
-                new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.collide(
-                    v_i, e_rot_i, v_j, e_rot_j, m=self.mass
-                )
+        all_pairs = (
+            np.concatenate(collision_pairs)
+            if collision_pairs
+            else np.array([], dtype=int).reshape(0, 2)
+        )
+        for i, j in all_pairs:
+            # Get the velocities and rotational energies of the two particles
+            v_i = self.velocities[i].copy()
+            v_j = self.velocities[j].copy()
+            e_rot_i = self.rotational_energies[i].copy()
+            e_rot_j = self.rotational_energies[j].copy()
 
-                # Update the velocities and rotational energies of the particles
-                self.velocities[i] = new_v_i
-                self.velocities[j] = new_v_j
-                self.rotational_energies[i] = new_e_rot_i
-                self.rotational_energies[j] = new_e_rot_j
+            # Perform collision using the provided collision model
+            new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.collide(
+                v_i, e_rot_i, v_j, e_rot_j, m=self.mass
+            )
 
-                if self._track_momentum_transfer:
-                    # Collisional change in v_x*v_y: Δ(v_xi*v_yi) + Δ(v_xj*v_yj)
-                    momentum_transfer += self.mass * (
-                        (new_v_i[0] * new_v_i[1] - v_i[0] * v_i[1])
-                        + (new_v_j[0] * new_v_j[1] - v_j[0] * v_j[1])
-                    )
+            # Update the velocities and rotational energies of the particles
+            self.velocities[i] = new_v_i
+            self.velocities[j] = new_v_j
+            self.rotational_energies[i] = new_e_rot_i
+            self.rotational_energies[j] = new_e_rot_j
 
-        if self._track_momentum_transfer:
-            return momentum_transfer
+            # Calculate off-diagonal pressure tensor contributions from the velocity changes
+            Pxy += self.mass * (
+                (new_v_i[0] * new_v_i[1] - v_i[0] * v_i[1])
+                + (new_v_j[0] * new_v_j[1] - v_j[0] * v_j[1])
+            )
+            Pxz += self.mass * (
+                (new_v_i[0] * new_v_i[2] - v_i[0] * v_i[2])
+                + (new_v_j[0] * new_v_j[2] - v_j[0] * v_j[2])
+            )
+            Pyz += self.mass * (
+                (new_v_i[1] * new_v_i[2] - v_i[1] * v_i[2])
+                + (new_v_j[1] * new_v_j[2] - v_j[1] * v_j[2])
+            )
 
-        return
+        return Pxy, Pxz, Pyz
 
-    def update_positions_and_indices(self, dt):
+    def update_positions(self, dt):
         """Update particle positions based on their velocities and the time step.
 
         Args:
@@ -219,8 +227,6 @@ class DSMC_Simulation:
         # Handle periodic boundary conditions
         self.positions = np.mod(self.positions, self.box_size)
 
-        self.update_cell_indices()
-
     def run_simulation(self, collision_model, nr_steps: int, dt: float):
         """Run the DSMC simulation for a given number of steps and time step."""
 
@@ -233,56 +239,62 @@ class DSMC_Simulation:
                 "Simulation domain must be initialized before running the simulation."
             )
 
-        energy_history = {
+        stats = {
             "timestep": np.zeros(nr_steps),
             "T_trans_mean": np.zeros(nr_steps),
             "T_rot_mean": np.zeros(nr_steps),
             "T_trans_std": np.zeros(nr_steps),
             "T_rot_std": np.zeros(nr_steps),
             "total_energy": np.zeros(nr_steps),
+            "Pxy": np.zeros(nr_steps),
+            "Pxz": np.zeros(nr_steps),
+            "Pyz": np.zeros(nr_steps),
         }
 
         start_time = time()
         for step in tqdm(
             range(nr_steps), desc="Running DSMC Simulation", unit="timestep"
         ):
-            self.update_positions_and_indices(dt)
+            self.update_positions(dt)
+            self.update_cell_indices()
             collision_pairs = self.select_collision_pairs()
-            self.perform_collisions(collision_model, collision_pairs)
+            Pxy_col, Pxz_col, Pyz_col = self.perform_collisions(
+                collision_model, collision_pairs
+            )
+
+            Pxy_kin = self.mass * np.sum(self.velocities[:, 0] * self.velocities[:, 1])
+            Pxz_kin = self.mass * np.sum(self.velocities[:, 0] * self.velocities[:, 2])
+            Pyz_kin = self.mass * np.sum(self.velocities[:, 1] * self.velocities[:, 2])
+
+            stats["Pxy"][step] = Pxy_kin + (Pxy_col / (self.box_size**3 * dt))
+            stats["Pxz"][step] = Pxz_kin + (Pxz_col / (self.box_size**3 * dt))
+            stats["Pyz"][step] = Pyz_kin + (Pyz_col / (self.box_size**3 * dt))
 
             # Store energy statistics
-            energy_history["timestep"][step] = step * dt
+            stats["timestep"][step] = step * dt
 
             # Convert translational kinetic energy to temperature
             # For 3 DOF: E_trans = (3/2) k_B T → T = (2/3) E_trans / k_B
             trans_energies = 0.5 * self.mass * np.sum(self.velocities**2, axis=1)
-            energy_history["T_trans_mean"][step] = np.mean(trans_energies) / (
-                1.5 * self._kB
-            )
-            energy_history["T_trans_std"][step] = np.std(trans_energies) / (
-                1.5 * self._kB
-            )
+            stats["T_trans_mean"][step] = np.mean(trans_energies) / (1.5 * self._kB)
+            stats["T_trans_std"][step] = np.std(trans_energies) / (1.5 * self._kB)
 
             # Convert rotational energy to temperature
             # For 2 DOF: E_rot = k_B T → T = E_rot / k_B
-            energy_history["T_rot_mean"][step] = (
-                np.mean(self.rotational_energies) / self._kB
-            )
-            energy_history["T_rot_std"][step] = (
-                np.std(self.rotational_energies) / self._kB
-            )
+            stats["T_rot_mean"][step] = np.mean(self.rotational_energies) / self._kB
+            stats["T_rot_std"][step] = np.std(self.rotational_energies) / self._kB
 
             # Total energy in Joules (or convert to effective temperature)
-            energy_history["total_energy"][step] = np.sum(
+            stats["total_energy"][step] = np.sum(
                 trans_energies + self.rotational_energies
             )
 
-        self.energy_history = energy_history
+        self.stats = stats
         end_time = time()
         print(f"Simulation took {end_time - start_time:.2f} seconds.")
 
-    def get_energy_history(self):
+    def get_stats(self):
         """Return the energy history of the simulation."""
-        if not hasattr(self, "energy_history"):
+        if not hasattr(self, "stats"):
             raise ValueError("Simulation must be run before getting energy history.")
-        return self.energy_history
+        return self.stats

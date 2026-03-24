@@ -13,7 +13,6 @@ moles_per_particle = (
     pressure * volume / (gas_constant * trans_temperature)
 )  # ideal gas law: n = PV/RT
 mass = moles_per_particle * 2.016
-print("molecules_per_particle:", moles_per_particle * 6.022e23)
 
 # --- set up collision model ---
 bl_model = borgnakke_larssen_model(randomseed=42)
@@ -37,5 +36,5 @@ dsmc.run_simulation(
 )
 
 # --- plot energy relaxation ---
-energy_history = dsmc.get_energy_history()
-plot_energy_relaxation(energy_history)
+stats = dsmc.get_stats()
+plot_energy_relaxation(stats)
