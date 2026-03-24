@@ -152,65 +152,87 @@ class DSMC_Simulation:
         return collision_pairs
 
     def perform_collisions(self, collision_model, collision_pairs: list[np.ndarray]):
-        """Perform collisions for the selected pairs of particles using the given collision model.
-
-        Args:
-            collision_model: Function that takes two velocity vectors and returns new velocity vectors.
-            collision_pairs: List of arrays containing the indices of the selected collision pairs for each cell.
-        """
+        """Perform collisions for the selected pairs of particles using the given collision model."""
         if self.velocities is None or self.rotational_energies is None:
             raise ValueError(
-                "Particle velocities and rotational energies must be initialized before performing collisions."
+                "Particle velocities and rotational energies must be initialized."
             )
-
         if self.box_size is None:
             raise ValueError(
                 "Simulation domain must be initialized before performing collisions."
             )
 
-        Pxy = 0.0
-        Pxz = 0.0
-        Pyz = 0.0
+        Pxy_col = 0.0
+        Pxz_col = 0.0
+        Pyz_col = 0.0
 
-        all_pairs = (
-            np.concatenate(collision_pairs)
-            if collision_pairs
-            else np.array([], dtype=int).reshape(0, 2)
-        )
-        for i, j in all_pairs:
-            # Get the velocities and rotational energies of the two particles
-            v_i = self.velocities[i].copy()
-            v_j = self.velocities[j].copy()
-            e_rot_i = self.rotational_energies[i].copy()
-            e_rot_j = self.rotational_energies[j].copy()
+        if not collision_pairs:
+            return Pxy_col, Pxz_col, Pyz_col
 
-            # Perform collision using the provided collision model
-            new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.collide(
+        all_pairs = np.concatenate(collision_pairs, axis=0)
+        idx_i = all_pairs[:, 0]
+        idx_j = all_pairs[:, 1]
+
+        v_i = self.velocities[idx_i].copy()
+        v_j = self.velocities[idx_j].copy()
+        e_rot_i = self.rotational_energies[idx_i].copy()
+        e_rot_j = self.rotational_energies[idx_j].copy()
+
+        if hasattr(collision_model, "batch_collide"):
+            new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.batch_collide(
                 v_i, e_rot_i, v_j, e_rot_j, m=self.mass
             )
-            # OPTIMIZE: add batch_collide method to vastly improve simulation speed
 
-            # Update the velocities and rotational energies of the particles
-            self.velocities[i] = new_v_i
-            self.velocities[j] = new_v_j
-            self.rotational_energies[i] = new_e_rot_i
-            self.rotational_energies[j] = new_e_rot_j
+            self.velocities[idx_i] = new_v_i
+            self.velocities[idx_j] = new_v_j
+            self.rotational_energies[idx_i] = new_e_rot_i
+            self.rotational_energies[idx_j] = new_e_rot_j
 
-            # Calculate off-diagonal pressure tensor contributions from the velocity changes
-            Pxy += self.mass * (
-                (new_v_i[0] * new_v_i[1] - v_i[0] * v_i[1])
-                + (new_v_j[0] * new_v_j[1] - v_j[0] * v_j[1])
+            Pxy_col = self.mass * np.sum(
+                (new_v_i[:, 0] * new_v_i[:, 1] - v_i[:, 0] * v_i[:, 1])
+                + (new_v_j[:, 0] * new_v_j[:, 1] - v_j[:, 0] * v_j[:, 1])
             )
-            Pxz += self.mass * (
-                (new_v_i[0] * new_v_i[2] - v_i[0] * v_i[2])
-                + (new_v_j[0] * new_v_j[2] - v_j[0] * v_j[2])
+            Pxz_col = self.mass * np.sum(
+                (new_v_i[:, 0] * new_v_i[:, 2] - v_i[:, 0] * v_i[:, 2])
+                + (new_v_j[:, 0] * new_v_j[:, 2] - v_j[:, 0] * v_j[:, 2])
             )
-            Pyz += self.mass * (
-                (new_v_i[1] * new_v_i[2] - v_i[1] * v_i[2])
-                + (new_v_j[1] * new_v_j[2] - v_j[1] * v_j[2])
+            Pyz_col = self.mass * np.sum(
+                (new_v_i[:, 1] * new_v_i[:, 2] - v_i[:, 1] * v_i[:, 2])
+                + (new_v_j[:, 1] * new_v_j[:, 2] - v_j[:, 1] * v_j[:, 2])
             )
-        # HACK: returning the pressure tensors in the collision method is not ideal
-        return Pxy, Pxz, Pyz
+        else:
+            for k in range(len(all_pairs)):
+                i, j = idx_i[k], idx_j[k]
+                vi_old = self.velocities[i].copy()
+                vj_old = self.velocities[j].copy()
+
+                new_vi, new_eri, new_vj, new_erj = collision_model.collide(
+                    vi_old,
+                    self.rotational_energies[i],
+                    vj_old,
+                    self.rotational_energies[j],
+                    m=self.mass,
+                )
+
+                self.velocities[i] = new_vi
+                self.velocities[j] = new_vj
+                self.rotational_energies[i] = new_eri
+                self.rotational_energies[j] = new_erj
+
+                Pxy_col += self.mass * (
+                    (new_vi[0] * new_vi[1] - vi_old[0] * vi_old[1])
+                    + (new_vj[0] * new_vj[1] - vj_old[0] * vj_old[1])
+                )
+                Pxz_col += self.mass * (
+                    (new_vi[0] * new_vi[2] - vi_old[0] * vi_old[2])
+                    + (new_vj[0] * new_vj[2] - vj_old[0] * vj_old[2])
+                )
+                Pyz_col += self.mass * (
+                    (new_vi[1] * new_vi[2] - vi_old[1] * vi_old[2])
+                    + (new_vj[1] * new_vj[2] - vj_old[1] * vj_old[2])
+                )
+
+        return Pxy_col, Pxz_col, Pyz_col
 
     def update_positions(self, dt):
         """Update particle positions based on their velocities and the time step.

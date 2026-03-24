@@ -322,6 +322,93 @@ class MixtureDensityNetwork(nn.Module):
         return v_i_post, E_rot_i_post, v_j_post, E_rot_j_post
         # TODO: create function to convert translational energy to velocity magnitude
 
+    def batch_collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m):
+        """
+        Vectorized collision for N pairs at once.
+
+        Args:
+            velocity_i, velocity_j: (N, 3) numpy arrays
+            e_rot_i, e_rot_j: (N,) numpy arrays
+            m: scalar mass
+        Returns:
+            v_i_post, e_rot_i_post, v_j_post, e_rot_j_post
+        """
+
+        # --- Compute precollisional energies ---
+        Etr = (
+            0.5 * m * (np.sum(velocity_i**2, axis=1) + np.sum(velocity_j**2, axis=1))
+        )  # (N,)
+        Etot = Etr + e_rot_i + e_rot_j  # (N,)
+
+        # Center-of-mass velocities and energies
+        V = 0.5 * (velocity_i + velocity_j)  # (N, 3)
+        E_com = m * np.sum(V**2, axis=1)  # (N,)
+
+        # Energy fractions as input features
+        eta_tr = np.where(Etot > 0, Etr / Etot, 0.0)
+        eta_rot_A = np.where(Etot > 0, e_rot_i / Etot, 0.0)
+
+        # --- Degenerate collision mask ---
+        valid = (
+            np.isfinite(Etot)
+            & (Etot > 0)
+            & np.isfinite(eta_tr)
+            & np.isfinite(eta_rot_A)
+        )
+
+        # Default: return inputs unchanged
+        v_i_post = velocity_i.copy()
+        v_j_post = velocity_j.copy()
+        e_rot_i_post = e_rot_i.copy()
+        e_rot_j_post = e_rot_j.copy()
+
+        if not np.any(valid):
+            return v_i_post, e_rot_i_post, v_j_post, e_rot_j_post
+
+        # --- Build input tensor for valid pairs only ---
+        idx = np.where(valid)[0]
+        input_features = np.stack(
+            [Etot[idx], eta_tr[idx], eta_rot_A[idx]], axis=1
+        )  # (M, 3)
+
+        device, dtype = self._param_device_dtype()
+        input_tensor = torch.tensor(input_features, device=device, dtype=dtype)
+
+        # Single batched forward pass + sample
+        samples = self.sample(input_tensor).detach().cpu().numpy()  # (M, 2)
+        etap_tr = np.clip(samples[:, 0], 0.0, 1.0)
+        etap_rot_A = np.clip(samples[:, 1], 0.0, 1.0)
+
+        # --- Reconstruct post-collision state for valid pairs ---
+        Etot_v = Etot[idx]
+        E_com_v = E_com[idx]
+        V_v = V[idx]
+
+        Etr_target = np.clip(etap_tr * Etot_v, 0.0, Etot_v)
+        E_available = np.maximum(0.0, Etot_v - E_com_v)
+        E_rel_post = np.clip(Etr_target - E_com_v, 0.0, E_available)
+
+        E_rot_pool = np.maximum(0.0, E_available - E_rel_post)
+        e_rot_i_valid = etap_rot_A * E_rot_pool
+        e_rot_j_valid = (1.0 - etap_rot_A) * E_rot_pool
+
+        # Isotropic random directions
+        raw = self.rng.normal(size=(len(idx), 3))
+        norms = np.linalg.norm(raw, axis=1, keepdims=True)
+        norms = np.where(norms > 0, norms, 1.0)
+        directions = raw / norms
+
+        g_mag = np.sqrt(np.maximum(0.0, 4.0 * E_rel_post / m))
+        g_post = directions * g_mag[:, None]
+
+        # Scatter results back
+        v_i_post[idx] = V_v + 0.5 * g_post
+        v_j_post[idx] = V_v - 0.5 * g_post
+        e_rot_i_post[idx] = e_rot_i_valid
+        e_rot_j_post[idx] = e_rot_j_valid
+
+        return v_i_post, e_rot_i_post, v_j_post, e_rot_j_post
+
     def save_model(self, path):
         """
         Saves the model state dictionary to a .pt file.
