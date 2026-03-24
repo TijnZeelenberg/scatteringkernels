@@ -66,7 +66,7 @@ bl_model = borgnakke_larssen_model(randomseed=42)
 
 dsmc = DSMC_Simulation(random_seed=42)
 dsmc.create_box(box_size=box_size)
-dsmc.create_grid(nr_cells=nr_cells)
+dsmc.create_grid(x_cells=10, y_cells=10, z_cells=10)
 dsmc.create_particles(
     nr_particles=nr_particles,
     mass=mass,

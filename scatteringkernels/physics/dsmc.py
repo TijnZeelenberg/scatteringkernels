@@ -19,7 +19,7 @@ class DSMC_Simulation:
         self.velocities = None
         self.box_size = None
         self.nr_cells = None
-        self.particle_cell_idx = None
+        self.Xref = None
         self._track_momentum_transfer = False
 
     def create_box(self, box_size: float):
@@ -42,12 +42,15 @@ class DSMC_Simulation:
             self.box_size / z_cells,
         )
         self.nr_cells = x_cells * y_cells * z_cells
+        self.nx = x_cells
+        self.ny = y_cells
+        self.nz = z_cells
 
     def set_particle_positions(
         self, nr_particles: int, distribution_type: ParticleDistribution
     ):
         self.nr_particles = nr_particles
-        self.particle_cell_idx = np.zeros(self.nr_particles, dtype=int)
+        self.Xref = np.zeros(self.nr_particles, dtype=int)
 
         if self.box_size is None:
             raise ValueError(
@@ -57,26 +60,6 @@ class DSMC_Simulation:
             self.positions = self.rng.uniform(
                 0.0, self.box_size, size=(nr_particles, dimensions)
             ).astype(np.float32)
-            return
-        if distribution_type == "gaussian":
-            self.positions = self.rng.normal(
-                self.box_size / 2, self.box_size / 32, size=(nr_particles, dimensions)
-            ).astype(np.float32)
-            return
-
-        self.positions = self.rng.uniform(
-            0.0, self.box_size, size=(nr_particles, dimensions)
-        ).astype(np.float32)
-        if distribution_type == "central":
-            self.positions[:, 0] = self.box_size / 2
-            return
-        if distribution_type == "left_biased_gaussian":
-            self.positions[:, 0] = self.rng.uniform(
-                0.0, 0.25 * self.box_size, size=nr_particles
-            )
-            return
-        if distribution_type == "left_wall":
-            self.positions[:, 0] = 0.0
             return
 
     def create_particles(
@@ -94,7 +77,7 @@ class DSMC_Simulation:
         self.set_particle_positions(
             nr_particles=nr_particles, distribution_type=particle_distribution
         )
-        self.particle_cell_idx = np.zeros((nr_particles, dimensions), dtype=int)
+        self.Xref = np.zeros((nr_particles, dimensions), dtype=int)
         self.update_cell_indices()
 
         self.velocities = self.rng.normal(
@@ -118,26 +101,16 @@ class DSMC_Simulation:
             raise ValueError(
                 "Particle positions must be initialized before updating cell indices."
             )
-        if self.particle_cell_idx is None:
+        if self.Xref is None:
             raise ValueError(
                 "Particles must be initialized before updating cell indices."
             )
 
-        for particle in range(self.nr_particles):
-            x_idx = np.floor(self.positions[particle, 0] / self.cell_sizes[0]).astype(
-                int
-            )
-            y_idx = np.floor(self.positions[particle, 1] / self.cell_sizes[1]).astype(
-                int
-            )
-            z_idx = np.floor(self.positions[particle, 2] / self.cell_sizes[2]).astype(
-                int
-            )
+        x_idx = np.floor(self.positions[:, 0] / self.cell_sizes[0]).astype(int)
+        y_idx = np.floor(self.positions[:, 1] / self.cell_sizes[1]).astype(int)
+        z_idx = np.floor(self.positions[:, 2] / self.cell_sizes[2]).astype(int)
+        self.Xref = x_idx + y_idx * self.nx + z_idx * self.nx * self.ny
 
-            # use flat cell indices
-            self.particle_cell_idx[particle] = (
-                x_idx + y_idx * x_idx + z_idx * x_idx * y_idx
-            )
 
     def select_collision_pairs(self, collision_probability=0.5):
         # TODO: implement proper No-Time-Counter method for selecting collision pairs based on relative velocities and collision cross-sections, instead of using a fixed collision probability.
@@ -151,24 +124,33 @@ class DSMC_Simulation:
             pairs (list of arrays): List of arrays containing the indices of the selected collision pairs for each cell.
         """
         if self.nr_cells is None:
+            raise ValueError("Grid must be initialized before selecting collision pairs.")
+
+        if self.Xref is None:
             raise ValueError(
-                "Grid must be initialized before selecting collision pairs."
+                "Particles must be initialized before updating cell indices."
             )
+        # Sort particles by cell index
+        sorted_indices = np.argsort(self.Xref)
+        sorted_cells = self.Xref[sorted_indices]
 
-        cell_particles = [
-            np.where(self.particle_cell_idx == cell)[0] for cell in range(self.nr_cells)
-        ]
+        # Find where each cell starts/ends in the sorted array
+        changes = np.where(np.diff(sorted_cells) != 0)[0] + 1
+        splits = np.split(sorted_indices, changes)
 
-        # Choose random pairs of particles
-        collision_pairs = [
-            self.rng.choice(
-                particles,
-                size=(int(collision_probability * len(particles) // 2), 2),
-                replace=False,
-            )
-            for particles in cell_particles
-            if len(particles) > 1
-        ]
+        # Build collision pairs from each cell
+        collision_pairs = []
+        for particles in splits:
+            n = len(particles)
+            if n < 2:
+                continue
+            nr_pairs = int(collision_probability * n // 2)
+            if nr_pairs < 1:
+                continue
+            # Shuffle and take consecutive pairs
+            shuffled = self.rng.permutation(particles)
+            pairs = shuffled[:2 * nr_pairs].reshape(nr_pairs, 2)
+            collision_pairs.append(pairs)
 
         return collision_pairs
 

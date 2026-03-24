@@ -31,7 +31,7 @@ dsmc.create_particles(
 )
 
 dsmc.run_simulation(
-    nr_steps=10000,
+    nr_steps=7000,
     dt=1e-5,
     collision_model=bl_model,
 )
