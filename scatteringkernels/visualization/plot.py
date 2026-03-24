@@ -6,6 +6,25 @@ datasetnames = ["CTC", "MDN", "GMM"]
 config = PlottingConfig()
 
 
+def plot_total_energy(energy_history):
+    plt.figure(figsize=config.figsize)
+    plt.plot(energy_history["timestep"], energy_history["total_energy"])
+    plt.xlabel(
+        "Time [s]", fontsize=config.label_fontsize, fontweight=config.label_fontweight
+    )
+    plt.ylabel(
+        "Total Energy [K]",
+        fontsize=config.label_fontsize,
+        fontweight=config.label_fontweight,
+    )
+    plt.title(
+        "Total Energy Over Time",
+        fontsize=config.title_fontsize,
+        fontweight=config.title_fontweight,
+    )
+    plt.show()
+
+
 def plot_energy_relaxation(energy_history):
     plt.figure(figsize=config.figsize)
     plt.plot(
@@ -168,4 +187,3 @@ def plot_histogram(self, datasets: dict):
     save_path = f"{self.config.save_dir}/plots/histograms.png"
     plt.savefig(save_path)
     plt.close()
-
