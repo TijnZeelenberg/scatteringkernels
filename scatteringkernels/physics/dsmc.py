@@ -1,3 +1,4 @@
+# DSMC implementation by Tijn Zeelenberg (2026)
 import numpy as np
 from typing import Literal
 from time import time
@@ -23,6 +24,7 @@ class DSMC_Simulation:
 
     def create_box(self, box_size: float):
         self.box_size = box_size
+        self.volume = box_size**3
 
     def create_grid(self, x_cells: int, y_cells: int, z_cells: int):
         """Initialize the grid for cell-based collision selection.
@@ -45,49 +47,48 @@ class DSMC_Simulation:
         self.ny = y_cells
         self.nz = z_cells
 
-    def set_particle_positions(
-        self, nr_particles: int, distribution_type: ParticleDistribution
-    ):
-        self.nr_particles = nr_particles
-        self.Xref = np.zeros(self.nr_particles, dtype=int)
-
-        if self.box_size is None:
-            raise ValueError(
-                "Simulation domain must be initialized before setting particle positions."
-            )
-        if distribution_type == "uniform":
-            self.positions = self.rng.uniform(
-                0.0, self.box_size, size=(nr_particles, dimensions)
-            ).astype(np.float32)
-            return
-
     def create_particles(
         self,
-        nr_particles: int,
+        N_sim: int,
+        N_real: int,
         mass: float,
-        particle_distribution: ParticleDistribution,
+        d: float,
         trans_temperature: float,
         rot_temperature: float,
     ):
-        self.nr_particles = nr_particles
+        if self.box_size is None:
+            raise ValueError(
+                "Simulation domain must be initialized before creating particles."
+            )
+        self.N_sim = N_sim
+        self.N_real = N_real
+        self.number_density = N_real / self.volume
         self.mass = mass
+        self.diameter = d
         self.temperature = trans_temperature
 
-        self.set_particle_positions(
-            nr_particles=nr_particles, distribution_type=particle_distribution
-        )
-        self.Xref = np.zeros((nr_particles, dimensions), dtype=int)
+        ## Initialize particle properties
+        # Keep track of cell indices for each particle
+        self.Xref = np.zeros(self.N_sim, dtype=int)
+
+        # Distribute particles uniformly in the box
+        self.positions = self.rng.uniform(
+            0.0, self.box_size, size=(self.N_sim, 3)
+        ).astype(np.float32)
+
         self.update_cell_indices()
 
+        # Distribute velocities according to Maxwell-Boltzmann distribution
         self.velocities = self.rng.normal(
             0,
             np.sqrt(self._kB * trans_temperature / self.mass),
-            size=(nr_particles, dimensions),
+            size=(N_sim, dimensions),
         ).astype(np.float32)
         print("Velocities set")
 
+        # Distribute rotational energies according to a Boltzmann distribution
         self.rotational_energies = self.rng.exponential(
-            scale=self._kB * rot_temperature, size=nr_particles
+            scale=self._kB * rot_temperature, size=N_sim
         ).astype(np.float32)
 
     def update_cell_indices(self):
