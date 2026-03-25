@@ -64,22 +64,19 @@ class DSMC_Simulation:
     def create_particles(
         self,
         nr_particles: int,
-        Fn: float,
         mass: float,
-        d: float,
         particle_distribution: ParticleDistribution,
         trans_temperature: float,
         rot_temperature: float,
     ):
         self.nr_particles = nr_particles
-        self.Fn = Fn
         self.mass = mass
         self.temperature = trans_temperature
-        self.diameter = d
 
         self.set_particle_positions(
             nr_particles=nr_particles, distribution_type=particle_distribution
         )
+        self.Xref = np.zeros((nr_particles, dimensions), dtype=int)
         self.update_cell_indices()
 
         self.velocities = self.rng.normal(
@@ -110,122 +107,49 @@ class DSMC_Simulation:
         z_idx = np.floor(self.positions[:, 2] / self.cell_sizes[2]).astype(int)
         self.Xref = x_idx + y_idx * self.nx + z_idx * self.nx * self.ny
 
-    def select_collision_pairs(self, dt: float):
-        # FIX: This method is way to complex and not fully correct.
+    def select_collision_pairs(self, collision_probability=0.5):
+        # TODO: implement proper No-Time-Counter method for selecting collision pairs based on relative velocities and collision cross-sections, instead of using a fixed collision probability.
         """
-        Select collision pairs using Bird's NTC method (vectorized).
+        Select collision pairs with given collision probability.
 
         Args:
-            dt: Time step.
-            cross_section: Hard-sphere collision cross-section σ = π * d^2.
+            collision_probability: Probability of collision for each pair of particles in the same cell.
 
         Returns:
-            pairs (list of arrays): Selected collision pairs.
+            pairs (list of arrays): List of arrays containing the indices of the selected collision pairs for each cell.
         """
         if self.nr_cells is None:
             raise ValueError(
                 "Grid must be initialized before selecting collision pairs."
             )
+
         if self.Xref is None:
             raise ValueError(
-                "Particles must be initialized before selecting collision pairs."
+                "Particles must be initialized before updating cell indices."
             )
-        if self.velocities is None:
-            raise ValueError(
-                "Particle velocities must be initialized before selecting collision pairs."
-            )
-
-        cross_section = np.pi * self.diameter**2
-
-        if not hasattr(self, "sigma_g_max"):
-            g_mean = np.sqrt(
-                8 * self._kB * self.temperature / (np.pi * self.mass)
-            ) * np.sqrt(2)
-            self.sigma_g_max = np.full(self.nr_cells, cross_section * g_mean * 3.0)
-
-        cell_volume = self.cell_sizes[0] * self.cell_sizes[1] * self.cell_sizes[2]
-
-        # Count particles per cell
-        cell_counts = np.bincount(self.Xref, minlength=self.nr_cells)
-
-        # Compute N_cand per cell
-        Fn = self.Fn
-        Nc = cell_counts.astype(float)
-        N_cand_float = 0.5 * Nc * Fn * (Nc - 1) * self.sigma_g_max * dt / cell_volume
-        N_cand_int = np.ceil(N_cand_float).astype(int)
-
-        total_cand = N_cand_int.sum()
-        if total_cand == 0:
-            return []
-
-        # Build per-cell particle lists using sorted indices
+        # Sort particles by cell index
         sorted_indices = np.argsort(self.Xref)
-        cell_start = np.zeros(self.nr_cells, dtype=int)
-        cell_start[1:] = np.cumsum(cell_counts[:-1])
+        sorted_cells = self.Xref[sorted_indices]
 
-        # Generate all candidate pairs at once
-        # For each cell with N_cand > 0, pick random pairs
-        active = np.where(N_cand_int > 0)[0]
-        active_counts = cell_counts[active]
-        active_n_cand = N_cand_int[active]
-        active_starts = cell_start[active]
+        # Find where each cell starts/ends in the sorted array
+        changes = np.where(np.diff(sorted_cells) != 0)[0] + 1
+        splits = np.split(sorted_indices, changes)
 
-        # Repeat cell info for each candidate
-        counts_rep = np.repeat(active_counts, active_n_cand)
-        starts_rep = np.repeat(active_starts, active_n_cand)
-        cell_id_rep = np.repeat(active, active_n_cand)
+        # Build collision pairs from each cell
+        collision_pairs = []
+        for particles in splits:
+            n = len(particles)
+            if n < 2:
+                continue
+            nr_pairs = int(collision_probability * n // 2)
+            if nr_pairs < 1:
+                continue
+            # Shuffle and take consecutive pairs
+            shuffled = self.rng.permutation(particles)
+            pairs = shuffled[: 2 * nr_pairs].reshape(nr_pairs, 2)
+            collision_pairs.append(pairs)
 
-        # Random indices within each cell
-        idx_a = self.rng.integers(0, counts_rep)
-        idx_b = self.rng.integers(0, counts_rep - 1)
-        idx_b[idx_b >= idx_a] += 1
-
-        # Map to global particle indices
-        p_a = sorted_indices[starts_rep + idx_a]
-        p_b = sorted_indices[starts_rep + idx_b]
-
-        # Compute relative speeds (vectorized)
-        dv = self.velocities[p_a] - self.velocities[p_b]
-        g_rel = np.sqrt(dv[:, 0] ** 2 + dv[:, 1] ** 2 + dv[:, 2] ** 2)
-        sigma_g = cross_section * g_rel
-
-        # Update sigma_g_max per cell
-        # Use maximum sigma_g per active cell
-        max_per_cand = sigma_g.copy()
-        np.maximum.at(self.sigma_g_max, cell_id_rep, max_per_cand)
-        sigma_g_max_rep = self.sigma_g_max[cell_id_rep]
-
-        # Accept/reject
-        accepted = self.rng.random(len(p_a)) < (sigma_g / sigma_g_max_rep)
-
-        if not np.any(accepted):
-            return []
-
-        pairs = np.stack([p_a[accepted], p_b[accepted]], axis=1)
-
-        pairs = np.stack([p_a[accepted], p_b[accepted]], axis=1)
-
-        # Remove pairs where a particle appears more than once
-        all_particles = pairs.ravel()
-        _, unique_idx, counts = np.unique(
-            all_particles, return_index=True, return_counts=True
-        )
-        duplicated_particles = set(all_particles[unique_idx[counts > 1]])
-
-        if duplicated_particles:
-            mask = np.array(
-                [
-                    p[0] not in duplicated_particles
-                    and p[1] not in duplicated_particles
-                    for p in pairs
-                ]
-            )
-            pairs = pairs[mask]
-
-        if len(pairs) == 0:
-            return []
-
-        return [pairs]
+        return collision_pairs
 
     def perform_collisions(self, collision_model, collision_pairs: list[np.ndarray]):
         """Perform collisions for the selected pairs of particles using the given collision model."""
@@ -356,7 +280,7 @@ class DSMC_Simulation:
         ):
             self.update_positions(dt)
             self.update_cell_indices()
-            collision_pairs = self.select_collision_pairs(dt=dt)
+            collision_pairs = self.select_collision_pairs()
             Pxy_col, Pxz_col, Pyz_col = self.perform_collisions(
                 collision_model, collision_pairs
             )
