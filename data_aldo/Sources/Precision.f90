@@ -1,3 +1,0 @@
-MODULE Precision
-  INTEGER, PARAMETER:: dp=KIND(1.0D0)
-END MODULE Precision
