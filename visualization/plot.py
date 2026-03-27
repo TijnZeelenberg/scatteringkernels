@@ -6,17 +6,17 @@ datasetnames = ["CTC", "MDN", "GMM"]
 config = PlottingConfig()
 
 
-def plot_energy_relaxation(energy_history):
+def plot_energy_relaxation(stats):
     fig, ax = plt.subplots(figsize=config.figsize)
 
     ax.plot(
-        energy_history["timestep"],
-        energy_history["T_trans_mean"],
+        stats["timestep"],
+        stats["T_trans_mean"],
         label="Translational Energy",
     )
     ax.plot(
-        energy_history["timestep"],
-        energy_history["T_rot_mean"],
+        stats["timestep"],
+        stats["T_rot_mean"],
         label="Rotational Energy",
     )
 
@@ -25,6 +25,7 @@ def plot_energy_relaxation(energy_history):
         fontsize=config.label_fontsize,
         fontweight=config.label_fontweight,
     )
+    ax.ticklabel_format(style="sci", scilimits=(0, 0))
     ax.set_ylabel(
         "Energy [K]",
         fontsize=config.label_fontsize,
