@@ -24,7 +24,6 @@ class borgnakke_larssen_model:
             new_velocity_j: Velocity vector of particle j after collision.
             new_e_rot_j: Rotational energy of particle j after collision.
         """
-        # NOTE:
         # For transport properties (viscosity, etc.) each binary collision must conserve
         # pair momentum and total energy (translational + internal).
         # We enforce this by working in the center-of-mass (COM) frame.
@@ -48,9 +47,7 @@ class borgnakke_larssen_model:
         if self.rng.random() < inelastic_collision_probability:
             # Inelastic collision: redistribute energy
             # For diatomic molecules: 3 translational DOF, 2 rotational DOF per molecule
-            # Total: 3 relative trans + 4 rotational = 7 DOF
-            # Sample from Beta(3/2, 4/2) = Beta(1.5, 2)
-            translational_fraction = self.rng.beta(1.5, 2.0)
+            translational_fraction = self.rng.beta(2.0, 2.0)
             E_rel_post = E_available * translational_fraction
             E_rot_pool_post = E_available - E_rel_post
 
@@ -109,7 +106,7 @@ class borgnakke_larssen_model:
             new_v_i, new_e_rot_i, new_v_j, new_e_rot_j
         """
         N = len(velocity_i)
-        inelastic_collision_probability = 1 / 245
+        inelastic_collision_probability = 1 / 5
 
         # Center-of-mass frame
         V = 0.5 * (velocity_i + velocity_j)  # (N, 3)
@@ -140,7 +137,7 @@ class borgnakke_larssen_model:
             E_available = E_rel_inel + e_rot_i[inelastic] + e_rot_j[inelastic]
 
             # Energy redistribution
-            trans_fraction = self.rng.beta(1.5, 2.0, size=n_inel)
+            trans_fraction = self.rng.beta(2.0, 2.0, size=n_inel)
             E_rel_post = E_available * trans_fraction
             E_rot_pool = E_available - E_rel_post
 

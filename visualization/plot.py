@@ -7,34 +7,38 @@ config = PlottingConfig()
 
 
 def plot_energy_relaxation(energy_history):
-    plt.figure(figsize=config.figsize)
-    plt.plot(
+    fig, ax = plt.subplots(figsize=config.figsize)
+
+    ax.plot(
         energy_history["timestep"],
         energy_history["T_trans_mean"],
         label="Translational Energy",
     )
-    plt.plot(
+    ax.plot(
         energy_history["timestep"],
         energy_history["T_rot_mean"],
         label="Rotational Energy",
     )
-    plt.xlabel(
+
+    ax.set_xlabel(
         "Time [s]",
         fontsize=config.label_fontsize,
         fontweight=config.label_fontweight,
     )
-    plt.ylabel(
+    ax.set_ylabel(
         "Energy [K]",
         fontsize=config.label_fontsize,
         fontweight=config.label_fontweight,
     )
-    plt.title(
+    ax.set_title(
         "Energy Relaxation Over Time",
         fontsize=config.title_fontsize,
         fontweight=config.title_fontweight,
     )
-    plt.legend(fontsize=config.legend_fontsize)
-    plt.show()
+
+    ax.legend(fontsize=config.legend_fontsize)
+
+    return fig, ax
 
 
 def plot_loss_history(self, train_loss_history, val_loss_history, dataset_name):
@@ -168,4 +172,3 @@ def plot_histogram(self, datasets: dict):
     save_path = f"{self.config.save_dir}/plots/histograms.png"
     plt.savefig(save_path)
     plt.close()
-
