@@ -14,7 +14,7 @@ class MixtureDensityNetwork(nn.Module):
 
     Args:
         input_dim (int): Dimensionality of the input features.
-        output_dim (int): Dimensionality of the output (e.g., scattering angles).
+        output_dim (int): Dimensionality of the output 
         num_mixtures (int): Number of Gaussian mixtures to use.
         hidden_dim (int, optional): Number of hidden units in the fully connected layers. Default is 128.
 

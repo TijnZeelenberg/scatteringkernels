@@ -16,9 +16,9 @@ for dataset in DATASETS:
 
     # Convert to variable set E_c, \eta_trans, \eta_rot_A
     inputdata = np.zeros((data.shape[0], 3))
-    inputdata[:, 0] = np.sum(data[:, 0:3], axis=1)
-    inputdata[:, 1] = data[:, 0] / inputdata[:, 0]
-    inputdata[:, 2] = data[:, 1] / np.sum(data[:, 1:3], axis=1)
+    inputdata[:, 0] = np.sum(data[:, 0:3], axis=1) # total energy
+    inputdata[:, 1] = data[:, 0] / inputdata[:, 0] # fraction of the total energy that is translational energy
+    inputdata[:, 2] = data[:, 1] / np.sum(data[:, 1:3], axis=1) # fraction of the total rotational energy that belongs to molecule A
 
     outputdata = np.zeros((data.shape[0], 2))
     outputdata[:, 0] = data[:, 3] / np.sum(data[:, 3:6], axis=1)

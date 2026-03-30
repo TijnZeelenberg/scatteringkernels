@@ -29,18 +29,23 @@ tsim = 5e-12
 nsteps = int(tsim / dt)
 ncoll = 40000
 
-T_min = 100
-T_max = 1000
-Etr_min = T_min * kB
-Etr_max = T_max * kB
-Erot_min = T_min * kB
-Erot_max = T_max * kB
+T_min = 50
+T_max = 500
+T_equilibrium = 0.5 * (T_min + T_max)
+sample_temperature_mixture = False
 
 m1 = m_H2
 m2 = m_H2
 
 outputfile = "data/H2H2_collisionsV2.csv"
-varNames = ["Etr", "Erot1_in", "Erot2_in", "Etr_out", "Erot1_out", "Erot2_out"]
+varNames = [
+    "Etr",
+    "Erot1_in",
+    "Erot2_in",
+    "Etr_out",
+    "Erot1_out",
+    "Erot2_out",
+]
 
 
 # ─── Numba-compiled helpers (matching CTC_utils exactly) ──────────────────
@@ -67,7 +72,7 @@ def intraatomic_force_nb(xi, xj):
     theta_ij = np.arctan2(xj[2] - xi[2], drijxy)
     phi_ij = np.arctan2(xj[1] - xi[1], xj[0] - xi[0])
 
-    # LJ force: F(r) = -4*eps*(6*sig^6/r^7 - 12*sig^12/r^13)
+    # Lennart-Jones force
     f_mag = -4.0 * epsilon_LJ * (
         6.0 * sigma_LJ**6 / drij**7 - 12.0 * sigma_LJ**12 / drij**13
     )
@@ -143,34 +148,75 @@ def get_rdot_nb(w, R):
 
 
 @nb.njit(cache=True)
-def random_rotation_matrix(seed_val):
-    """Matches CTC_utils.randomrotationmatrix."""
-    psi = seed_val * 2.0 * np.pi
-    theta = 0.0
-    phi = np.arccos(1.0 - 2.0 * seed_val)
+def dot3(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
-    cp, sp = np.cos(psi), np.sin(psi)
-    ct, st = np.cos(theta), np.sin(theta)
-    cf, sf = np.cos(phi), np.sin(phi)
 
-    Rz = np.array([[cp, -sp, 0.0], [sp, cp, 0.0], [0.0, 0.0, 1.0]])
-    Ry = np.array([[ct, 0.0, st], [0.0, 1.0, 0.0], [-st, 0.0, ct]])
-    Rx = np.array([[1.0, 0.0, 0.0], [0.0, cf, -sf], [0.0, sf, cf]])
+@nb.njit(cache=True)
+def normalize3(v):
+    n = norm3(v)
+    if n < 1e-30:
+        return np.array([1.0, 0.0, 0.0])
+    return v / n
 
-    # Rz @ Ry @ Rx
-    temp = np.empty((3, 3))
+
+@nb.njit(cache=True)
+def cross3(a, b):
+    return np.array(
+        [
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0],
+        ]
+    )
+
+
+@nb.njit(cache=True)
+def reorthonormalize_rotation(R):
+    # Keep R on SO(3) to avoid geometric drift in long integrations.
+    e0 = normalize3(R[:, 0])
+    c1 = R[:, 1]
+    u1 = c1 - dot3(c1, e0) * e0
+    if norm3(u1) < 1e-30:
+        if np.abs(e0[0]) < 0.9:
+            u1 = np.array([1.0, 0.0, 0.0]) - e0[0] * e0
+        else:
+            u1 = np.array([0.0, 1.0, 0.0]) - e0[1] * e0
+    e1 = normalize3(u1)
+    e2 = normalize3(cross3(e0, e1))
+    e1 = normalize3(cross3(e2, e0))
     out = np.empty((3, 3))
-    for i in range(3):
-        for j in range(3):
-            temp[i, j] = 0.0
-            for k in range(3):
-                temp[i, j] += Rz[i, k] * Ry[k, j]
-    for i in range(3):
-        for j in range(3):
-            out[i, j] = 0.0
-            for k in range(3):
-                out[i, j] += temp[i, k] * Rx[k, j]
+    out[:, 0] = e0
+    out[:, 1] = e1
+    out[:, 2] = e2
     return out
+
+
+@nb.njit(cache=True)
+def random_rotation_matrix(u1, u2, u3):
+    """Haar-uniform rotation from 3 independent U(0,1) samples."""
+    two_pi = 2.0 * np.pi
+    q1 = np.sqrt(1.0 - u1) * np.sin(two_pi * u2)
+    q2 = np.sqrt(1.0 - u1) * np.cos(two_pi * u2)
+    q3 = np.sqrt(u1) * np.sin(two_pi * u3)
+    q4 = np.sqrt(u1) * np.cos(two_pi * u3)
+
+    x, y, z, w = q1, q2, q3, q4
+    xx, yy, zz = x * x, y * y, z * z
+    xy, xz, yz = x * y, x * z, y * z
+    wx, wy, wz = w * x, w * y, w * z
+
+    R = np.empty((3, 3))
+    R[0, 0] = 1.0 - 2.0 * (yy + zz)
+    R[0, 1] = 2.0 * (xy - wz)
+    R[0, 2] = 2.0 * (xz + wy)
+    R[1, 0] = 2.0 * (xy + wz)
+    R[1, 1] = 1.0 - 2.0 * (xx + zz)
+    R[1, 2] = 2.0 * (yz - wx)
+    R[2, 0] = 2.0 * (xz - wy)
+    R[2, 1] = 2.0 * (yz + wx)
+    R[2, 2] = 1.0 - 2.0 * (xx + yy)
+    return R
 
 
 # ─── Main collision kernel ────────────────────────────────────────────────
@@ -184,8 +230,13 @@ def run_collision_numba(
     frac11,
     frac21,
     b,
-    rng_R1,
-    rng_R2,
+    b_phi,
+    r1_u1,
+    r1_u2,
+    r1_u3,
+    r2_u1,
+    r2_u2,
+    r2_u3,
     sign_o11,
     sign_o12,
     sign_o21,
@@ -208,13 +259,15 @@ def run_collision_numba(
     omega_1 = np.array([omega_11, omega_12, 0.0])
     omega_2 = np.array([omega_21, omega_22, 0.0])
 
-    X1 = np.array([-2.0 * sigma_LJ, 0.0, -b / 2.0])
-    X2 = np.array([2.0 * sigma_LJ, 0.0, b / 2.0])
+    by = b * np.cos(b_phi)
+    bz = b * np.sin(b_phi)
+    X1 = np.array([-2.0 * sigma_LJ, -0.5 * by, -0.5 * bz])
+    X2 = np.array([2.0 * sigma_LJ, 0.5 * by, 0.5 * bz])
 
     half_d = 0.5 * d_H2
 
-    R1 = random_rotation_matrix(rng_R1)
-    R2 = random_rotation_matrix(rng_R2)
+    R1 = random_rotation_matrix(r1_u1, r1_u2, r1_u3)
+    R2 = random_rotation_matrix(r2_u1, r2_u2, r2_u3)
 
     # Atom positions in lab frame
     X11 = X1 + R1[:, 2] * half_d
@@ -258,6 +311,8 @@ def run_collision_numba(
         X2 = X2 + v2_half * dt
         R1 = R1 + get_rdot_nb(omega_1_half, R1_half) * dt
         R2 = R2 + get_rdot_nb(omega_2_half, R2_half) * dt
+        R1 = reorthonormalize_rotation(R1)
+        R2 = reorthonormalize_rotation(R2)
 
         # Update atom positions
         X11 = X1 + R1[:, 2] * half_d
@@ -297,22 +352,38 @@ def run_collision_numba(
 def run_collision(i):
     rng = np.random.default_rng(i)
 
-    Etr_init = Etr_min + rng.random() * (Etr_max - Etr_min)
-    Erot1_initial = Erot_min + rng.random() * (Erot_max - Erot_min)
-    Erot2_initial = Erot_min + rng.random() * (Erot_max - Erot_min)
+    T_trans = T_min + rng.random() * (T_max - T_min)
+    T_rot   = T_min + rng.random() * (T_max - T_min)
+
+
+    # Equilibrium (pair) relative translational energy distribution.
+    Etr_init = rng.gamma(shape=1.5, scale=T_trans*kB)
+
+    # Canonical rotational mode energies for linear rotor (two quadratic modes).
+    Er11 = rng.gamma(shape=0.5, scale=T_rot*kB)
+    Er12 = rng.gamma(shape=0.5, scale=T_rot*kB)
+    Er21 = rng.gamma(shape=0.5, scale=T_rot*kB)
+    Er22 = rng.gamma(shape=0.5, scale=T_rot*kB)
+    Erot1_initial = Er11 + Er12
+    Erot2_initial = Er21 + Er22
 
     b_max = 1.5 * sigma_LJ
     b = b_max * np.sqrt(rng.random())  # unbiased in collision area (p(b) ∝ b)
-    frac11 = rng.random()
-    frac21 = rng.random()
+    b_phi = 2.0 * np.pi * rng.random()
+    frac11 = Er11 / Erot1_initial if Erot1_initial > 0.0 else 0.5
+    frac21 = Er21 / Erot2_initial if Erot2_initial > 0.0 else 0.5
 
     sign_o11 = 1.0 if rng.random() > 0.5 else -1.0
     sign_o12 = 1.0 if rng.random() > 0.5 else -1.0
     sign_o21 = 1.0 if rng.random() > 0.5 else -1.0
     sign_o22 = 1.0 if rng.random() > 0.5 else -1.0
 
-    rng_R1 = rng.random()
-    rng_R2 = rng.random()
+    r1_u1 = rng.random()
+    r1_u2 = rng.random()
+    r1_u3 = rng.random()
+    r2_u1 = rng.random()
+    r2_u2 = rng.random()
+    r2_u3 = rng.random()
 
     Etr_final, Erot1_final, Erot2_final = run_collision_numba(
         Etr_init,
@@ -321,13 +392,21 @@ def run_collision(i):
         frac11,
         frac21,
         b,
-        rng_R1,
-        rng_R2,
+        b_phi,
+        r1_u1,
+        r1_u2,
+        r1_u3,
+        r2_u1,
+        r2_u2,
+        r2_u3,
         sign_o11,
         sign_o12,
         sign_o21,
         sign_o22,
     )
+
+    g_rel = np.sqrt(2.0 * Etr_init / m_H)
+    sigma_eff = np.pi * b_max * b_max
 
     return [
         Etr_init,

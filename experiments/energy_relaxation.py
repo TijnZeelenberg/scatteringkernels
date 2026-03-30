@@ -5,8 +5,10 @@ from visualization.plot import plot_energy_relaxation
 import numpy as np
 import matplotlib.pyplot as plt
 from config.plotting_config import PlottingConfig
+from config.experiment_config import ExperimentConfig
 
-config = PlottingConfig()
+plotconfig = PlottingConfig()
+experiment_config = ExperimentConfig()
 
 # --- simulation parameters ---
 randomseed = 1
@@ -14,9 +16,9 @@ pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 dt = 1e-8
-nr_steps = 20000
-trans_temperature = 220  # K
-rot_temperature = 220  # K
+nr_steps = 60000
+trans_temperature = 300  # K
+rot_temperature = 100  # K
 mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule
 
 kB = 1.380649e-23  # J/K
@@ -28,7 +30,7 @@ d_H2 = 2.9e-10
 # --- set up collision model ---
 bl = borgnakke_larssen_model(randomseed=randomseed)
 mdn = MixtureDensityNetwork(
-    input_dim=3, output_dim=2, num_mixtures=5, hidden_dim=128, randomseed=42
+    input_dim=3, output_dim=2, num_mixtures=5, hidden_dim=experiment_config.hidden_dim, randomseed=42
 )
 mdn.load_model("results/models/mdn_H2H2V2.pth")
 
@@ -53,7 +55,7 @@ dsmc.run_simulation(
 
 # --- plot energy relaxation ---
 stats = dsmc.get_stats()
-fig, ax = plt.subplots(figsize=config.figsize)
+fig, ax = plt.subplots(figsize=plotconfig.figsize)
 
 ax.plot(
     stats["timestep"],
@@ -68,19 +70,19 @@ ax.plot(
 
 ax.set_xlabel(
     "Time [s]",
-    fontsize=config.label_fontsize,
-    fontweight=config.label_fontweight,
+    fontsize=plotconfig.label_fontsize,
+    fontweight=plotconfig.label_fontweight,
 )
 ax.ticklabel_format(style="sci", scilimits=(0, 0))
 ax.set_ylabel(
     "Energy [K]",
-    fontsize=config.label_fontsize,
-    fontweight=config.label_fontweight,
+    fontsize=plotconfig.label_fontsize,
+    fontweight=plotconfig.label_fontweight,
 )
 ax.set_title(
     "Energy Relaxation Over Time",
-    fontsize=config.title_fontsize,
-    fontweight=config.title_fontweight,
+    fontsize=plotconfig.title_fontsize,
+    fontweight=plotconfig.title_fontweight,
 )
 # Add energy relaxation plot from SPARTA
 DATA = np.loadtxt("data/sparta_energy_relaxation.dat", skiprows=2)
@@ -93,6 +95,6 @@ T_rot_sparta = DATA[:, 3]
 ax.plot(t_sparta, T_trans_sparta, label="SPARTA T_trans", color="red", linestyle="--")
 ax.plot(t_sparta, T_rot_sparta, label="SPARTA T_rot", color="blue", linestyle="--")
 
-ax.legend(fontsize=config.legend_fontsize)
+ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.savefig("results/plots/energy_relaxation_mdn.png", dpi=300)
 plt.show()
