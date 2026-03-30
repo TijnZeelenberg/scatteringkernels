@@ -48,10 +48,11 @@ Phase 3 — Validation & Reporting
 - [x] Implement GMM
 - [x] Implement Borgnakke Larsen
 - [x] Implement ML scattering kernel in DSMC
-- [ ] Validate DSMC via viscosity result comparison with SPARTA DSMC.
+- [x] Validate DSMC via viscosity result comparison with SPARTA DSMC.
+- [ ] Compare ML scattering kernel with Borgnakke Larsen in DSMC
 - [ ] Explore different ML architectures
 - [ ] Compare architectures
 
 ### Results & Writing
-- [ ] Generate figures comparing ML predictions to CTC results
+- [ ] Generate figures comparing ML predictions to MD and BL results
 - [ ] Write report

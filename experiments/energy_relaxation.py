@@ -14,9 +14,9 @@ pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 dt = 1e-8
-nr_steps = 30000
-trans_temperature = 300  # K
-rot_temperature = 100  # K
+nr_steps = 20000
+trans_temperature = 220  # K
+rot_temperature = 220  # K
 mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule
 
 kB = 1.380649e-23  # J/K
@@ -30,7 +30,7 @@ bl = borgnakke_larssen_model(randomseed=randomseed)
 mdn = MixtureDensityNetwork(
     input_dim=3, output_dim=2, num_mixtures=5, hidden_dim=128, randomseed=42
 )
-mdn.load_model("results/models/mdn_H2H2.pth")
+mdn.load_model("results/models/mdn_H2H2V2.pth")
 
 # --- set up DSMC simulation ---
 dsmc = DSMC_Simulation(random_seed=randomseed)

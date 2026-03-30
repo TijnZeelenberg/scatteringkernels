@@ -27,7 +27,7 @@ I_mol = 0.5 * (d_H2**2) * m_H
 dt = 0.1e-15
 tsim = 5e-12
 nsteps = int(tsim / dt)
-ncoll = 400000
+ncoll = 40000
 
 T_min = 100
 T_max = 1000
@@ -39,7 +39,7 @@ Erot_max = T_max * kB
 m1 = m_H2
 m2 = m_H2
 
-outputfile = "ctc_benjamin/H2H2_collisions.csv"
+outputfile = "data/H2H2_collisionsV2.csv"
 varNames = ["Etr", "Erot1_in", "Erot2_in", "Etr_out", "Erot1_out", "Erot2_out"]
 
 
@@ -301,7 +301,8 @@ def run_collision(i):
     Erot1_initial = Erot_min + rng.random() * (Erot_max - Erot_min)
     Erot2_initial = Erot_min + rng.random() * (Erot_max - Erot_min)
 
-    b = rng.random() * 1.5 * sigma_LJ
+    b_max = 1.5 * sigma_LJ
+    b = b_max * np.sqrt(rng.random())  # unbiased in collision area (p(b) ∝ b)
     frac11 = rng.random()
     frac21 = rng.random()
 

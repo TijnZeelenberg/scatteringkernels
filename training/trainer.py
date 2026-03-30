@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-DATASETS = ["data/H2H2_collisions.csv", "data/O2O2_collisions.csv"]
+DATASETS = ["data/H2H2_collisionsV2.csv", "data/O2O2_collisions.csv"]
 
 for dataset in DATASETS:
     print(f"Training on dataset: {dataset}")
@@ -57,7 +57,7 @@ for dataset in DATASETS:
 
     # Save the trained model
     if "H2H2" in dataset:
-        model.save_model("results/models/mdn_H2H2.pth")
+        model.save_model("results/models/mdn_H2H2V2.pth")
     elif "O2O2" in dataset:
         model.save_model("results/models/mdn_O2O2.pth")
 

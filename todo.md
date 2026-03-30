@@ -6,8 +6,8 @@
 - [x] Add support for rotational and vibrational energy modes in the DSMC code, which may require changes to the particle data structure and collision handling logic.
 - [x] Implement the 'sample_velocities()' method in the MDN model to generate new velocity vectors based on the predicted energy distribution, which may involve sampling from the predicted mixture of Gaussians and applying the appropriate transformations to obtain velocity vectors.
 - [x] Plot the total energy of the system over time for both the DSMC and MDN simulations to verify that energy is conserved in both cases.
-- [ ] Define standard interface for collision models in the DSMC code to allow for easy integration of different collision models (e.g., hard sphere, variable hard sphere, etc.)
+- [x] Define standard interface for collision models in the DSMC code to allow for easy integration of different collision models (e.g., hard sphere, variable hard sphere, etc.)
 - [ ] Change DSMC and MDN accuracy from float32 to float64
-- [ ] !! Make the DSMC use the same configuration format as SPARTA to facilitate easy comparison and validation against SPARTA results. This is also a nice structure for the code as sparta input files are well-structured and easy to read.
-- [ ] Add method for extracting viscosity to Dsmc
+- [x] Add method for extracting viscosity to Dsmc
 - [ ] Add support for Bulk-viscosity calculation using a compression wave in the DSMC.
+- [ ] Implement simplified version of collision number calculation
