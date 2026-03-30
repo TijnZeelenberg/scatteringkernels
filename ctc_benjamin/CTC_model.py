@@ -32,14 +32,12 @@ dt = 0.1e-15  # Time-step [s]
 dt2 = dt * dt  # Time-step squared [s^2]
 tsim = 5e-12  # Max. simulation time [s]
 nsteps = tsim / dt  # Max. number of steps
-ncoll = 40000  # Number of collisios
-T_trans = 300  # Temperature for translational energy distribution [K]
-T_rot = 100
-Etr_max = 5900 * kB  # Maximum translational energy [J]
+ncoll = 40  # Number of collisios
+Etr_max = 1000 * kB  # Maximum translational energy [J]
 Etr_min = (
     100 * kB
 )  # Minimum translational energy [J] (to avoid molecules barely moving)
-Erot_max = 3000 * kB  # Maximum rotational energy [J]
+Erot_max = 1000 * kB  # Maximum rotational energy [J]
 
 # Molecule 1 with 2 atoms 1 and 2
 weight_1 = 1
@@ -54,7 +52,7 @@ m22 = m_H * weight_2  # Atom mass 2 [kg]
 m2 = m21 + m22  # Molecular mass [kg]
 
 # data storage
-outputfile = f"machinelearning/datasets/H2H2_collisions.csv"
+outputfile = f"ctc_benjamin/H2H2_collisions.csv"
 
 varNames = [
     "Etr",
@@ -67,14 +65,12 @@ varNames = [
 
 
 def run_collision(i):
-    # if i % 50 == 0:
-    #     print(f"Running collision {i}")
     seed(i)
 
-    # Initial translational energy of each particle [J]
+    # Initial translational energy of each particle pair [J]Thesis
     Etr_init = Etr_min + random() * (Etr_max - Etr_min)
     vtr = sqrt(
-        Etr_init / (2 * m_H2)
+        Etr_init / (m_H2)
     )  # Velocity of each particle [m/s] (divided by 2 because each particle gets half of the total translational energy)
 
     bmax = 1.5 * sigma_LJ  # Max impact parameter
