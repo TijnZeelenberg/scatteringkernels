@@ -9,12 +9,12 @@ from config.plotting_config import PlottingConfig
 config = PlottingConfig()
 
 # --- simulation parameters ---
-randomseed = 41
+randomseed = 1
 pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 dt = 1e-8
-nr_steps = 20000
+nr_steps = 30000
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule

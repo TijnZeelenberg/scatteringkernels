@@ -165,7 +165,10 @@ class DSMC_Simulation:
         d = self.diameter
         sigma = np.pi * d**2  # Hard-sphere total cross section
         Fn = self.N_real / self.N_sim  # Statistical weight per simulation particle
-        cell_vol = self.volume / self.nr_cells  # Volume of a single cell (uniform grid)
+        cell_vol = (
+            self.cell_sizes[0] * self.cell_sizes[1] * self.cell_sizes[2]
+        )  # Volume of a single cell
+        # cell_vol = self.volume / self.nr_cells  # Volume of a single cell (uniform grid)
         N = self.cell_counts  # Number of particles per cell (nr_cells,)
 
         # ----------------------------------------------------------------
