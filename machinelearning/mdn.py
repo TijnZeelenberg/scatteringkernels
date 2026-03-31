@@ -223,13 +223,13 @@ class MixtureDensityNetwork(nn.Module):
             pi = torch.where(pi_sum > 0, pi / pi_sum, uniform)
 
             # Sample one component per input according to the mixture weights
-            components = torch.multinomial(pi, num_samples=1, replacement=True).squeeze(
+            component = torch.multinomial(pi, num_samples=1, replacement=True).squeeze(
                 1
             )
 
             # select mu and sigma for the chosen components
-            mu_sel = mu[torch.arange(mu.size(0)), components]
-            sigma_sel = sigma[torch.arange(sigma.size(0)), components]
+            mu_sel = mu[torch.arange(mu.size(0)), component]
+            sigma_sel = sigma[torch.arange(sigma.size(0)), component]
 
             # Draw Gaussian samples
             samples = mu_sel + torch.randn_like(mu_sel) * sigma_sel
@@ -260,17 +260,17 @@ class MixtureDensityNetwork(nn.Module):
 
         # Compute precollisional energy fractions
         # Etot here includes center-of-mass kinetic energy (because it uses absolute velocities).
-        Etr = (
-            0.5 * m * (np.dot(velocity_i, velocity_i) + np.dot(velocity_j, velocity_j))
-        )
-        Etot = float(Etr + e_rot_i + e_rot_j)
+        g = velocity_i - velocity_j
+        E_rel = 0.25 * m * np.sum(g**2, axis=1)
+        Etot = float(E_rel + e_rot_i + e_rot_j)
+        Erot = float(e_rot_i + e_rot_j)
 
         # Degenerate (near-zero) collisions: keep state unchanged.
         if not np.isfinite(Etot) or Etot <= 0.0:
             return velocity_i, e_rot_i, velocity_j, e_rot_j
 
-        eta_tr = Etr / Etot
-        eta_rot_A = e_rot_i / Etot
+        eta_tr = E_rel / Etot
+        eta_rot_A = e_rot_i / Erot
 
         if not (np.isfinite(eta_tr) and np.isfinite(eta_rot_A)):
             return velocity_i, e_rot_i, velocity_j, e_rot_j
@@ -286,19 +286,17 @@ class MixtureDensityNetwork(nn.Module):
             self.sample(input_features).squeeze(0).detach().cpu().numpy()
         )
 
-        # TODO: integrate the [0,1] interval constraint into the sampling process, instead of clipping after sampling.
         # Physical constraints: energy fractions must lie in [0, 1].
         etap_tr = float(np.clip(etap_tr, 0.0, 1.0))
         etap_rot_A = float(np.clip(etap_rot_A, 0.0, 1.0))
 
         # Enforce momentum conservation by working in the COM frame.
         # Center-of-mass velocity (equal masses assumed)
-        if not np.isfinite(m) or m <= 0.0:
-            return velocity_i, float(e_rot_i), velocity_j, float(e_rot_j)
         V = 0.5 * (velocity_i + velocity_j)
         E_com = float(m * np.dot(V, V))
 
-        # Interpret the sampled translational fraction as target *total* translational energy,
+        # TODO: take another look at this code 2026-03-31
+        # Interpret the sampled translational fraction as target total translational energy,
         # but COM kinetic energy is fixed, so only the relative part can change.
         Etr_target = float(np.clip(etap_tr * Etot, 0.0, Etot))
         E_rel_post = max(0.0, Etr_target - E_com)
@@ -328,10 +326,11 @@ class MixtureDensityNetwork(nn.Module):
         g = velocity_i - velocity_j  # (N, 3)
         E_rel = 0.25 * m * np.sum(g**2, axis=1)  # (N,)
         E_available = E_rel + e_rot_i + e_rot_j  # (N,) — only redistributable energy
-
+        E_rot_total = e_rot_i + e_rot_j  # (N,) — total rotational energy
+        
         # --- COM-frame fractions as input features ---
         xi_rel = np.where(E_available > 0, E_rel / E_available, 0.0)
-        xi_rot_A = np.where(E_available > 0, e_rot_i / E_available, 0.0)
+        xi_rot_A = np.where(E_rot_total > 0, e_rot_i / E_rot_total, 0.0)
 
         # --- Degenerate collision mask ---
         valid = (

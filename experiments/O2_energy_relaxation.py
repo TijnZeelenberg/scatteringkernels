@@ -30,7 +30,7 @@ d_O2 = 3.0e-10
 # --- set up collision model ---
 bl = borgnakke_larssen_model(randomseed=randomseed)
 mdn = MixtureDensityNetwork(
-    input_dim=3, output_dim=2, num_mixtures=5, hidden_dim=experiment_config.hidden_dim, randomseed=42
+    input_dim=3, output_dim=2, num_mixtures=experiment_config.num_mixtures, hidden_dim=experiment_config.hidden_dim, randomseed=42
 )
 mdn.load_model("results/models/mdn_O2O2.pth")
 

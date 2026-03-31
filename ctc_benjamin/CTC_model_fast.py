@@ -337,9 +337,7 @@ def run_collision_numba(
         omega_2 = omega_2_half + (M2h / I_mol) * (0.5 * dt)
 
     # Final energies
-    Ekin_final = 0.5 * m1 * (V1[0] ** 2 + V1[1] ** 2 + V1[2] ** 2) + 0.5 * m2 * (
-        V2[0] ** 2 + V2[1] ** 2 + V2[2] ** 2
-    )
+    Ekin_final = np.linalg.norm(V1) ** 2 * 0.5 * m1 + np.linalg.norm(V2) ** 2 * 0.5 * m2
     Erot1_final = 0.5 * I_mol * (omega_1[0] ** 2 + omega_1[1] ** 2)
     Erot2_final = 0.5 * I_mol * (omega_2[0] ** 2 + omega_2[1] ** 2)
 
@@ -356,7 +354,7 @@ def run_collision(i):
     T_rot   = T_min + rng.random() * (T_max - T_min)
 
 
-    # Equilibrium (pair) relative translational energy distribution.
+    # Collision pair relative translational energy distribution.
     Etr_init = rng.gamma(shape=1.5, scale=T_trans*kB)
 
     # Canonical rotational mode energies for linear rotor (two quadratic modes).
@@ -368,10 +366,11 @@ def run_collision(i):
     Erot2_initial = Er21 + Er22
 
     b_max = 1.5 * sigma_LJ
-    b = b_max * np.sqrt(rng.random())  # unbiased in collision area (p(b) ∝ b)
+    b = b_max * np.sqrt(rng.random()) 
     b_phi = 2.0 * np.pi * rng.random()
-    frac11 = Er11 / Erot1_initial if Erot1_initial > 0.0 else 0.5
-    frac21 = Er21 / Erot2_initial if Erot2_initial > 0.0 else 0.5
+
+    frac11 = Er11 / Erot1_initial 
+    frac21 = Er21 / Erot2_initial 
 
     sign_o11 = 1.0 if rng.random() > 0.5 else -1.0
     sign_o12 = 1.0 if rng.random() > 0.5 else -1.0
@@ -404,10 +403,6 @@ def run_collision(i):
         sign_o21,
         sign_o22,
     )
-
-    g_rel = np.sqrt(2.0 * Etr_init / m_H)
-    sigma_eff = np.pi * b_max * b_max
-
     return [
         Etr_init,
         Erot1_initial,

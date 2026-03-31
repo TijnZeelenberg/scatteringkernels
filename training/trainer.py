@@ -14,6 +14,7 @@ for dataset in DATASETS:
     data = np.loadtxt(dataset, delimiter=",", skiprows=1)
     print(f"Dataset contains {data.shape[0]} rows")
 
+    # eta_trans = E_trans/ E_total, eta_rot_A = E_rot_A / (E_rot_A + E_rot_B)
     # Convert to variable set E_c, \eta_trans, \eta_rot_A
     inputdata = np.zeros((data.shape[0], 3))
     inputdata[:, 0] = np.sum(data[:, 0:3], axis=1) # total energy
