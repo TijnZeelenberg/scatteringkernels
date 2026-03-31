@@ -85,7 +85,7 @@ ax.set_title(
     fontweight=plotconfig.title_fontweight,
 )
 # Add energy relaxation plot from SPARTA
-DATA = np.loadtxt("data/sparta_energy_relaxation.dat", skiprows=2)
+DATA = np.loadtxt("data/sparta_H2_energy_relaxation.dat", skiprows=2)
 
 timestep_sparta = DATA[:, 0]
 t_sparta = DATA[:, 1]
@@ -96,5 +96,5 @@ ax.plot(t_sparta, T_trans_sparta, label="SPARTA T_trans", color="red", linestyle
 ax.plot(t_sparta, T_rot_sparta, label="SPARTA T_rot", color="blue", linestyle="--")
 
 ax.legend(fontsize=plotconfig.legend_fontsize)
-fig.savefig("results/plots/energy_relaxation_mdn.png", dpi=300)
+fig.savefig("results/plots/H2_energy_relaxation_mdn.png", dpi=300)
 plt.show()
