@@ -136,5 +136,5 @@ ax.plot(
 )
 
 ax.legend(fontsize=plotconfig.legend_fontsize)
-fig.savefig("results/plots/H2_energy_relaxation.png", dpi=300)
+# fig.savefig("results/plots/H2_energy_relaxation.png", dpi=300)
 plt.show()

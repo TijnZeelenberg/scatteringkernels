@@ -105,7 +105,7 @@ class borgnakke_larssen_model:
             new_v_i, new_e_rot_i, new_v_j, new_e_rot_j
         """
         N = len(velocity_i)
-        inelastic_collision_probability = 1 / 3
+        inelastic_collision_probability = 1
 
         # Center-of-mass frame
         V = 0.5 * (velocity_i + velocity_j)  # (N, 3)

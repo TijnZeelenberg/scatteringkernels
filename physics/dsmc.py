@@ -153,7 +153,9 @@ class DSMC_Simulation:
         # Calculate the number of collision pairs to sample in each cell
         collisions = np.zeros(self.nr_cells, dtype=int)
         collisions = np.round(
-            self.cell_counts**2
+            0.5
+            * self.cell_counts
+            * (self.cell_counts - 1)
             * np.pi
             * self.diameter**2
             * vrmax
@@ -326,22 +328,13 @@ class DSMC_Simulation:
             "Pxz": np.zeros(nr_steps),
             "Pyz": np.zeros(nr_steps),
         }
+        Pxy_col = 0.0
+        Pxz_col = 0.0
+        Pyz_col = 0.0
 
         start_time = time()
         total_collisions = 0
         for step in tqdm(range(nr_steps), desc="Running DSMC Simulation", unit="step"):
-            self.update_positions(dt)
-            self.update_cell_indices()
-            collision_pairs = self.select_collision_pairs(dt=dt)
-            pairs_as_arrays = [
-                np.array(cell_pairs) if cell_pairs else np.empty((0, 2), dtype=int)
-                for cell_pairs in collision_pairs
-            ]
-            total_collisions += sum(len(p) for p in collision_pairs)
-
-            Pxy_col, Pxz_col, Pyz_col = self.perform_collisions(
-                collision_model, pairs_as_arrays
-            )
             volume = self.box_size**3
 
             Pxy_kin = (
@@ -381,6 +374,18 @@ class DSMC_Simulation:
             # Total energy in Joules (or convert to effective temperature)
             stats["total_energy"][step] = np.sum(
                 trans_energies + self.rotational_energies
+            )
+            self.update_positions(dt)
+            self.update_cell_indices()
+            collision_pairs = self.select_collision_pairs(dt=dt)
+            pairs_as_arrays = [
+                np.array(cell_pairs) if cell_pairs else np.empty((0, 2), dtype=int)
+                for cell_pairs in collision_pairs
+            ]
+            total_collisions += sum(len(p) for p in collision_pairs)
+
+            Pxy_col, Pxz_col, Pyz_col = self.perform_collisions(
+                collision_model, pairs_as_arrays
             )
 
         self.stats = stats
