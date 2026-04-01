@@ -37,7 +37,6 @@ class borgnakke_larssen_model:
         if (not np.isfinite(m)) or m <= 0.0:
             return velocity_i, float(e_rot_i), velocity_j, float(e_rot_j)
 
-        E_com = float(m * np.dot(V, V))
         E_rel = float(0.25 * m * np.dot(g, g))
         E_available = E_rel + float(e_rot_i) + float(e_rot_j)
 

@@ -2,11 +2,7 @@ from physics.dsmc import DSMC_Simulation
 
 
 from physics.dsmc import DSMC_Simulation
-from physics.borgnakkelarssen_model import borgnakke_larssen_model
-from machinelearning.mdn import MixtureDensityNetwork
-from visualization.plot import plot_energy_relaxation
 import numpy as np
-import matplotlib.pyplot as plt
 from config.plotting_config import PlottingConfig
 from config.experiment_config import ExperimentConfig
 
