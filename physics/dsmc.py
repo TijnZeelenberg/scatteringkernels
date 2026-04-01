@@ -1,8 +1,10 @@
 # DSMC implementation by Tijn Zeelenberg (2026)
-import numpy as np
-from typing import Literal
 from time import time
+from typing import Literal
 from tqdm import tqdm
+
+import numpy as np
+
 
 ParticleDistribution = Literal[
     "uniform", "central", "gaussian", "left_biased_gaussian", "left_wall"
@@ -157,14 +159,46 @@ class DSMC_Simulation:
             * vrmax
             * (self.N_real / self.N_sim)
             * (dt / self.cell_volume)
-        )
-        # FIX: collisions round to zero in quicktest.py so something is wrong in the above calculation. One issue is that the velocities Vrmax are much larger in Hanno's DSMC.
+        ).astype(int)
+
         return collisions, vrmax
 
-    def select_collision_pairs(
-        self,
-    ):
-        pass
+    def select_collision_pairs(self, dt):
+        if self.nr_cells is None:
+            raise ValueError(
+                "Particles must be initialized and cell indices updated before selecting collision pairs."
+            )
+        # Compute number of attempted collisions
+        collisions, vrmax = self.calculate_no_collisions(dt=dt)
+
+        collision_pairs = []
+        for cell in range(self.nr_cells):
+            cell_particles = np.where(self.Xref == cell)[0]
+            if len(cell_particles) < 2:
+                continue
+            num_collisions = int(collisions[cell])
+            if num_collisions <= 0:
+                pairs = []
+                collision_pairs.append(pairs)
+                continue
+
+            # Cap to max possible unique pairs within a cell
+            num_collisions = min(num_collisions, len(cell_particles) // 2)
+
+            # Randomly select pairs of particles for collision
+            selected = self.rng.choice(
+                cell_particles, size=2 * num_collisions, replace=False
+            )
+            candidate_pairs = selected.reshape(num_collisions, 2)
+
+            pairs = [
+                [int(i), int(j)]
+                for i, j in candidate_pairs
+                if self.accept_collision([i, j], vrmax[cell])
+            ]
+            collision_pairs.append(pairs)
+
+        return collision_pairs
 
     def perform_collisions(self, collision_model, collision_pairs: list[np.ndarray]):
         """Perform collisions for the selected pairs of particles using the given collision model."""
@@ -293,20 +327,18 @@ class DSMC_Simulation:
             "Pyz": np.zeros(nr_steps),
         }
 
-        cr_max = np.sqrt(
-            16 * self._kB * self.temperature / (np.pi * self.mass)
-        )  # ~mean relative speed as initial estimate
-
         start_time = time()
-
-        for step in range(nr_steps):
+        total_collisions = 0
+        for step in tqdm(range(nr_steps), desc="Running DSMC Simulation", unit="step"):
             self.update_positions(dt)
             self.update_cell_indices()
-            collision_pairs, cr_max = self.select_collision_pairs(dt=dt, cr_max=cr_max)
+            collision_pairs = self.select_collision_pairs(dt=dt)
             pairs_as_arrays = [
                 np.array(cell_pairs) if cell_pairs else np.empty((0, 2), dtype=int)
                 for cell_pairs in collision_pairs
             ]
+            total_collisions += sum(len(p) for p in collision_pairs)
+
             Pxy_col, Pxz_col, Pyz_col = self.perform_collisions(
                 collision_model, pairs_as_arrays
             )
@@ -351,15 +383,10 @@ class DSMC_Simulation:
                 trans_energies + self.rotational_energies
             )
 
-            # Print some stats every 100 steps:
-            if step % 100 == 0:
-                print(
-                    f"Step {step}/{nr_steps} | nr_collisions={sum(len(p) for p in collision_pairs)} | T_trans = {stats['T_trans_mean'][step]:.2f} | T_rot = {stats['T_rot_mean'][step]:.2f}"
-                )
-
         self.stats = stats
         end_time = time()
         print(f"Simulation took {end_time - start_time:.2f} seconds.")
+        print(f"Total collisions: {total_collisions}")
 
     def get_stats(self):
         """Return the energy history of the simulation."""

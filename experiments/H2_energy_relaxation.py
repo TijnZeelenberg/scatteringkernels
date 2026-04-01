@@ -15,8 +15,8 @@ randomseed = 1
 pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
-dt = 1e-8
-nr_steps = 20000
+dt = 1e-5
+nr_steps = 100
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule
@@ -30,14 +30,18 @@ d_H2 = 2.9e-10
 # --- set up collision model ---
 bl = borgnakke_larssen_model(randomseed=randomseed)
 mdn = MixtureDensityNetwork(
-    input_dim=3, output_dim=2, num_mixtures=5, hidden_dim=experiment_config.hidden_dim, randomseed=42
+    input_dim=3,
+    output_dim=2,
+    num_mixtures=5,
+    hidden_dim=experiment_config.hidden_dim,
+    randomseed=40,
 )
 mdn.load_model("results/models/mdn_H2H2.pth")
 
 # --- set up DSMC simulation ---
 mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
 mdn_dsmc.create_box(box_size=box_size)
-mdn_dsmc.create_grid(x_cells=10, y_cells=10, z_cells=10)
+mdn_dsmc.create_grid(x_cells=5, y_cells=5, z_cells=5)
 mdn_dsmc.create_particles(
     N_sim=N_sim,
     N_real=N_real,
@@ -121,9 +125,17 @@ t_sparta = DATA[:, 1]
 T_trans_sparta = DATA[:, 2]
 T_rot_sparta = DATA[:, 3]
 
-ax.plot(t_sparta, T_trans_sparta, label="translational temp SPARTA", color="red", linestyle="--")
-ax.plot(t_sparta, T_rot_sparta, label="rotational temp SPARTA", color="blue", linestyle="--")
+ax.plot(
+    t_sparta,
+    T_trans_sparta,
+    label="translational temp SPARTA",
+    color="red",
+    linestyle="--",
+)
+ax.plot(
+    t_sparta, T_rot_sparta, label="rotational temp SPARTA", color="blue", linestyle="--"
+)
 
 ax.legend(fontsize=plotconfig.legend_fontsize)
-# fig.savefig("results/plots/H2_energy_relaxation_mdn.png", dpi=300)
+fig.savefig("results/plots/H2_energy_relaxation.png", dpi=300)
 plt.show()

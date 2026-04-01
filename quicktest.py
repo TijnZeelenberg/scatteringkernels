@@ -19,7 +19,7 @@ pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 dt = 1e-5
-nr_steps = 20000
+nr_steps = 100
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule
@@ -32,7 +32,7 @@ d_H2 = 2.9e-10
 
 mdn = DSMC_Simulation(random_seed=randomseed)
 mdn.create_box(box_size=box_size)
-mdn.create_grid(x_cells=10, y_cells=10, z_cells=10)
+mdn.create_grid(x_cells=5, y_cells=5, z_cells=5)
 mdn.create_particles(
     N_sim=N_sim,
     N_real=N_real,
@@ -41,11 +41,9 @@ mdn.create_particles(
     trans_temperature=trans_temperature,
     rot_temperature=rot_temperature,
 )
+mdn.update_cell_indices()
 
-print(f"velocities: {mdn.velocities}")
-collisions, vrmax = mdn.calculate_no_collisions(dt=1e-8)
+collisions, vrmax = mdn.calculate_no_collisions(dt=dt)
+collision_pairs = mdn.select_collision_pairs(dt=dt)
 
-print(f"length collisions: {len(collisions)} \n")
-print(f"collisions: {collisions}")
-print(f"length vrmax: {len(vrmax)} \n")
-print(f"vrmax: {vrmax}")
+print(f"Total collisions: {np.sum(collisions)}")

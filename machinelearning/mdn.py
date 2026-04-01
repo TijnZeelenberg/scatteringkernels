@@ -14,7 +14,7 @@ class MixtureDensityNetwork(nn.Module):
 
     Args:
         input_dim (int): Dimensionality of the input features.
-        output_dim (int): Dimensionality of the output 
+        output_dim (int): Dimensionality of the output
         num_mixtures (int): Number of Gaussian mixtures to use.
         hidden_dim (int, optional): Number of hidden units in the fully connected layers. Default is 128.
 
@@ -324,20 +324,22 @@ class MixtureDensityNetwork(nn.Module):
         # --- Compute COM-frame energies ---
         V = 0.5 * (velocity_i + velocity_j)  # (N, 3)
         g = velocity_i - velocity_j  # (N, 3)
-        E_rel = 0.25 * m * np.sum(g**2, axis=1)  # (N,)
-        E_available = E_rel + e_rot_i + e_rot_j  # (N,) — only redistributable energy
-        E_rot_total = e_rot_i + e_rot_j  # (N,) — total rotational energy
-        
-        # --- COM-frame fractions as input features ---
-        xi_rel = np.where(E_available > 0, E_rel / E_available, 0.0)
-        xi_rot_A = np.where(E_rot_total > 0, e_rot_i / E_rot_total, 0.0)
+        Erel = 0.25 * m * np.sum(g**2, axis=1)  # (N,)
+        Etot = Erel + e_rot_i + e_rot_j  # (N,) — only redistributable energy
+        Erot_total = e_rot_i + e_rot_j  # (N,) — total rotational energy
+
+        # --- COM-frame fractions (safe denominator; invalid rows masked below) ---
+        safe_Etot = np.where(Etot > 0, Etot, 1.0)
+        safe_Erot = np.where(Erot_total > 0, Erot_total, 1.0)
+        eta_tr = Erel / safe_Etot
+        eta_rot_A = e_rot_i / safe_Erot
 
         # --- Degenerate collision mask ---
         valid = (
-            np.isfinite(E_available)
-            & (E_available > 0)
-            & np.isfinite(xi_rel)
-            & np.isfinite(xi_rot_A)
+            np.isfinite(Etot)
+            & (Etot > 0)
+            & np.isfinite(eta_tr)
+            & np.isfinite(eta_rot_A)
         )
 
         v_i_post = velocity_i.copy()
@@ -350,7 +352,7 @@ class MixtureDensityNetwork(nn.Module):
 
         idx = np.where(valid)[0]
         input_features = np.stack(
-            [E_available[idx], xi_rel[idx], xi_rot_A[idx]],
+            [Etot[idx], eta_tr[idx], eta_rot_A[idx]],
             axis=1,
         )
 
@@ -362,7 +364,7 @@ class MixtureDensityNetwork(nn.Module):
         xi_rot_A_post = np.clip(samples[:, 1], 0.0, 1.0)
 
         # --- Reconstruct post-collision state ---
-        E_avail_v = E_available[idx]
+        E_avail_v = Etot[idx]
         V_v = V[idx]
 
         E_rel_post = xi_rel_post * E_avail_v

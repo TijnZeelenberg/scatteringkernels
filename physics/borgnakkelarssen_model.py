@@ -28,7 +28,7 @@ class borgnakke_larssen_model:
         # pair momentum and total energy (translational + internal).
         # We enforce this by working in the center-of-mass (COM) frame.
 
-        inelastic_collision_probability = 1 / 245  # (from Rabitz & Lam 1975)
+        inelastic_collision_probability = 1  # (from Rabitz & Lam 1975)
 
         # Center-of-mass velocity
         V = 0.5 * (velocity_i + velocity_j)
@@ -47,7 +47,7 @@ class borgnakke_larssen_model:
         if self.rng.random() < inelastic_collision_probability:
             # Inelastic collision: redistribute energy
             # For diatomic molecules: 3 translational DOF, 2 rotational DOF per molecule
-            translational_fraction = self.rng.beta(2.0, 2.0)
+            translational_fraction = self.rng.beta(1.5, 2.0)
             E_rel_post = E_available * translational_fraction
             E_rot_pool_post = E_available - E_rel_post
 
@@ -106,7 +106,7 @@ class borgnakke_larssen_model:
             new_v_i, new_e_rot_i, new_v_j, new_e_rot_j
         """
         N = len(velocity_i)
-        inelastic_collision_probability = 1/5
+        inelastic_collision_probability = 1 / 3
 
         # Center-of-mass frame
         V = 0.5 * (velocity_i + velocity_j)  # (N, 3)
