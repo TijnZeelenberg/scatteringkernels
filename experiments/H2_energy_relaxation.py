@@ -35,7 +35,7 @@ mdn = MixtureDensityNetwork(
     hidden_dim=experiment_config.hidden_dim,
     randomseed=40,
 )
-mdn.load_model("results/models/mdn_H2H2.pth")
+mdn.load_model("results/models/mdn_H2H2V3.pth")
 
 # --- set up DSMC simulation ---
 mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
