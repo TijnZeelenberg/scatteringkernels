@@ -1,66 +1,105 @@
+from physics.dsmc import DSMC_Simulation
+from physics.borgnakkelarssen_model import borgnakke_larssen_model
+from machinelearning.mdn import MixtureDensityNetwork
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-from physics.borgnakkelarssen_model import borgnakke_larssen_model
-from physics.dsmc import DSMC_Simulation
-from machinelearning.mdn import MixtureDensityNetwork
+from config.plotting_config import PlottingConfig
+from config.experiment_config import ExperimentConfig
+
+plotconfig = PlottingConfig()
+experiment_config = ExperimentConfig()
 
 # --- simulation parameters ---
-pressure = 1.0  # Pa
-box_size = 1e-5  # m
+randomseed = 1
+pressure = 1  # Pa
+box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
-trans_temperature = 300.0  # K
-rot_temperature = 300.0  # K
-
-# --- run parameters ---
-nr_particles = 20000
-nr_cells = 100
-equilibration_steps = 1000
-max_lag = 200
-kB = 1.380649e-23
 dt = 1e-5
-nr_steps = 50000
-gas_constant = 8.314
-n_moles = pressure * volume / (gas_constant * trans_temperature)
-mass = n_moles * 2.016e-3 / nr_particles  # effective mass per simulated particle (kg)
+nr_steps = 200
+trans_temperature = 220  # K
+rot_temperature = 220  # K
+mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule
 
+kB = 1.380649e-23  # J/K
+N_sim = 20000  # number of simulated particles
+N_real = 20000  # number of real molecules in the box
+n_mdn = N_real / volume  # number of real molecules per simulated particle
+d_H2 = 2.9e-10
 
-# --- models ---
-bl = borgnakke_larssen_model(randomseed=42)
+# --- set up collision model ---
+bl = borgnakke_larssen_model(randomseed=randomseed)
 mdn = MixtureDensityNetwork(
-    input_dim=3, output_dim=2, num_mixtures=5, hidden_dim=128, randomseed=42
+    input_dim=3,
+    output_dim=2,
+    num_mixtures=5,
+    hidden_dim=experiment_config.hidden_dim,
+    randomseed=40,
 )
 mdn.load_model("results/models/mdn_H2H2.pth")
 
-dsmc = DSMC_Simulation(random_seed=42)
-dsmc.create_box(box_size=box_size)
-dsmc.create_grid(x_cells=10, y_cells=10, z_cells=10)
-dsmc.create_particles(
-    N_sim=nr_particles,
+# --- set up DSMC simulation ---
+mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
+mdn_dsmc.create_box(box_size=box_size)
+mdn_dsmc.create_grid(x_cells=5, y_cells=5, z_cells=5)
+mdn_dsmc.create_particles(
+    N_sim=N_sim,
+    N_real=N_real,
     mass=mass,
+    d=d_H2,
     trans_temperature=trans_temperature,
     rot_temperature=rot_temperature,
-    particle_distribution="uniform",
+)
+bl_dsmc = DSMC_Simulation(random_seed=randomseed)
+bl_dsmc.create_box(box_size=box_size)
+bl_dsmc.create_grid(x_cells=10, y_cells=10, z_cells=10)
+bl_dsmc.create_particles(
+    N_sim=N_sim,
+    N_real=N_real,
+    mass=mass,
+    d=d_H2,
+    trans_temperature=trans_temperature,
+    rot_temperature=rot_temperature,
 )
 
-print("Running DSMC for Green-Kubo viscosity...")
-dsmc.run_simulation(nr_steps=nr_steps, dt=dt, collision_model=bl)
+# Run simulation with both models
+mdn_dsmc.run_simulation(
+    nr_steps=nr_steps,
+    dt=dt,
+    collision_model=mdn,
+)
+mdn_stats = mdn_dsmc.get_stats()
 
-stats = dsmc.get_stats()
+bl_dsmc.run_simulation(
+    nr_steps=nr_steps,
+    dt=dt,
+    collision_model=bl,
+)
+bl_stats = bl_dsmc.get_stats()
 
 # --- compute viscosity via Green-Kubo ---
+equilibration_steps = 50
+max_lag = 100  # max lag time for ACF (in steps)
 
 # Discard equilibration period
-Pxy = stats["Pxy"][equilibration_steps:]
-Pxz = stats["Pxz"][equilibration_steps:]
-Pyz = stats["Pyz"][equilibration_steps:]
+Pxy_mdn = mdn_stats["Pxy"][equilibration_steps:]
+Pxz_mdn = mdn_stats["Pxz"][equilibration_steps:]
+Pyz_mdn = mdn_stats["Pyz"][equilibration_steps:]
+
+Pxy_bl = bl_stats["Pxy"][equilibration_steps:]
+Pxz_bl = bl_stats["Pxz"][equilibration_steps:]
+Pyz_bl = bl_stats["Pyz"][equilibration_steps:]
 
 # Subtract means (should be ~0 at equilibrium, helps numerically)
-Pxy -= np.mean(Pxy)
-Pxz -= np.mean(Pxz)
-Pyz -= np.mean(Pyz)
+Pxy_mdn -= np.mean(Pxy_mdn)
+Pxz_mdn -= np.mean(Pxz_mdn)
+Pyz_mdn -= np.mean(Pyz_mdn)
 
-n = len(Pxy)
+Pxy_bl -= np.mean(Pxy_bl)
+Pxz_bl -= np.mean(Pxz_bl)
+Pyz_bl -= np.mean(Pyz_bl)
+
+n_mdn = len(Pxy_mdn)
+n_bl = len(Pxy_bl)
 
 
 def autocorrelation_fft(signal, max_lag):
@@ -110,18 +149,27 @@ def plot_acf(acf_xy, acf_xz, acf_yz, acf_avg, dt, max_lag, viscosity, T_eq):
     plt.show()
 
 
-acf_xy = autocorrelation_fft(Pxy, max_lag)
-acf_xz = autocorrelation_fft(Pxz, max_lag)
-acf_yz = autocorrelation_fft(Pyz, max_lag)
+acf_xy_mdn = autocorrelation_fft(Pxy_mdn, max_lag)
+acf_xz_mdn = autocorrelation_fft(Pxz_mdn, max_lag)
+acf_yz_mdn = autocorrelation_fft(Pyz_mdn, max_lag)
+
+acf_xy_bl = autocorrelation_fft(Pxy_bl, max_lag)
+acf_xz_bl = autocorrelation_fft(Pxz_bl, max_lag)
+acf_yz_bl = autocorrelation_fft(Pyz_bl, max_lag)
 
 # Average the three independent estimates
-acf_avg = (acf_xy + acf_xz + acf_yz) / 3.0
+acf_avg_mdn = (acf_xy_mdn + acf_xz_mdn + acf_yz_mdn) / 3.0
+acf_avg_bl = (acf_xy_bl + acf_xz_bl + acf_yz_bl) / 3.0
 
 # Green-Kubo: eta = (V / kB T) * integral_0^inf <Pxy(0) Pxy(t)> dt
-T_eq = float(np.mean(stats["T_trans_mean"][equilibration_steps:]))
-viscosity = (volume / (kB * T_eq)) * float(np.trapezoid(acf_avg, dx=dt))
+T_eq_mdn = float(np.mean(mdn_stats["T_trans_mean"][equilibration_steps:]))
+viscosity_mdn = (volume / (kB * T_eq_mdn)) * float(np.trapezoid(acf_avg_mdn, dx=dt))
+T_eq_bl = float(np.mean(bl_stats["T_trans_mean"][equilibration_steps:]))
+viscosity_bl = (volume / (kB * T_eq_bl)) * float(np.trapezoid(acf_avg_bl, dx=dt))
 
-print(f"Equilibrium temperature: {T_eq:.2f} K")
-print(f"Computed viscosity: {viscosity:.6e} Pa·s")
+print(f"Equilibrium temperature mdn: {T_eq_mdn:.2f} K")
+print(f"Computed viscosity mdn: {viscosity_mdn:.6e} Pa·s")
+print(f"Equilibrium temperature bl: {T_eq_bl:.2f} K")
+print(f"Computed viscosity bl: {viscosity_bl:.6e} Pa·s")
 
-plot_acf(acf_xy, acf_xz, acf_yz, acf_avg, dt, max_lag, viscosity, T_eq)
+# plot_acf(acf_xy_mdn, acf_xz_mdn, acf_yz_mdn, acf_avg_mdn, dt, max_lag, viscosity_mdn, T_eq_mdn)

@@ -32,7 +32,7 @@ dt = 0.1e-15  # Time-step [s]
 dt2 = dt * dt  # Time-step squared [s^2]
 tsim = 5e-12  # Max. simulation time [s]
 nsteps = tsim / dt  # Max. number of steps
-ncoll = 40  # Number of collisios
+ncoll = 10000  # Number of collisios
 Etr_max = 1000 * kB  # Maximum translational energy [J]
 Etr_min = (
     100 * kB
@@ -52,7 +52,7 @@ m22 = m_H * weight_2  # Atom mass 2 [kg]
 m2 = m21 + m22  # Molecular mass [kg]
 
 # data storage
-outputfile = f"ctc_benjamin/H2H2_collisions.csv"
+outputfile = f"ctc_benjamin/H2H2V2_collisions.csv"
 
 varNames = [
     "Etr",

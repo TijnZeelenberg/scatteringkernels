@@ -27,7 +27,7 @@ I_mol = 0.5 * (d_H2**2) * m_H
 dt = 0.1e-15
 tsim = 5e-12
 nsteps = int(tsim / dt)
-ncoll = 40000
+ncoll = 10000
 
 T_min = 50
 T_max = 500
@@ -73,8 +73,10 @@ def intraatomic_force_nb(xi, xj):
     phi_ij = np.arctan2(xj[1] - xi[1], xj[0] - xi[0])
 
     # Lennart-Jones force
-    f_mag = -4.0 * epsilon_LJ * (
-        6.0 * sigma_LJ**6 / drij**7 - 12.0 * sigma_LJ**12 / drij**13
+    f_mag = (
+        -4.0
+        * epsilon_LJ
+        * (6.0 * sigma_LJ**6 / drij**7 - 12.0 * sigma_LJ**12 / drij**13)
     )
 
     f_z = np.sin(theta_ij) * f_mag
@@ -351,26 +353,25 @@ def run_collision(i):
     rng = np.random.default_rng(i)
 
     T_trans = T_min + rng.random() * (T_max - T_min)
-    T_rot   = T_min + rng.random() * (T_max - T_min)
-
+    T_rot = T_min + rng.random() * (T_max - T_min)
 
     # Collision pair relative translational energy distribution.
-    Etr_init = rng.gamma(shape=1.5, scale=T_trans*kB)
+    Etr_init = rng.gamma(shape=1.5, scale=T_trans * kB)
 
     # Canonical rotational mode energies for linear rotor (two quadratic modes).
-    Er11 = rng.gamma(shape=0.5, scale=T_rot*kB)
-    Er12 = rng.gamma(shape=0.5, scale=T_rot*kB)
-    Er21 = rng.gamma(shape=0.5, scale=T_rot*kB)
-    Er22 = rng.gamma(shape=0.5, scale=T_rot*kB)
+    Er11 = rng.gamma(shape=0.5, scale=T_rot * kB)
+    Er12 = rng.gamma(shape=0.5, scale=T_rot * kB)
+    Er21 = rng.gamma(shape=0.5, scale=T_rot * kB)
+    Er22 = rng.gamma(shape=0.5, scale=T_rot * kB)
     Erot1_initial = Er11 + Er12
     Erot2_initial = Er21 + Er22
 
-    b_max = 1.5 * sigma_LJ
-    b = b_max * np.sqrt(rng.random()) 
+    b_max = 1.1 * sigma_LJ
+    b = b_max * np.sqrt(rng.random())
     b_phi = 2.0 * np.pi * rng.random()
 
-    frac11 = Er11 / Erot1_initial 
-    frac21 = Er21 / Erot2_initial 
+    frac11 = Er11 / Erot1_initial
+    frac21 = Er21 / Erot2_initial
 
     sign_o11 = 1.0 if rng.random() > 0.5 else -1.0
     sign_o12 = 1.0 if rng.random() > 0.5 else -1.0
