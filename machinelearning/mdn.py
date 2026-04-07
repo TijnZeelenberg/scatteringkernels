@@ -24,7 +24,7 @@ class MixtureDensityNetwork(nn.Module):
         sigma (torch.Tensor): Standard deviations of the mixtures, shape (batch_size, num_mixtures, output_dim).
     """
 
-    def __init__(self, input_dim, output_dim, num_mixtures, hidden_dim, randomseed):
+    def __init__(self, input_dim, output_dim, num_mixtures, hidden_dim, randomseed, dropout=0.0):
         super().__init__()
         self.rng = np.random.default_rng(randomseed)
         self.K = num_mixtures
@@ -33,8 +33,10 @@ class MixtureDensityNetwork(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
+            nn.Dropout(dropout),
         )
 
         self.pi_layer = nn.Linear(hidden_dim, self.K)  # Mixture weights
@@ -318,7 +320,6 @@ class MixtureDensityNetwork(nn.Module):
         v_i_post = V + 0.5 * g_post
         v_j_post = V - 0.5 * g_post
         return v_i_post, E_rot_i_post, v_j_post, E_rot_j_post
-        # TODO: create function to convert translational energy to velocity magnitude
 
     def batch_collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m):
         # --- Compute COM-frame energies ---
