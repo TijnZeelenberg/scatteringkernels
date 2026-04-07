@@ -40,6 +40,7 @@ for dataset in DATASETS:
         output_dim=2,
         num_mixtures=config.num_mixtures,
         hidden_dim=config.hidden_dim,
+        dropout=config.dropout,
         randomseed=config.random_seed,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
