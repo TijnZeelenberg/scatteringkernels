@@ -6,7 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 
 # DATASETS = ["data/H2H2_collisionsV3.csv", "data/O2O2_collisions.csv"]
-DATASETS = ["data/H2H2_collisionsV3.csv"]
+DATASETS = ["data/filtered/O2O2_collisions.csv"]
 
 for dataset in DATASETS:
     print(f"Training on dataset: {dataset}")
@@ -64,8 +64,10 @@ for dataset in DATASETS:
     # Save the trained model
     if "H2H2" in dataset:
         model.save_model("results/models/mdn_H2H2V3.pth")
+        print(f"Model saved to results/models/mdn_H2H2V3.pth")
     elif "O2O2" in dataset:
         model.save_model("results/models/mdn_O2O2.pth")
+        print(f"Model saved to results/models/mdn_O2O2.pth")
 
     # Plot training and validation loss histories
     plottingconfig = PlottingConfig()
@@ -83,8 +85,8 @@ for dataset in DATASETS:
         fontweight=plottingconfig.label_fontweight,
     )
     plt.legend(fontsize=plottingconfig.legend_fontsize)
-    if "H2H2" in dataset:
-        plt.savefig("results/plots/H2H2V3_loss_history.png")
-    elif "O2O2" in dataset:
-        plt.savefig("results/plots/O2O2_loss_history.png")
+    # if "H2H2" in dataset:
+    #     plt.savefig("results/plots/H2H2V2_loss_history.png")
+    # elif "O2O2" in dataset:
+    #     plt.savefig("results/plots/O2O2_loss_history.png")
     plt.show()

@@ -15,8 +15,8 @@ randomseed = 1
 pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
-dt = 1e-8
-nr_steps = 40000
+dt = 1e-5
+nr_steps = 100
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 32.0e-3 / 6.022e23  # kg, mass of one O2 molecule
@@ -30,15 +30,19 @@ d_O2 = 3.0e-10
 # --- set up collision model ---
 bl = borgnakke_larssen_model(randomseed=randomseed)
 mdn = MixtureDensityNetwork(
-    input_dim=3, output_dim=2, num_mixtures=experiment_config.num_mixtures, hidden_dim=experiment_config.hidden_dim, randomseed=42
+    input_dim=3,
+    output_dim=2,
+    num_mixtures=experiment_config.num_mixtures,
+    hidden_dim=experiment_config.hidden_dim,
+    randomseed=42,
 )
 mdn.load_model("results/models/mdn_O2O2.pth")
 
 # --- set up DSMC simulation ---
-dsmc = DSMC_Simulation(random_seed=randomseed)
-dsmc.create_box(box_size=box_size)
-dsmc.create_grid(x_cells=10, y_cells=10, z_cells=10)
-dsmc.create_particles(
+mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
+mdn_dsmc.create_box(box_size=box_size)
+mdn_dsmc.create_grid(x_cells=10, y_cells=10, z_cells=10)
+mdn_dsmc.create_particles(
     N_sim=N_sim,
     N_real=N_real,
     mass=mass,
@@ -47,25 +51,59 @@ dsmc.create_particles(
     rot_temperature=rot_temperature,
 )
 
-dsmc.run_simulation(
+# --- set up Borgnakke-Larssen DSMC for comparison ---
+bl_dsmc = DSMC_Simulation(random_seed=randomseed)
+bl_dsmc.create_box(box_size=box_size)
+bl_dsmc.create_grid(x_cells=10, y_cells=10, z_cells=10)
+bl_dsmc.create_particles(
+    N_sim=N_sim,
+    N_real=N_real,
+    mass=mass,
+    d=d_O2,
+    trans_temperature=trans_temperature,
+    rot_temperature=rot_temperature,
+)
+
+# Run simulation with both models
+mdn_dsmc.run_simulation(
     nr_steps=nr_steps,
     dt=dt,
     collision_model=mdn,
 )
+mdn_stats = mdn_dsmc.get_stats()
+
+bl_dsmc.run_simulation(
+    nr_steps=nr_steps,
+    dt=dt,
+    collision_model=bl,
+)
+bl_stats = bl_dsmc.get_stats()
 
 # --- plot energy relaxation ---
-stats = dsmc.get_stats()
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
 
 ax.plot(
-    stats["timestep"],
-    stats["T_trans_mean"],
-    label="Translational Energy",
+    mdn_stats["timestep"],
+    mdn_stats["T_trans_mean"],
+    label="Translational Energy (MDN)",
 )
 ax.plot(
-    stats["timestep"],
-    stats["T_rot_mean"],
-    label="Rotational Energy",
+    mdn_stats["timestep"],
+    mdn_stats["T_rot_mean"],
+    label="Rotational Energy (MDN)",
+)
+
+ax.plot(
+    bl_stats["timestep"],
+    bl_stats["T_trans_mean"],
+    label="Translational Energy (BL)",
+    linestyle="--",
+)
+ax.plot(
+    bl_stats["timestep"],
+    bl_stats["T_rot_mean"],
+    label="Rotational Energy (BL)",
+    linestyle="--",
 )
 
 ax.set_xlabel(
@@ -92,8 +130,8 @@ t_sparta = DATA[:, 1]
 T_trans_sparta = DATA[:, 2]
 T_rot_sparta = DATA[:, 3]
 
-ax.plot(t_sparta, T_trans_sparta, label="SPARTA T_trans", color="red", linestyle="--")
-ax.plot(t_sparta, T_rot_sparta, label="SPARTA T_rot", color="blue", linestyle="--")
+ax.plot(t_sparta, T_trans_sparta, label="Translational Energy (SPARTA)", color="red", linestyle="--")
+ax.plot(t_sparta, T_rot_sparta, label="Rotational Energy (SPARTA)", color="blue", linestyle="--")
 
 ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.savefig("results/plots/O2_energy_relaxation_mdn.png", dpi=300)

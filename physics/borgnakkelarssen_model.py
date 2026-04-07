@@ -43,7 +43,7 @@ class borgnakke_larssen_model:
         if (not np.isfinite(E_available)) or E_available < 0.0:
             return velocity_i, float(e_rot_i), velocity_j, float(e_rot_j)
 
-        if self.rng.random() < inelastic_collision_probability:
+        if self.rng.random() <= inelastic_collision_probability:
             # Inelastic collision: redistribute energy
             # For diatomic molecules: 3 translational DOF, 2 rotational DOF per molecule
             translational_fraction = self.rng.beta(1.5, 2.0)
