@@ -30,9 +30,7 @@ nsteps = int(tsim / dt)
 ncoll = 10000
 
 T_min = 50
-T_max = 500
-T_equilibrium = 0.5 * (T_min + T_max)
-sample_temperature_mixture = False
+T_max = 5000
 
 m1 = m_H2
 m2 = m_H2
@@ -48,7 +46,7 @@ varNames = [
 ]
 
 
-# ─── Numba-compiled helpers (matching CTC_utils exactly) ──────────────────
+# ─── Numba-compiled helpers  ───
 
 
 @nb.njit(cache=True)
@@ -405,12 +403,12 @@ def run_collision(i):
         sign_o22,
     )
     return [
-        Etr_init,
-        Erot1_initial,
-        Erot2_initial,
-        Etr_final,
-        Erot1_final,
-        Erot2_final,
+        (3 * Etr_init) / (2 * kB),
+        Erot1_initial / kB,
+        Erot2_initial / kB,
+        (3 * Etr_final) / (2 * kB),
+        Erot1_final / kB,
+        Erot2_final / kB,
     ]
 
 
@@ -437,6 +435,7 @@ if __name__ == "__main__":
             )
         )
     df = pd.DataFrame(all_results, columns=pd.Index(varNames))
+    print(f"Saving results to {outputfile}...")
     df.to_csv(outputfile, index=False)
 
     print(df.head(1))

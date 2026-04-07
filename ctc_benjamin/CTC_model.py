@@ -33,10 +33,8 @@ dt2 = dt * dt  # Time-step squared [s^2]
 tsim = 5e-12  # Max. simulation time [s]
 nsteps = tsim / dt  # Max. number of steps
 ncoll = 10000  # Number of collisios
-Etr_max = 1000 * kB  # Maximum translational energy [J]
-Etr_min = (
-    100 * kB
-)  # Minimum translational energy [J] (to avoid molecules barely moving)
+Etr_max = 5000 * kB  # Maximum translational energy [J]
+Etr_min = 50 * kB  # Minimum translational energy [J] (to avoid molecules barely moving)
 Erot_max = 1000 * kB  # Maximum rotational energy [J]
 
 # Molecule 1 with 2 atoms 1 and 2

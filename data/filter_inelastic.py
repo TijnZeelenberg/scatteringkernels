@@ -13,7 +13,7 @@ Etot = data["Etr"] + data["Erot1_in"] + data["Erot2_in"]
 # Use a relative threshold: change < 0.1% of Etot is considered elastic.
 delta_rot1 = (data["Erot1_out"] - data["Erot1_in"]).abs()
 delta_rot2 = (data["Erot2_out"] - data["Erot2_in"]).abs()
-threshold = 0.2 * Etot
+threshold = 0 #0.0001 * Etot
 
 inelastic = (delta_rot1 > threshold) | (delta_rot2 > threshold)
 
