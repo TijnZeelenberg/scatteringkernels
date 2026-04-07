@@ -34,6 +34,7 @@ mdn = MixtureDensityNetwork(
     output_dim=2,
     num_mixtures=experiment_config.num_mixtures,
     hidden_dim=experiment_config.hidden_dim,
+    dropout=experiment_config.dropout,
     randomseed=42,
 )
 mdn.load_model("results/models/mdn_O2O2.pth")
@@ -85,24 +86,24 @@ fig, ax = plt.subplots(figsize=plotconfig.figsize)
 ax.plot(
     mdn_stats["timestep"],
     mdn_stats["T_trans_mean"],
-    label="Translational Energy (MDN)",
+    label="Translational Energy MDN",
 )
 ax.plot(
     mdn_stats["timestep"],
     mdn_stats["T_rot_mean"],
-    label="Rotational Energy (MDN)",
+    label="Rotational Energy MDN",
 )
 
 ax.plot(
     bl_stats["timestep"],
     bl_stats["T_trans_mean"],
-    label="Translational Energy (BL)",
+    label="Translational Energy VHS-BL",
     linestyle="--",
 )
 ax.plot(
     bl_stats["timestep"],
     bl_stats["T_rot_mean"],
-    label="Rotational Energy (BL)",
+    label="Rotational Energy VHS-BL",
     linestyle="--",
 )
 
@@ -130,8 +131,8 @@ t_sparta = DATA[:, 1]
 T_trans_sparta = DATA[:, 2]
 T_rot_sparta = DATA[:, 3]
 
-ax.plot(t_sparta, T_trans_sparta, label="Translational Energy (SPARTA)", color="red", linestyle="--")
-ax.plot(t_sparta, T_rot_sparta, label="Rotational Energy (SPARTA)", color="blue", linestyle="--")
+ax.plot(t_sparta, T_trans_sparta, label="Translational Energy VSS-BL (SPARTA)", color="red", linestyle="--")
+ax.plot(t_sparta, T_rot_sparta, label="Rotational Energy VSS-BL (SPARTA)", color="blue", linestyle="--")
 
 ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.savefig("results/plots/O2_energy_relaxation_mdn.png", dpi=300)
