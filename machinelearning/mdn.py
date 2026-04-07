@@ -127,6 +127,7 @@ class MixtureDensityNetwork(nn.Module):
         optimizer: torch.optim.Optimizer,
         num_epochs,
         lr,
+        patience: int = 20,
     ):
         """
         Trains the Mixture Density Network using the provided training data.
@@ -135,12 +136,17 @@ class MixtureDensityNetwork(nn.Module):
             train_loader (DataLoader): DataLoader for the training data.
             val_loader (DataLoader): DataLoader for the validation data.
             optimizer (torch.optim.Optimizer): Optimizer for training.
-            num_epochs (int): Number of epochs to train the model.
+            num_epochs (int): Maximum number of epochs to train the model.
             lr (float): Learning rate for the optimizer.
+            patience (int): Early stopping patience — stop if val loss does not
+                improve for this many consecutive epochs. Default is 20.
         """
-        # Training loop
         self.train_loss_history = []
         self.val_loss_history = []
+        best_val_loss = float("inf")
+        best_weights = None
+        epochs_without_improvement = 0
+
         for epoch in tqdm(range(num_epochs), unit="epoch"):
             self.train()
             total_loss = 0
@@ -164,6 +170,20 @@ class MixtureDensityNetwork(nn.Module):
                     val_loss += mdn_loss(pi_val, mu_val, sigma_val, y_val).item()
             avg_val_loss = val_loss / len(val_loader)
             self.val_loss_history.append(avg_val_loss)
+
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                best_weights = {k: v.clone() for k, v in self.state_dict().items()}
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+                if epochs_without_improvement >= patience:
+                    tqdm.write(f"Early stopping at epoch {epoch + 1} (best val loss: {best_val_loss:.4f})")
+                    break
+
+        # Restore weights from the best epoch
+        if best_weights is not None:
+            self.load_state_dict(best_weights)
 
         return self.train_loss_history, self.val_loss_history
 
