@@ -387,6 +387,12 @@ class DSMC_Simulation:
             Pxy_col, Pxz_col, Pyz_col = self.perform_collisions(
                 collision_model, pairs_as_arrays
             )
+            if step % 10 == 0:
+                v_max = np.max(np.linalg.norm(self.velocities, axis=1))
+                e_rot_max = np.max(self.rotational_energies)
+                print(f"  step {step}: v_max={v_max:.2f}, e_rot_max={e_rot_max:.4e}, collisions_this_step={sum(len(p) for p in collision_pairs)}")
+
+            
 
         self.stats = stats
         end_time = time()
