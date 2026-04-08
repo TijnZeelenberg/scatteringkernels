@@ -1,10 +1,11 @@
 import numpy as np
 import torch
 
-def load_dataset(path: str):
+def load_dataset(path: str, rows: int | None = None):
     """Loads datasets from a specified path. The datasets are expected to be in .csv format and should contain 5 columns: E_c, eta_tr, eta_rot_A, eta_tr_post, eta_rot_A_post.
     Args:
         path (str): The file path to the dataset.
+        rows (int, optional): The number of rows to load from the dataset. If None, loads the entire dataset. Defaults to None.
     Returns:
         x (torch.Tensor): A tensor containing the input features (E_c, eta_tr, eta_rot_A).
         y (torch.Tensor): A tensor containing the target values (eta_tr_post, eta_rot_A_post).
@@ -17,7 +18,10 @@ def load_dataset(path: str):
         data = np.load(path)
     else:
         raise ValueError("Unsupported file format. Please provide a .csv or .npy file.")
-    
+
+    if rows is not None:
+        data = data[:rows]
+
     print(f"Dataset contains {data.shape[0]} rows")
 
     # Convert to variable set E_c, \eta_trans, \eta_rot_A
