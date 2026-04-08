@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 INPUT = "data/O2O2_collisions.npy"
-OUTPUT = "data/filtered/O2O2_collisions.csv"
+OUTPUT = "data/filtered/O2O2_collisions.npy"
 
 data = np.load(INPUT)
 data = pd.DataFrame(data, columns=["Etr", "Erot1_in", "Erot2_in", "Etr_out", "Erot1_out", "Erot2_out"])
@@ -18,7 +18,7 @@ threshold = 0 #0.0001 * Etot
 inelastic = (delta_rot1 > threshold) | (delta_rot2 > threshold)
 
 filtered = data[inelastic]
-filtered.to_csv(OUTPUT, index=False)
+np.save(OUTPUT, filtered.values)
 
 total = len(data)
 kept = len(filtered)

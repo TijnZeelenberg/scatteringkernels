@@ -6,13 +6,13 @@ import torch
 import matplotlib.pyplot as plt
 
 # DATASETS = ["data/H2H2_collisionsV3.csv", "data/O2O2_collisions.csv"]
-DATASETS = ["data/filtered/O2O2_collisions.csv"]
+DATASETS = ["data/filtered/O2O2_collisions.npy"]
 
 for dataset in DATASETS:
     print(f"Training on dataset: {dataset}")
 
     # Load dataset
-    data = np.loadtxt(dataset, delimiter=",", skiprows=1)
+    data = np.load(dataset)
     print(f"Dataset contains {data.shape[0]} rows")
 
     # eta_trans = E_trans/ E_total, eta_rot_A = E_rot_A / (E_rot_A + E_rot_B)
