@@ -1,17 +1,27 @@
-from scipy.stats import gaussian_kde
+from scipy.stats import gaussian_kde, entropy
 import numpy as np
-import torch
-from torch.nn.functional import kl_div
 
 
-def kl_divergence(p, q):
-    """Computes the KL divergence between two distributions p and q using Gaussian KDE for density estimation.
-    
+def kl_divergence(p_samples, q_samples, n_grid=1000):
+    """Computes the KL divergence D_KL(p || q) by estimating densities with Gaussian KDE
+    on a shared grid, then calling scipy.stats.entropy.
+
     Args:
-        p (torch.Tensor): First distribution, shape (n_samples, n_features).
-        q (torch.Tensor): Second distribution, shape (n_samples, n_features).
+        p_samples: 1D array-like of samples from distribution p
+        q_samples: 1D array-like of samples from distribution q
+        n_grid: number of evaluation points for the shared grid
 
     Returns:
         kl_div (float): The KL divergence D_KL(p || q).
     """
-    return kl_div(p, q, reduction='mean')
+    p_samples = np.asarray(p_samples).ravel()
+    q_samples = np.asarray(q_samples).ravel()
+
+    x_min = min(p_samples.min(), q_samples.min())
+    x_max = max(p_samples.max(), q_samples.max())
+    grid = np.linspace(x_min, x_max, n_grid)
+
+    p_pdf = gaussian_kde(p_samples)(grid)
+    q_pdf = gaussian_kde(q_samples)(grid)
+
+    return float(entropy(p_pdf, q_pdf))

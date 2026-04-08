@@ -31,11 +31,11 @@ bl = borgnakke_larssen_model(randomseed=randomseed)
 mdn = MixtureDensityNetwork(
     input_dim=3,
     output_dim=2,
-    num_mixtures=5,
+    num_mixtures=experiment_config.num_mixtures,
     hidden_dim=experiment_config.hidden_dim,
     randomseed=40,
 )
-mdn.load_model("results/models/mdn_H2H2.pth")
+mdn.load_model("results/models/mdn_H2H2V2.pth")
 
 # --- set up DSMC simulation ---
 mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
@@ -136,8 +136,4 @@ ax.plot(
 )
 
 ax.legend(fontsize=plotconfig.legend_fontsize)
-# fig.savefig(
-#     "results/plots/H2_energy_relaxation.png",
-#     dpi=400,
-# )
 plt.show()

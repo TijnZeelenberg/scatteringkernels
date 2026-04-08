@@ -11,7 +11,13 @@ def load_dataset(path: str):
     """
 
 
-    data = np.loadtxt(path, delimiter=',', skiprows=1)
+    if ".csv" in path:
+        data = np.loadtxt(path, delimiter=',', skiprows=1)
+    elif ".npy" in path:
+        data = np.load(path)
+    else:
+        raise ValueError("Unsupported file format. Please provide a .csv or .npy file.")
+    
     print(f"Dataset contains {data.shape[0]} rows")
 
     # Convert to variable set E_c, \eta_trans, \eta_rot_A
