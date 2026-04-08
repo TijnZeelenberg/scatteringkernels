@@ -144,6 +144,7 @@ class MixtureDensityNetwork(nn.Module):
         best_val_loss = float("inf")
         best_weights = None
         epochs_without_improvement = 0
+        best_epoch = 0
 
         for epoch in tqdm(range(num_epochs), unit="epoch"):
             self.train()
@@ -172,6 +173,7 @@ class MixtureDensityNetwork(nn.Module):
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 best_weights = {k: v.clone() for k, v in self.state_dict().items()}
+                best_epoch = epoch
                 epochs_without_improvement = 0
             else:
                 epochs_without_improvement += 1
@@ -183,6 +185,7 @@ class MixtureDensityNetwork(nn.Module):
         if best_weights is not None:
             self.load_state_dict(best_weights)
 
+        print("Training complete. Best validation loss: {:.4f} at epoch {}".format(best_val_loss, best_epoch + 1))
         return self.train_loss_history, self.val_loss_history
 
     def predict(self, x: torch.Tensor):

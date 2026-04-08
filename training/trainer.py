@@ -14,7 +14,7 @@ for dataset in DATASETS:
 
     # Load dataset
     if ".npy" in dataset:
-        data = np.load(dataset)
+        data = np.load(dataset)[:100069]
     elif ".csv" in dataset:
         data = np.loadtxt(dataset, delimiter=",", skiprows=1)
     else:
@@ -65,6 +65,7 @@ for dataset in DATASETS:
         optimizer,
         num_epochs=config.num_epochs,
         lr=config.learning_rate,
+        patience = 200
     )
 
     # Save the trained model
