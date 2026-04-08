@@ -24,7 +24,7 @@ class MixtureDensityNetwork(nn.Module):
         sigma (torch.Tensor): Standard deviations of the mixtures, shape (batch_size, num_mixtures, output_dim).
     """
 
-    def __init__(self, input_dim, output_dim, num_mixtures, hidden_dim, randomseed, dropout=0.0):
+    def __init__(self, input_dim, output_dim, num_mixtures, hidden_dim, randomseed):
         super().__init__()
         self.rng = np.random.default_rng(randomseed)
         self.K = num_mixtures
@@ -33,10 +33,8 @@ class MixtureDensityNetwork(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
-            nn.Dropout(dropout),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
-            nn.Dropout(dropout),
         )
 
         self.pi_layer = nn.Linear(hidden_dim, self.K)  # Mixture weights
@@ -127,7 +125,7 @@ class MixtureDensityNetwork(nn.Module):
         optimizer: torch.optim.Optimizer,
         num_epochs,
         lr,
-        patience: int = 20,
+        patience: int = 30,
     ):
         """
         Trains the Mixture Density Network using the provided training data.
@@ -208,7 +206,6 @@ class MixtureDensityNetwork(nn.Module):
 
         Args:
             x (torch.Tensor): Input features
-            num_samples_per_input (int): Number of samples to generate per input sample.
         Returns:
             samples (torch.Tensor): Generated data samples
         """

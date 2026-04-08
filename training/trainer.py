@@ -6,13 +6,19 @@ import torch
 import matplotlib.pyplot as plt
 
 # DATASETS = ["data/H2H2_collisionsV3.csv", "data/O2O2_collisions.csv"]
+# DATASETS = ["data/H2H2_collisions.csv"]
 DATASETS = ["data/filtered/O2O2_collisions.npy"]
 
 for dataset in DATASETS:
     print(f"Training on dataset: {dataset}")
 
     # Load dataset
-    data = np.load(dataset)
+    if ".npy" in dataset:
+        data = np.load(dataset)
+    elif ".csv" in dataset:
+        data = np.loadtxt(dataset, delimiter=",", skiprows=1)
+    else:
+        raise ValueError(f"Unsupported file format for dataset: {dataset}")
     print(f"Dataset contains {data.shape[0]} rows")
 
     # eta_trans = E_trans/ E_total, eta_rot_A = E_rot_A / (E_rot_A + E_rot_B)
@@ -40,7 +46,6 @@ for dataset in DATASETS:
         output_dim=2,
         num_mixtures=config.num_mixtures,
         hidden_dim=config.hidden_dim,
-        dropout=config.dropout,
         randomseed=config.random_seed,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
@@ -64,8 +69,8 @@ for dataset in DATASETS:
 
     # Save the trained model
     if "H2H2" in dataset:
-        model.save_model("results/models/mdn_H2H2V3.pth")
-        print(f"Model saved to results/models/mdn_H2H2V3.pth")
+        model.save_model("results/models/mdn_H2H2V2.pth")
+        print(f"Model saved to results/models/mdn_H2H2V2.pth")
     elif "O2O2" in dataset:
         model.save_model("results/models/mdn_O2O2.pth")
         print(f"Model saved to results/models/mdn_O2O2.pth")
