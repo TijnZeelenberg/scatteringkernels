@@ -67,16 +67,12 @@ def compute_density_per_point(x, y):
     return kde(data)
 
 
-def plot_density_scatter(datasets: dict):
+def plot_density_scatter(ax, datasets: dict):
     """ "Plots a scatter plot of the CTC, MDN and GMM datapoints colored by their density."""
-    # TODO: use seaborn kdeplot for quicker density estimation and plotting
 
     datasetnames = list(datasets.keys())
     datasetnames.remove("inputs")
 
-    figsize_x = config.figsize[0] * len(datasetnames)
-    figsize_y = config.figsize[1] * 2
-    fig, ax = plt.subplots(2, len(datasetnames), figsize=(figsize_x, figsize_y))
 
     for i in range(2):
         x = datasets["inputs"][:, i]
@@ -91,8 +87,6 @@ def plot_density_scatter(datasets: dict):
                 s=config.scatter_point_size,
                 alpha=config.scatter_alpha,
             )
-            ax[i, j].set_xlim(0, 1)
-            ax[i, j].set_ylim(0, 1)
             ax[0, j].set_title(
                 f"{dataset_name}",
                 fontsize=config.title_fontsize,
@@ -108,8 +102,6 @@ def plot_density_scatter(datasets: dict):
                 fontsize=config.label_fontsize,
                 fontweight=config.label_fontweight,
             )
-    plt.tight_layout()
-    plt.show()
 
 
 def plot_histogram(datasets: dict):

@@ -34,7 +34,6 @@ mdn = MixtureDensityNetwork(
     output_dim=2,
     num_mixtures=experiment_config.num_mixtures,
     hidden_dim=experiment_config.hidden_dim,
-    dropout=experiment_config.dropout,
     randomseed=42,
 )
 mdn.load_model("results/models/mdn_O2O2.pth")
@@ -67,7 +66,7 @@ bl_dsmc.create_particles(
 
 # Run simulation with both models
 mdn_dsmc.run_simulation(
-    nr_steps=nr_steps,
+    nr_steps=200,
     dt=dt,
     collision_model=mdn,
 )
