@@ -7,14 +7,14 @@ import matplotlib.pyplot as plt
 
 # DATASETS = ["data/H2H2_collisionsV3.csv", "data/O2O2_collisions.csv"]
 # DATASETS = ["data/H2H2_collisions.csv"]
-DATASETS = ["data/filtered/O2O2_collisions.npy"]
+DATASETS = ["data/O2O2_collisions_uniform.npy"]
 
 for dataset in DATASETS:
     print(f"Training on dataset: {dataset}")
 
     # Load dataset
     if ".npy" in dataset:
-        data = np.load(dataset)[:100069]
+        data = np.load(dataset)
     elif ".csv" in dataset:
         data = np.loadtxt(dataset, delimiter=",", skiprows=1)
     else:
@@ -65,7 +65,7 @@ for dataset in DATASETS:
         optimizer,
         num_epochs=config.num_epochs,
         lr=config.learning_rate,
-        patience = 200
+        patience = 30
     )
 
     # Save the trained model
@@ -73,8 +73,8 @@ for dataset in DATASETS:
         model.save_model("results/models/mdn_H2H2V2.pth")
         print(f"Model saved to results/models/mdn_H2H2V2.pth")
     elif "O2O2" in dataset:
-        model.save_model("results/models/mdn_O2O2.pth")
-        print(f"Model saved to results/models/mdn_O2O2.pth")
+        model.save_model("results/models/mdn_O2O2_uniform.pth")
+        print(f"Model saved to results/models/mdn_O2O2_uniform.pth")
 
     # Plot training and validation loss histories
     plottingconfig = PlottingConfig()

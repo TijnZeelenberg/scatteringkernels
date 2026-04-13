@@ -16,7 +16,7 @@ pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 dt = 1e-5
-nr_steps = 100
+nr_steps = 300
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 32.0e-3 / 6.022e23  # kg, mass of one O2 molecule
@@ -66,7 +66,7 @@ bl_dsmc.create_particles(
 
 # Run simulation with both models
 mdn_dsmc.run_simulation(
-    nr_steps=200,
+    nr_steps=nr_steps,
     dt=dt,
     collision_model=mdn,
 )
