@@ -126,6 +126,7 @@ class MixtureDensityNetwork(nn.Module):
         num_epochs,
         lr,
         patience: int = 30,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     ):
         """
         Trains the Mixture Density Network using the provided training data.
@@ -168,6 +169,8 @@ class MixtureDensityNetwork(nn.Module):
                     pi_val, mu_val, sigma_val = self.forward(x_val)
                     val_loss += mdn_loss(pi_val, mu_val, sigma_val, y_val).item()
             avg_val_loss = val_loss / len(val_loader)
+            if scheduler is not None:
+                scheduler.step(avg_val_loss)
             self.val_loss_history.append(avg_val_loss)
 
             if avg_val_loss < best_val_loss:
@@ -205,7 +208,7 @@ class MixtureDensityNetwork(nn.Module):
 
     def sample(self, x: torch.Tensor):
         """
-        Generates data samples from the predicted mixture of Gaussians.
+        Generates data samples from the predicted mixture of Gaussians. One sample is drawn for each input in the batch.
 
         Args:
             x (torch.Tensor): Input features
@@ -245,9 +248,7 @@ class MixtureDensityNetwork(nn.Module):
             pi = torch.where(pi_sum > 0, pi / pi_sum, uniform)
 
             # Sample one component per input according to the mixture weights
-            component = torch.multinomial(pi, num_samples=1, replacement=True).squeeze(
-                1
-            )
+            component = torch.multinomial(pi, num_samples=1, replacement=True).squeeze(1)
 
             # select mu and sigma for the chosen components
             mu_sel = mu[torch.arange(mu.size(0)), component]
@@ -276,92 +277,80 @@ class MixtureDensityNetwork(nn.Module):
             if n > 0.0:
                 return d / n
 
-    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m):
+    def collide(self, velocity_i: np.ndarray, e_rot_i: np.ndarray, velocity_j: np.ndarray, e_rot_j: np.ndarray, m: float):
+        """Performs a collision between two particles using the MDN to predict post-collisional energy fractions."""
+        
         if velocity_i.shape != velocity_j.shape:
             raise ValueError("Input velocity vectors must have the same shape.")
 
-        # Compute precollisional energy fractions
-        # Etot here includes center-of-mass kinetic energy (because it uses absolute velocities).
+        # Compute precollisional energy fractions.
+        # Etot is the redistributable energy (relative KE + rotational) — COM KE is
+        # conserved implicitly through V and does not enter the redistribution pool.
         g = velocity_i - velocity_j
-        E_rel = 0.25 * m * np.sum(g**2, axis=1)
+        E_rel = 0.25 * m * np.sum(g**2)
         Etot = float(E_rel + e_rot_i + e_rot_j)
         Erot = float(e_rot_i + e_rot_j)
 
-        # Degenerate (near-zero) collisions: keep state unchanged.
-        if not np.isfinite(Etot) or Etot <= 0.0:
+        # Guard against zero energy cases
+        if Etot <= 0 or Erot <= 0:
             return velocity_i, e_rot_i, velocity_j, e_rot_j
-
+        
         eta_tr = E_rel / Etot
         eta_rot_A = e_rot_i / Erot
 
-        if not (np.isfinite(eta_tr) and np.isfinite(eta_rot_A)):
-            return velocity_i, e_rot_i, velocity_j, e_rot_j
-
         # Sample new energy fractions from the predicted mixture of Gaussians
         device, dtype = self._param_device_dtype()
-        input_features = torch.tensor(
-            [[Etot, eta_tr, eta_rot_A]],
-            device=device,
-            dtype=dtype,
-        )
-        etap_tr, etap_rot_A = (
+        input_features = torch.tensor([[Etot, eta_tr, eta_rot_A]], device=device, dtype=dtype)
+        etap_tr, etap_rot_i = (
             self.sample(input_features).squeeze(0).detach().cpu().numpy()
         )
 
         # Physical constraints: energy fractions must lie in [0, 1].
         etap_tr = float(np.clip(etap_tr, 0.0, 1.0))
-        etap_rot_A = float(np.clip(etap_rot_A, 0.0, 1.0))
+        etap_rot_i = float(np.clip(etap_rot_i, 0.0, 1.0))
 
-        # Enforce momentum conservation by working in the COM frame.
-        # Center-of-mass velocity (equal masses assumed)
-        V = 0.5 * (velocity_i + velocity_j)
-        E_com = float(m * np.dot(V, V))
+        # Reconstruct post-collisional energies.
+        E_rel_post = etap_tr * Etot
+        E_rot_pool = Etot - E_rel_post
+        E_rot_i_post = etap_rot_i * E_rot_pool
+        E_rot_j_post = (1.0 - etap_rot_i) * E_rot_pool
 
-        # TODO: take another look at this code 2026-03-31
-        # Interpret the sampled translational fraction as target total translational energy,
-        # but COM kinetic energy is fixed, so only the relative part can change.
-        Etr_target = float(np.clip(etap_tr * Etot, 0.0, Etot))
-        E_rel_post = max(0.0, Etr_target - E_com)
-
-        # Relative translational energy cannot exceed the available non-COM energy.
-        E_available = max(0.0, Etot - E_com)
-        E_rel_post = float(np.clip(E_rel_post, 0.0, E_available))
-
-        # Remaining energy goes into rotation.
-        E_rot_pool = float(max(0.0, E_available - E_rel_post))
-        E_rot_i_post = float(etap_rot_A * E_rot_pool)
-        E_rot_j_post = float((1.0 - etap_rot_A) * E_rot_pool)
-
-        # Sample isotropic relative velocity direction and set magnitude from E_rel_post.
+        # Sample isotropic random velocity direction
         direction = self._sample_unit_direction(velocity_i.shape)
-        g_mag = float(np.sqrt(max(0.0, 4.0 * E_rel_post / m)))
+        g_mag = np.sqrt(4.0 * E_rel_post / m)
         g_post = direction * g_mag
 
+        # Scatter relative to COM velocity
+        V = 0.5 * (velocity_i + velocity_j)
         v_i_post = V + 0.5 * g_post
         v_j_post = V - 0.5 * g_post
         return v_i_post, E_rot_i_post, v_j_post, E_rot_j_post
 
-    def batch_collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m):
-        # --- Compute COM-frame energies ---
-        V = 0.5 * (velocity_i + velocity_j)  # (N, 3)
-        g = velocity_i - velocity_j  # (N, 3)
-        Erel = 0.25 * m * np.sum(g**2, axis=1)  # (N,)
-        Etot = Erel + e_rot_i + e_rot_j  # (N,) — only redistributable energy
-        Erot_total = e_rot_i + e_rot_j  # (N,) — total rotational energy
+    def batch_collide(self, velocity_i: np.ndarray, e_rot_i: np.ndarray, velocity_j: np.ndarray, e_rot_j: np.ndarray, m: float):
+        """Performs a batch of collisions using the MDN to predict post-collisional energy fractions.
+        Args:
+            velocity_i (np.ndarray): Pre-collisional velocities of particle i
+            e_rot_i (np.ndarray): Pre-collisional rotational energies of particle i
+            velocity_j (np.ndarray): Pre-collisional velocities of particle j
+            e_rot_j (np.ndarray): Pre-collisional rotational energies of particle j
+            m (float): Mass of the particles
+        Returns:            
+            v_i_post (np.ndarray): Post-collisional velocities of particle i
+            e_rot_i_post (np.ndarray): Post-collisional rotational energies of particle i
+            v_j_post (np.ndarray): Post-collisional velocities of particle j
+            e_rot_j_post (np.ndarray): Post-collisional rotational energies of particle j
+        """
 
-        # --- COM-frame fractions (safe denominator; invalid rows masked below) ---
-        safe_Etot = np.where(Etot > 0, Etot, 1.0)
-        safe_Erot = np.where(Erot_total > 0, Erot_total, 1.0)
-        eta_tr = Erel / safe_Etot
-        eta_rot_A = e_rot_i / safe_Erot
+        # Compute precollisional energy fractions.
+        # Etot is the redistributable energy (relative KE + rotational) — COM KE is
+        # conserved implicitly through V and does not enter the redistribution pool.
+        g = velocity_i - velocity_j                    # (N, 3)
+        E_rel = 0.25 * m * np.sum(g**2, axis=1)       # (N,)
+        Etot = E_rel + e_rot_i + e_rot_j              # (N,)
+        Erot = e_rot_i + e_rot_j                       # (N,)
 
-        # --- Degenerate collision mask ---
-        valid = (
-            np.isfinite(Etot)
-            & (Etot > 0)
-            & np.isfinite(eta_tr)
-            & np.isfinite(eta_rot_A)
-        )
+        # Guard against degenerate collisions; process only valid pairs.
+        valid = (Etot > 0) & (Erot > 0)
 
         v_i_post = velocity_i.copy()
         v_j_post = velocity_j.copy()
@@ -372,47 +361,47 @@ class MixtureDensityNetwork(nn.Module):
             return v_i_post, e_rot_i_post, v_j_post, e_rot_j_post
 
         idx = np.where(valid)[0]
-        input_features = np.stack(
-            [Etot[idx], eta_tr[idx], eta_rot_A[idx]],
-            axis=1,
-        )
+        eta_tr = E_rel[idx] / Etot[idx]
+        eta_rot_A = e_rot_i[idx] / Erot[idx]
 
+        # Sample new energy fractions from the predicted mixture of Gaussians
         device, dtype = self._param_device_dtype()
-        input_tensor = torch.tensor(input_features, device=device, dtype=dtype)
-
+        input_tensor = torch.tensor(
+            np.stack([Etot[idx], eta_tr, eta_rot_A], axis=1),
+            device=device,
+            dtype=dtype,
+        )
         samples = self.sample(input_tensor).detach().cpu().numpy()
-        xi_rel_post = np.clip(samples[:, 0], 0.0, 1.0)
-        xi_rot_A_post = np.clip(samples[:, 1], 0.0, 1.0)
+        etap_tr = np.clip(samples[:, 0], 0.0, 1.0)
+        etap_rot_i = np.clip(samples[:, 1], 0.0, 1.0)
 
-        # --- Reconstruct post-collision state ---
-        E_avail_v = Etot[idx]
-        V_v = V[idx]
+        # Reconstruct post-collisional energies.
+        E_rel_post = etap_tr * Etot[idx]
+        E_rot_pool = Etot[idx] - E_rel_post
+        e_rot_i_post[idx] = etap_rot_i * E_rot_pool
+        e_rot_j_post[idx] = (1.0 - etap_rot_i) * E_rot_pool
 
-        E_rel_post = xi_rel_post * E_avail_v
-        E_rot_pool = E_avail_v - E_rel_post
-        e_rot_i_post[idx] = xi_rot_A_post * E_rot_pool
-        e_rot_j_post[idx] = E_rot_pool - e_rot_i_post[idx]
-
-        # Isotropic random directions
+        # Sample isotropic random velocity directions
         raw = self.rng.normal(size=(len(idx), 3))
         norms = np.linalg.norm(raw, axis=1, keepdims=True)
-        norms = np.where(norms > 0, norms, 1.0)
-        directions = raw / norms
+        directions = raw / np.where(norms > 0, norms, 1.0)
 
-        g_mag = np.sqrt(np.maximum(0.0, 4.0 * E_rel_post / m))
+        g_mag = np.sqrt(4.0 * E_rel_post / m)
         g_post = directions * g_mag[:, None]
 
-        v_i_post[idx] = V_v + 0.5 * g_post
-        v_j_post[idx] = V_v - 0.5 * g_post
+        # Scatter relative to COM velocity
+        V = 0.5 * (velocity_i + velocity_j)
+        v_i_post[idx] = V[idx] + 0.5 * g_post
+        v_j_post[idx] = V[idx] - 0.5 * g_post
 
         return v_i_post, e_rot_i_post, v_j_post, e_rot_j_post
 
     def save_model(self, path):
         """
-        Saves the model state dictionary to a .pt file.
+        Saves the model state dictionary to a .pth file.
 
         Args:
-            path (str): Path to save the model, must end with .pt.
+            path (str): Path to save the model, must end with .pth.
         """
         if (
             self.input_mean is None
@@ -436,10 +425,10 @@ class MixtureDensityNetwork(nn.Module):
 
     def load_model(self, path):
         """
-        Loads the model state dictionary from a .pt file.
+        Loads the model state dictionary from a .pth file.
 
         Args:
-            path (str): Path to load the model from, must end with .pt.
+            path (str): Path to load the model from, must end with .pth.
         """
         model_dict = torch.load(path)
         self.load_state_dict(model_dict["state_dict"])
