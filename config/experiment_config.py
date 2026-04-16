@@ -8,7 +8,7 @@ class ExperimentConfig:
 
         # MDN settings
         # Training parameters
-        self.learning_rate = 2.0e-04
+        self.learning_rate = 5.29e-04
         self.batch_size = 128
         self.num_epochs = 200
         self.trainval_split = 0.7

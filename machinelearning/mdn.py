@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset, random_split
+from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler, random_split
 import numpy as np
 from tqdm import tqdm
 
@@ -83,18 +83,25 @@ class MixtureDensityNetwork(nn.Module):
                 setattr(self, attr, t.to(device=device, dtype=dtype))
 
     def create_dataloaders(
-        self, X, y, batch_size, shuffle, trainval_split, random_seed
+        self, X, y, batch_size, shuffle, trainval_split, random_seed, weights=None
     ):
         """
-        Creates a DataLoader for the given dataset.
+        Creates DataLoaders for training and validation.
 
         Args:
             X (torch.Tensor): Input features
             y (torch.Tensor): Target values
             batch_size (int): Number of samples per batch.
-            shuffle (bool): Whether to shuffle the data at every epoch.
+            shuffle (bool): Whether to shuffle (ignored when weights are given).
+            trainval_split (float): Fraction of data used for training.
+            random_seed (int): Seed for the train/val split.
+            weights (torch.Tensor | None): Per-sample importance weights for the
+                training set. When provided, training samples are drawn with
+                replacement proportional to these weights (WeightedRandomSampler),
+                so the model is trained on the reweighted distribution. The
+                validation loader is always unweighted.
         Returns:
-            dataloader (DataLoader): DataLoader for the dataset.
+            train_loader, val_loader (DataLoader): DataLoaders for training/validation.
         """
         # Normalize the data
         self.input_mean = X.mean(dim=0)
@@ -114,7 +121,14 @@ class MixtureDensityNetwork(nn.Module):
         )
 
         # Create DataLoaders
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
+        if weights is not None:
+            train_weights = weights[train_dataset.indices]
+            sampler = WeightedRandomSampler(
+                train_weights, num_samples=len(train_dataset), replacement=True
+            )
+            train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler)
+        else:
+            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
         return train_loader, val_loader
 

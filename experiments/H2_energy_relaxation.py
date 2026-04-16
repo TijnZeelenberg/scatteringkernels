@@ -10,12 +10,12 @@ plotconfig = PlottingConfig()
 experiment_config = ExperimentConfig()
 
 # --- simulation parameters ---
-randomseed = 1
+randomseed = 2
 pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 dt = 1e-5
-nr_steps = 100
+nr_steps = 200
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule
@@ -33,9 +33,9 @@ mdn = MixtureDensityNetwork(
     output_dim=2,
     num_mixtures=experiment_config.num_mixtures,
     hidden_dim=experiment_config.hidden_dim,
-    randomseed=40,
+    randomseed=randomseed,
 )
-mdn.load_model("results/models/mdn_H2H2V2.pth")
+mdn.load_model("results/models/mdn_H2H2_numba_weighed.pth")
 
 # --- set up DSMC simulation ---
 mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
@@ -75,6 +75,21 @@ bl_dsmc.run_simulation(
     collision_model=bl,
 )
 bl_stats = bl_dsmc.get_stats()
+
+# --- load SPARTA data ---
+DATA = np.loadtxt("data/sparta_H2_energy_relaxation.dat", skiprows=2)
+
+timestep_sparta = DATA[:, 0]
+t_sparta = DATA[:, 1]
+T_trans_sparta = DATA[:, 2]
+T_rot_sparta = DATA[:, 3]
+
+# print table of mean final temperatures from all models
+print("Final mean temperatures:")
+print(f"MDN: T_trans = {mdn_stats['T_trans_mean'][-20:-1].mean():.2f} K, T_rot = {mdn_stats['T_rot_mean'][-20:-1].mean():.2f} K")
+print(f"BL: T_trans = {bl_stats['T_trans_mean'][-20:-1].mean():.2f} K, T_rot = {bl_stats['T_rot_mean'][-20:-1].mean():.2f} K")
+print(f"SPARTA: T_trans = {T_trans_sparta[-20:-1].mean():.2f} K, T_rot = {T_rot_sparta[-20:-1].mean():.2f} K")
+
 
 # --- plot energy relaxation ---
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
@@ -117,12 +132,6 @@ ax.set_title(
     fontweight=plotconfig.title_fontweight,
 )
 # Add energy relaxation plot from SPARTA
-DATA = np.loadtxt("data/sparta_H2_energy_relaxation.dat", skiprows=2)
-
-timestep_sparta = DATA[:, 0]
-t_sparta = DATA[:, 1]
-T_trans_sparta = DATA[:, 2]
-T_rot_sparta = DATA[:, 3]
 
 ax.plot(
     t_sparta,
@@ -136,4 +145,6 @@ ax.plot(
 )
 
 ax.legend(fontsize=plotconfig.legend_fontsize)
+ax.grid()
+fig.savefig("results/plots/H2_energy_relaxation.png", dpi=300)
 plt.show()

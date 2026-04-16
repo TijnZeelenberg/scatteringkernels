@@ -5,9 +5,8 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-# DATASETS = ["data/H2H2_collisionsV3.csv", "data/O2O2_collisions.csv"]
 # DATASETS = ["data/H2H2_collisions.csv"]
-DATASETS = ["data/O2O2_collisions_uniform.npy"]
+DATASETS = ["data/H2H2_collisions_numba.npy"]
 
 for dataset in DATASETS:
     print(f"Training on dataset: {dataset}")
@@ -21,7 +20,7 @@ for dataset in DATASETS:
         raise ValueError(f"Unsupported file format for dataset: {dataset}")
     print(f"Dataset contains {data.shape[0]} rows")
 
-    # eta_trans = E_trans/ E_total, eta_rot_A = E_rot_A / (E_rot_A + E_rot_B)
+    # eta_trans_rel = E_trans_rel/ E_total, eta_rot_A = E_rot_A / (E_rot_A + E_rot_B)
     # Convert to variable set E_c, \eta_trans, \eta_rot_A
     inputdata = np.zeros((data.shape[0], 3))
     inputdata[:, 0] = np.sum(data[:, 0:3], axis=1)  # total energy
@@ -39,6 +38,15 @@ for dataset in DATASETS:
     X = torch.tensor(inputdata, dtype=torch.float32)
     y = torch.tensor(outputdata, dtype=torch.float32)
 
+    # Importance weights: matches the NTC collision selection
+    # probability (proportional to relative speed |g| ~ E_rel^0.5), so the
+    # model is trained on the same distribution of collision pairs that DSMC
+    # actually encounters at equilibrium.
+    E_rel_pre = data[:, 0]
+    ntc_weights = E_rel_pre
+    ntc_weights = ntc_weights / ntc_weights.sum()
+    ntc_weights = torch.tensor(ntc_weights, dtype=torch.float32)
+
     # Initialize model and training parameters
     config = ExperimentConfig()
     model = MixtureDensityNetwork(
@@ -49,6 +57,7 @@ for dataset in DATASETS:
         randomseed=config.random_seed,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=10)
 
     # Train the model
     train_loader, val_loader = model.create_dataloaders(
@@ -58,6 +67,7 @@ for dataset in DATASETS:
         shuffle=config.shuffle,
         trainval_split=config.trainval_split,
         random_seed=config.random_seed,
+        weights=ntc_weights,
     )
     train_loss_history, val_loss_history = model.train_model(
         train_loader,
@@ -65,13 +75,14 @@ for dataset in DATASETS:
         optimizer,
         num_epochs=config.num_epochs,
         lr=config.learning_rate,
-        patience = 30
+        patience=30,
+        scheduler=None,
     )
 
     # Save the trained model
     if "H2H2" in dataset:
-        model.save_model("results/models/mdn_H2H2V2.pth")
-        print(f"Model saved to results/models/mdn_H2H2V2.pth")
+        model.save_model("results/models/mdn_H2H2_numba_weighed.pth")
+        print(f"Model saved to results/models/mdn_H2H2_numba_weighed.pth")
     elif "O2O2" in dataset:
         model.save_model("results/models/mdn_O2O2_uniform.pth")
         print(f"Model saved to results/models/mdn_O2O2_uniform.pth")
