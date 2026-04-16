@@ -18,7 +18,8 @@ from dscatter import dscatter
 # ---------------------------------------------------------------------------
 # Number of collisions to simulate
 # ---------------------------------------------------------------------------
-ncoll = 2000
+ncoll = 40000
+savefile = "data/H2H2_collisionsV3.npy"
 
 # ---------------------------------------------------------------------------
 # Physical constants
@@ -45,16 +46,20 @@ def run_collision(seed: int):
     """Simulate one H2-H2 collision and return scalar result tuple."""
     np.random.seed(seed)
 
+    # Sample total translational energy uniformly between 50 K and 6000 K
     Etr_K_max = 5950.0
-    Etr_K1 = 50.0 + np.random.rand() * Etr_K_max
+    frac_tr = np.random.rand()
+    Etr_tot = (frac_tr * Etr_K_max) + 50.0
+    # Split total translational energy randomly between the two molecules
+    frac_tr1 = np.random.rand()
+    Etr_K1 =  frac_tr1 * Etr_tot
     Etr_J1 = Etr_K1 * kB
     vtr1 = np.sqrt(2.0 * Etr_J1 / m_H2)
-
-    Etr_K2 = 50.0 + np.random.rand() * Etr_K_max
+    Etr_K2 = (1.0 - frac_tr1) * Etr_tot
     Etr_J2 = Etr_K2 * kB
     vtr2 = np.sqrt(2.0 * Etr_J2 / m_H2)
 
-    bmax = 1.5 * sigma_LJ
+    bmax = 1.2 * sigma_LJ
     b = np.random.rand() * bmax
     b_norm = b / sigma_LJ
 
@@ -115,7 +120,8 @@ def run_collision(seed: int):
 
         ek1 = 0.5 * m1 * np.dot(V1, V1)
         ek2 = 0.5 * m2 * np.dot(V2, V2)
-        ek_rel = 0.5 * m1 * m2 / (m1 + m2) * np.dot(V1 - V2, V1 - V2)
+        g = V1 - V2
+        ek_rel = 0.5 * (m1 * m2 / (m1 + m2)) * np.dot(g, g)
         er1 = 0.5 * I * (w1[0] ** 2 + w1[1] ** 2)
         er2 = 0.5 * I * (w2[0] ** 2 + w2[1] ** 2)
 
@@ -240,8 +246,8 @@ if __name__ == "__main__":
     )
 
     # save as numpy npy
-    np.save("data/H2H2_collisionsV3.npy", df.to_numpy())
-    print("Saved collision_data.npy")
+    np.save(savefile, df.to_numpy())
+    print(f"Saved {savefile}")
 
     # -----------------------------------------------------------------------
     # Inelastic collision fraction
