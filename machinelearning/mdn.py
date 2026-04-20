@@ -127,9 +127,16 @@ class MixtureDensityNetwork(nn.Module):
                 train_weights, num_samples=len(train_dataset), replacement=True
             )
             train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler)
+
+            val_weights = weights[val_dataset.indices]
+            val_weights = val_weights / val_weights.sum()
+            val_weighted_dataset = TensorDataset(
+                X[val_dataset.indices], y[val_dataset.indices], val_weights
+            )
+            val_loader = DataLoader(val_weighted_dataset, batch_size=batch_size, shuffle=False)
         else:
             train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+            val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
         return train_loader, val_loader
 
     def train_model(
@@ -169,6 +176,7 @@ class MixtureDensityNetwork(nn.Module):
                 pi, mu, sigma = self.forward(x_batch)
                 loss = mdn_loss(pi, mu, sigma, y_batch)
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
                 optimizer.step()
                 total_loss += loss.item()
 
@@ -177,12 +185,22 @@ class MixtureDensityNetwork(nn.Module):
 
             # Validation loop
             self.eval()
-            val_loss = 0
+            val_loss = 0.0
+            val_weight_total = 0.0
             with torch.no_grad():
-                for x_val, y_val in val_loader:
-                    pi_val, mu_val, sigma_val = self.forward(x_val)
-                    val_loss += mdn_loss(pi_val, mu_val, sigma_val, y_val).item()
-            avg_val_loss = val_loss / len(val_loader)
+                for batch in val_loader:
+                    if len(batch) == 3:
+                        x_val, y_val, w_val = batch
+                        pi_val, mu_val, sigma_val = self.forward(x_val)
+                        weighted_nll, w_sum = mdn_loss_weighted(pi_val, mu_val, sigma_val, y_val, w_val)
+                        val_loss += weighted_nll.item()
+                        val_weight_total += w_sum.item()
+                    else:
+                        x_val, y_val = batch
+                        pi_val, mu_val, sigma_val = self.forward(x_val)
+                        val_loss += mdn_loss(pi_val, mu_val, sigma_val, y_val).item()
+                        val_weight_total += 1
+            avg_val_loss = val_loss / val_weight_total
             if scheduler is not None:
                 scheduler.step(avg_val_loss)
             self.val_loss_history.append(avg_val_loss)
@@ -477,3 +495,23 @@ def mdn_loss(pi, mu, sigma, y):
     log_sum_exp = torch.logsumexp(weighted_log_prob, dim=1)
 
     return -torch.mean(log_sum_exp)
+
+
+def mdn_loss_weighted(pi, mu, sigma, y, w):
+    """
+    Weighted negative log-likelihood loss for a Mixture Density Network.
+    Returns (weighted_nll_sum, weight_sum) so the caller can accumulate a
+    properly normalized weighted mean across batches.
+    """
+    y = y.unsqueeze(1)
+
+    log_prob = -0.5 * (
+        torch.sum(((y - mu) / sigma) ** 2, dim=2)
+        + torch.sum(torch.log(sigma**2), dim=2)
+        + mu.size(2) * torch.log(torch.tensor(2 * torch.pi))
+    )
+
+    weighted_log_prob = log_prob + torch.log(pi + 1e-8)
+    log_sum_exp = torch.logsumexp(weighted_log_prob, dim=1)  # (batch_size,)
+
+    return -(w * log_sum_exp).sum(), w.sum()
