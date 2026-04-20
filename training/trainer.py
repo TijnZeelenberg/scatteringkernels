@@ -5,19 +5,26 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-# DATASETS = ["data/H2H2_collisions.csv"]
-DATASETS = ["data/H2H2_collisions_numba.npy"]
 
-for dataset in DATASETS:
-    print(f"Training on dataset: {dataset}")
+def train_mdn(datapath, outputpath, wf: float = 1, patience: int = 30, showplots=False):
 
-    # Load dataset
-    if ".npy" in dataset:
-        data = np.load(dataset)
-    elif ".csv" in dataset:
-        data = np.loadtxt(dataset, delimiter=",", skiprows=1)
+    print(f"Training on dataset: {datapath}")
+
+    # Load and check dataset
+    if ".npy" in datapath:
+        data = np.load(datapath)
+        if data.shape[1] != 6:
+            raise ValueError(
+                f"Expected dataset with 6 columns (Etr, Erot1, Erot2, Etr', Erot1', Erot2'), but got {data.shape[1]} columns"
+            )
+    elif ".csv" in datapath:
+        data = np.loadtxt(datapath, delimiter=",", skiprows=1)
+        if data.shape[1] != 6:
+            raise ValueError(
+                f"Expected dataset with 6 columns (Etr, Erot1, Erot2, Etr', Erot1', Erot2'), but got {data.shape[1]} columns"
+            )
     else:
-        raise ValueError(f"Unsupported file format for dataset: {dataset}")
+        raise ValueError(f"Unsupported file format for dataset: {datapath}")
     print(f"Dataset contains {data.shape[0]} rows")
 
     # eta_trans_rel = E_trans_rel/ E_total, eta_rot_A = E_rot_A / (E_rot_A + E_rot_B)
@@ -38,12 +45,9 @@ for dataset in DATASETS:
     X = torch.tensor(inputdata, dtype=torch.float32)
     y = torch.tensor(outputdata, dtype=torch.float32)
 
-    # Importance weights: matches the NTC collision selection
-    # probability (proportional to relative speed |g| ~ E_rel^0.5), so the
-    # model is trained on the same distribution of collision pairs that DSMC
-    # actually encounters at equilibrium.
-    E_rel_pre = data[:, 0]
-    ntc_weights = E_rel_pre
+    # Weigh training samples according to translational energy (faster molecules are more likely to collide)
+    E_rel_trans_pre = data[:, 0]
+    ntc_weights = (E_rel_trans_pre) ** wf
     ntc_weights = ntc_weights / ntc_weights.sum()
     ntc_weights = torch.tensor(ntc_weights, dtype=torch.float32)
 
@@ -57,7 +61,9 @@ for dataset in DATASETS:
         randomseed=config.random_seed,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=10)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="min", factor=0.5, patience=10
+    )
 
     # Train the model
     train_loader, val_loader = model.create_dataloaders(
@@ -75,36 +81,35 @@ for dataset in DATASETS:
         optimizer,
         num_epochs=config.num_epochs,
         lr=config.learning_rate,
-        patience=30,
+        patience=patience,
         scheduler=None,
     )
 
     # Save the trained model
-    if "H2H2" in dataset:
-        model.save_model("results/models/mdn_H2H2_numba_weighed.pth")
-        print(f"Model saved to results/models/mdn_H2H2_numba_weighed.pth")
-    elif "O2O2" in dataset:
-        model.save_model("results/models/mdn_O2O2_uniform.pth")
-        print(f"Model saved to results/models/mdn_O2O2_uniform.pth")
+    model.save_model(outputpath)
+    print(f"Model saved to: {outputpath}")
 
-    # Plot training and validation loss histories
-    plottingconfig = PlottingConfig()
-    plt.figure(figsize=(plottingconfig.figsize))
-    plt.plot(train_loss_history, label="Training Loss")
-    plt.plot(val_loss_history, label="Validation Loss")
-    plt.xlabel(
-        "Epoch",
-        fontsize=plottingconfig.label_fontsize,
-        fontweight=plottingconfig.label_fontweight,
-    )
-    plt.ylabel(
-        "Loss",
-        fontsize=plottingconfig.label_fontsize,
-        fontweight=plottingconfig.label_fontweight,
-    )
-    plt.legend(fontsize=plottingconfig.legend_fontsize)
-    # if "H2H2" in dataset:
-    #     plt.savefig("results/plots/H2H2V2_loss_history.png")
-    # elif "O2O2" in dataset:
-    #     plt.savefig("results/plots/O2O2_loss_history.png")
-    plt.show()
+    if showplots:
+        # Plot training and validation loss histories
+        plottingconfig = PlottingConfig()
+        plt.figure(figsize=(plottingconfig.figsize))
+        plt.plot(train_loss_history, label="Training Loss")
+        plt.plot(val_loss_history, label="Validation Loss")
+        plt.xlabel(
+            "Epoch",
+            fontsize=plottingconfig.label_fontsize,
+            fontweight=plottingconfig.label_fontweight,
+        )
+        plt.ylabel(
+            "Loss",
+            fontsize=plottingconfig.label_fontsize,
+            fontweight=plottingconfig.label_fontweight,
+        )
+        plt.legend(fontsize=plottingconfig.legend_fontsize)
+        plt.show()
+
+if __name__ == "__main__":
+    # Example usage:
+    datapath = "data/O2O2_collisions_uniform.npy"
+    outputpath = "results/models/mdn_O2O2.pth"
+    train_mdn(datapath, outputpath, wf=0.5, patience=200, showplots=True)
