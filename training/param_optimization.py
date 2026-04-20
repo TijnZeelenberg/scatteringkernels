@@ -10,10 +10,13 @@ from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 all_results = []  # list of dicts: {label, train_loss, val_loss}
 
 # ── Dataset loading (done once) ───────────────────────────────────────────────
-DATASETS = ["data/filtered/O2O2_collisions.csv"]
+DATASETS = ["data/H2H2_collisionsV3.npy"]
 for dataset in DATASETS:
     print(f"Training on dataset: {dataset}")
-    data = np.loadtxt(dataset, delimiter=",", skiprows=1)
+    if ".npy" in dataset:
+        data = np.load(dataset)
+    elif ".csv" in dataset:
+        data = np.loadtxt(dataset, delimiter=",", skiprows=1)
     print(f"Dataset contains {data.shape[0]} rows")
 
     # Convert to variable set E_c, eta_trans, eta_rot_A
@@ -35,7 +38,6 @@ for dataset in DATASETS:
         "learning_rate": hp.loguniform("learning_rate", np.log(5e-5), np.log(1e-3)),
         "num_mixtures": hp.choice("num_mixtures", [4, 8, 12, 16, 24]),
         "hidden_dim": hp.choice("hidden_dim", [64, 128, 256, 512]),
-        "dropout": hp.uniform("dropout", 0.0, 0.3),
     }
 
     NUM_EPOCHS = 75
@@ -45,8 +47,7 @@ for dataset in DATASETS:
         lr = params["learning_rate"]
         num_mix = params["num_mixtures"]
         hid_dim = params["hidden_dim"]
-        dropout = params["dropout"]
-        label = f"bs={batch_size}, lr={lr:.2e}, mix={num_mix}, hid={hid_dim}, do={dropout:.2f}"
+        label = f"bs={batch_size}, lr={lr:.2e}, mix={num_mix}, hid={hid_dim}"
         print(f"\n{'=' * 60}")
         print(f"Trial {len(all_results) + 1}/50: {label}")
         print(f"{'=' * 60}")
@@ -59,7 +60,6 @@ for dataset in DATASETS:
             num_mixtures=num_mix,
             hidden_dim=hid_dim,
             randomseed=config.random_seed,
-            dropout=dropout,
         )
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -90,7 +90,6 @@ for dataset in DATASETS:
                 "lr": lr,
                 "num_mixtures": num_mix,
                 "hidden_dim": hid_dim,
-                "dropout": dropout,
             }
         )
 
@@ -117,7 +116,6 @@ for dataset in DATASETS:
     print(f"  learning_rate = {best['learning_rate']:.2e}")
     print(f"  num_mixtures  = {num_mixtures_options[best['num_mixtures']]}")
     print(f"  hidden_dim    = {hidden_dim_options[best['hidden_dim']]}")
-    print(f"  dropout       = {best['dropout']:.3f}")
 
     # ── Sort results by best validation loss ──────────────────────────────
     sorted_results = sorted(all_results, key=lambda r: min(r["val_loss"]))
@@ -149,18 +147,18 @@ for dataset in DATASETS:
         fontsize=14,
     )
     plt.tight_layout()
-    plt.savefig("hyperopt_loss_curves.png", dpi=150, bbox_inches="tight")
+    plt.savefig("training/hyperopt_loss_curves.png", dpi=150, bbox_inches="tight")
     plt.show()
-    print(f"\nPlot saved to hyperopt_loss_curves.png (showing top {top_n} trials)")
+    print(f"\nPlot saved to training/hyperopt_loss_curves.png (showing top {top_n} trials)")
 
     # ── Print top 10 results table ────────────────────────────────────────
     print(f"\n{'=' * 80}")
     print(f"Top {top_n} trials by best validation loss:")
     print(f"{'=' * 80}")
-    print(f"{'Rank':<5} {'Val Loss':<10} {'BS':<5} {'LR':<12} {'Mix':<5} {'Hid':<5} {'Drop':<6}")
+    print(f"{'Rank':<5} {'Val Loss':<10} {'BS':<5} {'LR':<12} {'Mix':<5} {'Hid':<5}")
     print(f"{'-' * 48}")
     for i, r in enumerate(top_results):
         print(
             f"{i + 1:<5} {min(r['val_loss']):<10.4f} {r['batch_size']:<5} "
-            f"{r['lr']:<12.2e} {r['num_mixtures']:<5} {r['hidden_dim']:<5} {r['dropout']:<6.2f}"
+            f"{r['lr']:<12.2e} {r['num_mixtures']:<5} {r['hidden_dim']:<5}"
         )
