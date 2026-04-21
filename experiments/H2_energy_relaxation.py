@@ -15,10 +15,12 @@ pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 dt = 1e-5
-nr_steps = 200
+nr_steps = 100
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule
+zrot_bl = 6.0
+zrot_mdn = zrot_bl/3.5
 
 kB = 1.380649e-23  # J/K
 N_sim = 20000  # number of simulated particles
@@ -35,7 +37,7 @@ mdn = MixtureDensityNetwork(
     hidden_dim=experiment_config.hidden_dim,
     randomseed=randomseed,
 )
-mdn.load_model("results/models/mdn_H2H2_numba_weighed.pth")
+mdn.load_model("results/models/H2H2_mdn_b1_0_alpha1_0.pth")
 
 # --- set up DSMC simulation ---
 mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
@@ -48,6 +50,7 @@ mdn_dsmc.create_particles(
     d=d_H2,
     trans_temperature=trans_temperature,
     rot_temperature=rot_temperature,
+    zrot=zrot_mdn
 )
 bl_dsmc = DSMC_Simulation(random_seed=randomseed)
 bl_dsmc.create_box(box_size=box_size)
@@ -59,6 +62,7 @@ bl_dsmc.create_particles(
     d=d_H2,
     trans_temperature=trans_temperature,
     rot_temperature=rot_temperature,
+    zrot=zrot_bl
 )
 
 # Run simulation with both models
@@ -77,7 +81,7 @@ bl_dsmc.run_simulation(
 bl_stats = bl_dsmc.get_stats()
 
 # --- load SPARTA data ---
-DATA = np.loadtxt("data/sparta_H2_energy_relaxation.dat", skiprows=2)
+DATA = np.loadtxt("data/sparta_H2_energy_relaxation_zinv0151.dat", skiprows=2)
 
 timestep_sparta = DATA[:, 0]
 t_sparta = DATA[:, 1]
@@ -97,22 +101,22 @@ fig, ax = plt.subplots(figsize=plotconfig.figsize)
 ax.plot(
     mdn_stats["timestep"],
     mdn_stats["T_trans_mean"],
-    label="translational temp MDN",
+    label="$T_{trans}$ MDN",
 )
 ax.plot(
     mdn_stats["timestep"],
     mdn_stats["T_rot_mean"],
-    label="rotational temp MDN",
+    label="$T_{rot}$ MDN",
 )
 ax.plot(
     bl_stats["timestep"],
     bl_stats["T_trans_mean"],
-    label="translational temp BL",
+    label="$T_{trans}$ BL VHS",
 )
 ax.plot(
     bl_stats["timestep"],
     bl_stats["T_rot_mean"],
-    label="rotational temp BL",
+    label="$T_{rot}$ BL VHS",
 )
 
 ax.set_xlabel(
@@ -122,29 +126,24 @@ ax.set_xlabel(
 )
 ax.ticklabel_format(style="sci", scilimits=(0, 0))
 ax.set_ylabel(
-    "Energy [K]",
+    "Temperature [K]",
     fontsize=plotconfig.label_fontsize,
     fontweight=plotconfig.label_fontweight,
 )
-ax.set_title(
-    "Energy Relaxation Over Time",
-    fontsize=plotconfig.title_fontsize,
-    fontweight=plotconfig.title_fontweight,
-)
-# Add energy relaxation plot from SPARTA
 
+# Add energy relaxation plot from SPARTA
 ax.plot(
     t_sparta,
     T_trans_sparta,
-    label="translational temp SPARTA",
+    label="$T_{trans}$ BL VSS (SPARTA)",
     color="red",
     linestyle="--",
 )
 ax.plot(
-    t_sparta, T_rot_sparta, label="rotational temp SPARTA", color="blue", linestyle="--"
+    t_sparta, T_rot_sparta, label="$T_{rot}$ BL VSS (SPARTA)", color="blue", linestyle="--"
 )
 
-ax.legend(fontsize=plotconfig.legend_fontsize)
+ax.legend(loc="upper right", fontsize=plotconfig.legend_fontsize)
 ax.grid()
-fig.savefig("results/plots/H2_energy_relaxation.png", dpi=300)
+fig.savefig("results/plots/H2_energy_relaxation.png", dpi=500)
 plt.show()

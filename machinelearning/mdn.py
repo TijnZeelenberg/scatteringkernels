@@ -309,7 +309,7 @@ class MixtureDensityNetwork(nn.Module):
             if n > 0.0:
                 return d / n
 
-    def collide(self, velocity_i: np.ndarray, e_rot_i: np.ndarray, velocity_j: np.ndarray, e_rot_j: np.ndarray, m: float):
+    def collide(self, velocity_i: np.ndarray, e_rot_i: np.ndarray, velocity_j: np.ndarray, e_rot_j: np.ndarray, m: float, zrot: float = 1.0):
         """Performs a collision between two particles using the MDN to predict post-collisional energy fractions."""
         
         if velocity_i.shape != velocity_j.shape:
@@ -326,7 +326,17 @@ class MixtureDensityNetwork(nn.Module):
         # Guard against zero energy cases
         if Etot <= 0 or Erot <= 0:
             return velocity_i, e_rot_i, velocity_j, e_rot_j
-        
+
+        # Sample isotropic random velocity direction (used by both branches)
+        direction = self._sample_unit_direction(velocity_i.shape)
+        V = 0.5 * (velocity_i + velocity_j)
+
+        if self.rng.random() > 1.0 / zrot:
+            # Elastic collision: randomize direction, preserve relative speed and rotational energies
+            g_mag = np.sqrt(np.sum(g**2))
+            g_post = direction * g_mag
+            return V + 0.5 * g_post, e_rot_i, V - 0.5 * g_post, e_rot_j
+
         eta_tr = E_rel / Etot
         eta_rot_A = e_rot_i / Erot
 
@@ -347,18 +357,14 @@ class MixtureDensityNetwork(nn.Module):
         E_rot_i_post = etap_rot_i * E_rot_pool
         E_rot_j_post = (1.0 - etap_rot_i) * E_rot_pool
 
-        # Sample isotropic random velocity direction
-        direction = self._sample_unit_direction(velocity_i.shape)
         g_mag = np.sqrt(4.0 * E_rel_post / m)
         g_post = direction * g_mag
 
-        # Scatter relative to COM velocity
-        V = 0.5 * (velocity_i + velocity_j)
         v_i_post = V + 0.5 * g_post
         v_j_post = V - 0.5 * g_post
         return v_i_post, E_rot_i_post, v_j_post, E_rot_j_post
 
-    def batch_collide(self, velocity_i: np.ndarray, e_rot_i: np.ndarray, velocity_j: np.ndarray, e_rot_j: np.ndarray, m: float):
+    def batch_collide(self, velocity_i: np.ndarray, e_rot_i: np.ndarray, velocity_j: np.ndarray, e_rot_j: np.ndarray, m: float, zrot: float = 1.0):
         """Performs a batch of collisions using the MDN to predict post-collisional energy fractions.
         Args:
             velocity_i (np.ndarray): Pre-collisional velocities of particle i
@@ -366,6 +372,7 @@ class MixtureDensityNetwork(nn.Module):
             velocity_j (np.ndarray): Pre-collisional velocities of particle j
             e_rot_j (np.ndarray): Pre-collisional rotational energies of particle j
             m (float): Mass of the particles
+            zrot (float): Rotational degree of freedom parameter
         Returns:            
             v_i_post (np.ndarray): Post-collisional velocities of particle i
             e_rot_i_post (np.ndarray): Post-collisional rotational energies of particle i
@@ -384,15 +391,31 @@ class MixtureDensityNetwork(nn.Module):
         # Guard against degenerate collisions; process only valid pairs.
         valid = (Etot > 0) & (Erot > 0)
 
-        v_i_post = velocity_i.copy()
-        v_j_post = velocity_j.copy()
+        V = 0.5 * (velocity_i + velocity_j)  # (N, 3)
+        g_speed = np.linalg.norm(g, axis=1)   # (N,)
+
+        # Sample isotropic random velocity directions for all pairs (used by both branches)
+        raw = self.rng.normal(size=(len(velocity_i), 3))
+        norms = np.linalg.norm(raw, axis=1, keepdims=True)
+        directions = raw / np.where(norms > 0, norms, 1.0)
+
+        # Default: elastic collision — randomize direction, preserve speed and rotational energies
+        g_post = directions * g_speed[:, None]
+        v_i_post = V + 0.5 * g_post
+        v_j_post = V - 0.5 * g_post
         e_rot_i_post = e_rot_i.copy()
         e_rot_j_post = e_rot_j.copy()
 
         if not np.any(valid):
             return v_i_post, e_rot_i_post, v_j_post, e_rot_j_post
 
-        idx = np.where(valid)[0]
+        # Inelastic collisions: valid pairs selected by zrot probability
+        inelastic = valid & (self.rng.random(len(velocity_i)) < 1.0 / zrot)
+        idx = np.where(inelastic)[0]
+
+        if len(idx) == 0:
+            return v_i_post, e_rot_i_post, v_j_post, e_rot_j_post
+
         eta_tr = E_rel[idx] / Etot[idx]
         eta_rot_A = e_rot_i[idx] / Erot[idx]
 
@@ -413,18 +436,11 @@ class MixtureDensityNetwork(nn.Module):
         e_rot_i_post[idx] = etap_rot_i * E_rot_pool
         e_rot_j_post[idx] = (1.0 - etap_rot_i) * E_rot_pool
 
-        # Sample isotropic random velocity directions
-        raw = self.rng.normal(size=(len(idx), 3))
-        norms = np.linalg.norm(raw, axis=1, keepdims=True)
-        directions = raw / np.where(norms > 0, norms, 1.0)
-
         g_mag = np.sqrt(4.0 * E_rel_post / m)
-        g_post = directions * g_mag[:, None]
+        g_post_inel = directions[idx] * g_mag[:, None]
 
-        # Scatter relative to COM velocity
-        V = 0.5 * (velocity_i + velocity_j)
-        v_i_post[idx] = V[idx] + 0.5 * g_post
-        v_j_post[idx] = V[idx] - 0.5 * g_post
+        v_i_post[idx] = V[idx] + 0.5 * g_post_inel
+        v_j_post[idx] = V[idx] - 0.5 * g_post_inel
 
         return v_i_post, e_rot_i_post, v_j_post, e_rot_j_post
 

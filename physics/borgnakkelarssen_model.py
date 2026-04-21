@@ -5,7 +5,7 @@ class borgnakke_larssen_model:
     def __init__(self, randomseed: int = 42):
         self.rng = np.random.default_rng(randomseed)
 
-    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m):
+    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot:float=1.0):
         """
         Perform a collision between two particles using the Borgnakke-Larssen model.
 
@@ -28,7 +28,7 @@ class borgnakke_larssen_model:
         # pair momentum and total energy (translational + internal).
         # We enforce this by working in the center-of-mass (COM) frame.
 
-        inelastic_collision_probability = 1  # (from Rabitz & Lam 1975)
+        inelastic_collision_probability = 1.0 / (zrot)  # (from Rabitz & Lam 1975)
 
         # Center-of-mass velocity
         V = 0.5 * (velocity_i + velocity_j)
@@ -93,7 +93,7 @@ class borgnakke_larssen_model:
                 float(e_rot_j),
             )
 
-    def batch_collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m):
+    def batch_collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot:float=1.0):
         """
         Vectorized Borgnakke-Larssen collision for N pairs at once.
 
@@ -105,7 +105,7 @@ class borgnakke_larssen_model:
             new_v_i, new_e_rot_i, new_v_j, new_e_rot_j
         """
         N = len(velocity_i)
-        inelastic_collision_probability = 1
+        inelastic_collision_probability = 1.0 / (zrot)  # (from Rabitz & Lam 1975)
 
         # Center-of-mass frame
         V = 0.5 * (velocity_i + velocity_j)  # (N, 3)

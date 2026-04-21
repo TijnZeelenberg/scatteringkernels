@@ -16,16 +16,18 @@ pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 dt = 1e-5
-nr_steps = 300
+nr_steps = 200
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 32.0e-3 / 6.022e23  # kg, mass of one O2 molecule
+zrot_bl = 1 / 0.17
+zrot_mdn = zrot_bl/3.5 
 
 kB = 1.380649e-23  # J/K
 N_sim = 20000  # number of simulated particles
 N_real = 20000  # number of real molecules in the box
 n = N_real / volume  # number of real molecules per simulated particle
-d_O2 = 3.0e-10
+d_O2 = 4.07e-10
 
 # --- set up collision model ---
 bl = borgnakke_larssen_model(randomseed=randomseed)
@@ -49,6 +51,7 @@ mdn_dsmc.create_particles(
     d=d_O2,
     trans_temperature=trans_temperature,
     rot_temperature=rot_temperature,
+    zrot=zrot_mdn
 )
 
 # --- set up Borgnakke-Larssen DSMC for comparison ---
@@ -62,6 +65,7 @@ bl_dsmc.create_particles(
     d=d_O2,
     trans_temperature=trans_temperature,
     rot_temperature=rot_temperature,
+    zrot=zrot_bl
 )
 
 # Run simulation with both models
@@ -85,24 +89,24 @@ fig, ax = plt.subplots(figsize=plotconfig.figsize)
 ax.plot(
     mdn_stats["timestep"],
     mdn_stats["T_trans_mean"],
-    label="Translational Energy MDN",
+    label="$T_{trans}$ MDN",
 )
 ax.plot(
     mdn_stats["timestep"],
     mdn_stats["T_rot_mean"],
-    label="Rotational Energy MDN",
+    label="$T_{rot}$ MDN",
 )
 
 ax.plot(
     bl_stats["timestep"],
     bl_stats["T_trans_mean"],
-    label="Translational Energy VHS-BL",
+    label="$T_{trans}$ BL VHS",
     linestyle="--",
 )
 ax.plot(
     bl_stats["timestep"],
     bl_stats["T_rot_mean"],
-    label="Rotational Energy VHS-BL",
+    label="$T_{rot}$ BL VHS",
     linestyle="--",
 )
 
@@ -113,7 +117,7 @@ ax.set_xlabel(
 )
 ax.ticklabel_format(style="sci", scilimits=(0, 0))
 ax.set_ylabel(
-    "Energy [K]",
+    "Temperature [K]",
     fontsize=plotconfig.label_fontsize,
     fontweight=plotconfig.label_fontweight,
 )
@@ -130,9 +134,10 @@ t_sparta = DATA[:, 1]
 T_trans_sparta = DATA[:, 2]
 T_rot_sparta = DATA[:, 3]
 
-ax.plot(t_sparta, T_trans_sparta, label="Translational Energy VSS-BL (SPARTA)", color="red", linestyle="--")
-ax.plot(t_sparta, T_rot_sparta, label="Rotational Energy VSS-BL (SPARTA)", color="blue", linestyle="--")
+ax.plot(t_sparta, T_trans_sparta, label="$T_{trans}$ BL VSS (SPARTA)", color="red", linestyle="--")
+ax.plot(t_sparta, T_rot_sparta, label="$T_{rot}$ BL VSS (SPARTA)", color="blue", linestyle="--")
 
-ax.legend(fontsize=plotconfig.legend_fontsize)
-fig.savefig("results/plots/O2_energy_relaxation_mdn.png", dpi=300)
+ax.legend(loc="upper right", fontsize=plotconfig.legend_fontsize)
+ax.grid()
+fig.savefig("results/plots/O2_energy_relaxation.png", dpi=300)
 plt.show()

@@ -59,6 +59,7 @@ class DSMC_Simulation:
         d: float,
         trans_temperature: float,
         rot_temperature: float,
+        zrot: float = 1.0,
     ):
         if self.box_size is None:
             raise ValueError(
@@ -70,6 +71,7 @@ class DSMC_Simulation:
         self.mass = mass
         self.diameter = d
         self.temperature = trans_temperature
+        self.zrot = zrot
 
         ## Initialize particle properties
         # Keep track of cell indices for each particle
@@ -232,7 +234,7 @@ class DSMC_Simulation:
 
         if hasattr(collision_model, "batch_collide"):
             new_v_i, new_e_rot_i, new_v_j, new_e_rot_j = collision_model.batch_collide(
-                v_i, e_rot_i, v_j, e_rot_j, m=self.mass
+                v_i, e_rot_i, v_j, e_rot_j, m=self.mass, zrot=self.zrot
             )
 
             self.velocities[idx_i] = new_v_i
@@ -264,6 +266,7 @@ class DSMC_Simulation:
                     vj_old,
                     self.rotational_energies[j],
                     m=self.mass,
+                    zrot=self.zrot
                 )
 
                 self.velocities[i] = new_vi
