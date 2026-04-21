@@ -24,7 +24,7 @@ kB = 1.380649e-23  # J/K
 N_sim = 20000
 N_real = 20000
 n = N_real / volume
-d_H2 = 2.9e-10
+d_H2 = 2.92e-10
 
 bmax_values = [1.0, 1.2, 1.5]
 alpha_values = [0.5, 1.0, 1.5]

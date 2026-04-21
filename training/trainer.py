@@ -110,6 +110,6 @@ def train_mdn(datapath, outputpath, wf: float = 1, patience: int = 30, showplots
 
 if __name__ == "__main__":
     # Example usage:
-    datapath = "data/O2O2_collisions_uniform.npy"
-    outputpath = "results/models/mdn_O2O2.pth"
-    train_mdn(datapath, outputpath, wf=0.5, patience=200, showplots=True)
+    datapath = "data/H2H2_collisions_numba_b1_0.npy"
+    outputpath = "results/models/mdn_H2H2.pth"
+    train_mdn(datapath, outputpath, wf=0.5, patience=50, showplots=True)

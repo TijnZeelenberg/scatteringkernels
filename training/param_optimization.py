@@ -10,7 +10,7 @@ from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 all_results = []  # list of dicts: {label, train_loss, val_loss}
 
 # ── Dataset loading (done once) ───────────────────────────────────────────────
-DATASETS = ["data/H2H2_collisionsV3.npy"]
+DATASETS = ["data/H2H2_collisions_numba_b1_0.npy"]
 for dataset in DATASETS:
     print(f"Training on dataset: {dataset}")
     if ".npy" in dataset:
@@ -31,6 +31,11 @@ for dataset in DATASETS:
 
     X = torch.tensor(inputdata, dtype=torch.float32)
     y = torch.tensor(outputdata, dtype=torch.float32)
+
+    E_rel_trans_pre = data[:, 0]
+    ntc_weights = E_rel_trans_pre ** 1
+    ntc_weights = ntc_weights / ntc_weights.sum()
+    ntc_weights = torch.tensor(ntc_weights, dtype=torch.float32)
 
     # ── Hyperopt search space ─────────────────────────────────────────────
     search_space = {
@@ -70,6 +75,7 @@ for dataset in DATASETS:
             shuffle=config.shuffle,
             trainval_split=config.trainval_split,
             random_seed=config.random_seed,
+            weights=ntc_weights,
         )
 
         train_loss_history, val_loss_history = model.train_model(
@@ -78,6 +84,8 @@ for dataset in DATASETS:
             optimizer,
             num_epochs=NUM_EPOCHS,
             lr=lr,
+            patience=30,
+            scheduler=None,
         )
 
         # Store histories for plotting
@@ -103,7 +111,7 @@ for dataset in DATASETS:
         fn=objective,
         space=search_space,
         algo=tpe.suggest,
-        max_evals=50,
+        max_evals=20,
         trials=trials,
     )
 
@@ -111,11 +119,12 @@ for dataset in DATASETS:
     batch_size_options = [32, 64, 128, 256]
     num_mixtures_options = [4, 8, 12, 16, 24]
     hidden_dim_options = [64, 128, 256, 512]
-    print(f"\nBest hyperparameters:")
-    print(f"  batch_size    = {batch_size_options[best['batch_size']]}")
-    print(f"  learning_rate = {best['learning_rate']:.2e}")
-    print(f"  num_mixtures  = {num_mixtures_options[best['num_mixtures']]}")
-    print(f"  hidden_dim    = {hidden_dim_options[best['hidden_dim']]}")
+    if best is not None:
+        print(f"\nBest hyperparameters:")
+        print(f"  batch_size    = {batch_size_options[best['batch_size']]}")
+        print(f"  learning_rate = {best['learning_rate']:.2e}")
+        print(f"  num_mixtures  = {num_mixtures_options[best['num_mixtures']]}")
+        print(f"  hidden_dim    = {hidden_dim_options[best['hidden_dim']]}")
 
     # ── Sort results by best validation loss ──────────────────────────────
     sorted_results = sorted(all_results, key=lambda r: min(r["val_loss"]))

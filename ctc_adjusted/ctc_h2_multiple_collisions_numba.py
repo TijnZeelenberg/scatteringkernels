@@ -8,7 +8,7 @@ from tqdm import tqdm
 # ---------------------------------------------------------------------------
 # Simulation settings
 # ---------------------------------------------------------------------------
-ncoll = 40000
+ncoll = 50000
 savefile = "data/H2H2_collisions_numba_b1_0.npy"
 
 # ---------------------------------------------------------------------------
@@ -295,7 +295,7 @@ def _run_chunk(seed_offset, count):
     return results
 
 
-def run_all_collisions(ncoll, chunk_size=500):
+def run_all_collisions(ncoll, seed=0, chunk_size=500):
     """Run ncoll collisions with a tqdm progress bar.
 
     Work is split into chunks of *chunk_size* so that tqdm can update
@@ -310,7 +310,7 @@ def run_all_collisions(ncoll, chunk_size=500):
         offset = 0
         while offset < ncoll:
             n = min(chunk_size, ncoll - offset)
-            results[offset : offset + n] = _run_chunk(offset, n)
+            results[offset : offset + n] = _run_chunk(seed + offset, n)
             offset += n
             bar.update(n)
     return results
@@ -328,7 +328,7 @@ if __name__ == "__main__":
 
     t0 = time.time()
     print(f"Running {ncoll} collisions …")
-    raw = run_all_collisions(ncoll)
+    raw = run_all_collisions(ncoll, seed=42)
     elapsed = time.time() - t0
     print(
         f"Done. Elapsed: {elapsed:.1f} s  ({elapsed / ncoll * 1e3:.2f} ms/collision)\n"
@@ -338,11 +338,11 @@ if __name__ == "__main__":
     df = pd.DataFrame(
         {
             "Etr": raw[:, 10],  # relative translational KE before  [K]
-            "Er1": raw[:, 6],  # mol-1 rotational KE before        [K]
-            "Er2": raw[:, 7],  # mol-2 rotational KE before        [K]
+            "Er1": raw[:, 6],  # molecule-1 rotational KE before        [K]
+            "Er2": raw[:, 7],  # molecule-2 rotational KE before        [K]
             "Etrp": raw[:, 11],  # relative translational KE after   [K]
-            "Er1p": raw[:, 8],  # mol-1 rotational KE after         [K]
-            "Er2p": raw[:, 9],  # mol-2 rotational KE after         [K]
+            "Er1p": raw[:, 8],  # molecule-1 rotational KE after         [K]
+            "Er2p": raw[:, 9],  # molecule-2 rotational KE after         [K]
         }
     )
 
