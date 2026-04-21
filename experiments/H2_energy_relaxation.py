@@ -19,14 +19,14 @@ nr_steps = 100
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule
-zrot_bl = 6.0
+zrot_bl = 1 / 0.151
 zrot_mdn = zrot_bl/3.5
 
 kB = 1.380649e-23  # J/K
 N_sim = 20000  # number of simulated particles
 N_real = 20000  # number of real molecules in the box
 n = N_real / volume  # number of real molecules per simulated particle
-d_H2 = 2.9e-10
+d_H2 = 2.92e-10
 
 # --- set up collision model ---
 bl = borgnakke_larssen_model(randomseed=randomseed)
