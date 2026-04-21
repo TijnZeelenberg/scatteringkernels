@@ -73,7 +73,6 @@ def plot_density_scatter(ax, datasets: dict):
     datasetnames = list(datasets.keys())
     datasetnames.remove("inputs")
 
-
     for i in range(2):
         x = datasets["inputs"][:, i]
         for j, dataset_name in enumerate(datasetnames):
@@ -93,12 +92,12 @@ def plot_density_scatter(ax, datasets: dict):
                 fontweight=config.title_fontweight,
             )
             ax[i, j].set_xlabel(
-                "eta_tr" if i == 0 else "eta_rot_A",
+                r"$\eta_{tr}$" if i == 0 else r"$\eta_{rot,A}$",
                 fontsize=config.label_fontsize,
                 fontweight=config.label_fontweight,
             )
             ax[i, 0].set_ylabel(
-                "eta_trp" if i == 0 else "eta_rot_Ap",
+                r"$\eta'_{tr}$" if i == 0 else r"$\eta'_{rot,A}$",
                 fontsize=config.label_fontsize,
                 fontweight=config.label_fontweight,
             )

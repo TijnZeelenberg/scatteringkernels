@@ -18,8 +18,8 @@ from dscatter import dscatter
 # ---------------------------------------------------------------------------
 # Number of collisions to simulate
 # ---------------------------------------------------------------------------
-ncoll = 40000
-savefile = "data/H2H2_collisionsV3.npy"
+ncoll = 20000
+savefile = "data/H2H2_collisions.npy"
 
 # ---------------------------------------------------------------------------
 # Physical constants
