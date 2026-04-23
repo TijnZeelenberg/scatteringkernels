@@ -146,7 +146,7 @@ class MixtureDensityNetwork(nn.Module):
         optimizer: torch.optim.Optimizer,
         num_epochs,
         lr,
-        patience: int = 30,
+        patience: int | None = None,
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     ):
         """
@@ -158,7 +158,7 @@ class MixtureDensityNetwork(nn.Module):
             optimizer (torch.optim.Optimizer): Optimizer for training.
             num_epochs (int): Maximum number of epochs to train the model.
             lr (float): Learning rate for the optimizer.
-            patience (int): Early stopping patience — stop if val loss does not
+            patience (int | None): Early stopping patience — stop if val loss does not
                 improve for this many consecutive epochs. Default is 20.
         """
         self.train_loss_history = []
@@ -212,7 +212,7 @@ class MixtureDensityNetwork(nn.Module):
                 epochs_without_improvement = 0
             else:
                 epochs_without_improvement += 1
-                if epochs_without_improvement >= patience:
+                if patience is not None and epochs_without_improvement >= patience:
                     tqdm.write(f"Early stopping at epoch {epoch + 1} (best val loss: {best_val_loss:.4f})")
                     break
 
