@@ -6,7 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 
 
-def train_mdn(datapath, outputpath, wf: float = 1, patience: int = 30, showplots=False):
+def train_mdn(datapath, outputpath, epochs: int, batch_size: int, lr: float, wf: float = 1, patience: int = 30, showplots=False, pretrained_path: str | None = None):
 
     print(f"Training on dataset: {datapath}")
 
@@ -47,9 +47,9 @@ def train_mdn(datapath, outputpath, wf: float = 1, patience: int = 30, showplots
 
     # Weigh training samples according to translational energy (faster molecules are more likely to collide)
     E_rel_trans_pre = data[:, 0]
-    ntc_weights = (E_rel_trans_pre) ** wf
-    ntc_weights = ntc_weights / ntc_weights.sum()
-    ntc_weights = torch.tensor(ntc_weights, dtype=torch.float32)
+    sample_weights = E_rel_trans_pre * wf
+    sample_weights = sample_weights / sample_weights.sum()
+    sample_weights = torch.tensor(sample_weights, dtype=torch.float32)
 
     # Initialize model and training parameters
     config = ExperimentConfig()
@@ -60,27 +60,30 @@ def train_mdn(datapath, outputpath, wf: float = 1, patience: int = 30, showplots
         hidden_dim=config.hidden_dim,
         randomseed=config.random_seed,
     )
+    if pretrained_path is not None:
+        model.load_model(pretrained_path)
+        print(f"Loaded pretrained weights from: {pretrained_path}")
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="min", factor=0.5, patience=10
+        optimizer, mode="min", factor=0.5, patience=20
     )
 
     # Train the model
     train_loader, val_loader = model.create_dataloaders(
         X,
         y,
-        batch_size=config.batch_size,
+        batch_size=batch_size,
         shuffle=config.shuffle,
         trainval_split=config.trainval_split,
         random_seed=config.random_seed,
-        weights=ntc_weights,
+        weights=sample_weights,
     )
     train_loss_history, val_loss_history = model.train_model(
         train_loader,
         val_loader,
         optimizer,
-        num_epochs=config.num_epochs,
-        lr=config.learning_rate,
+        num_epochs=epochs,
+        lr=lr,
         patience=patience,
         scheduler=None,
     )
@@ -109,7 +112,7 @@ def train_mdn(datapath, outputpath, wf: float = 1, patience: int = 30, showplots
         plt.show()
 
 if __name__ == "__main__":
-    # Example usage:
-    datapath = "data/H2H2_collisions_numba_b1_0.npy"
-    outputpath = "results/models/mdn_H2H2.pth"
-    train_mdn(datapath, outputpath, wf=0.5, patience=50, showplots=True)
+    config = ExperimentConfig()
+    datapath = "data/H2H2_collisions.npy"
+    outputpath = "results/models/mdn_H2H2v2.pth"
+    train_mdn(datapath, outputpath, epochs=100, batch_size=128, lr=2.00e-4, wf=10.0, patience=50, showplots=True)
