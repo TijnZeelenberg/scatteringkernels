@@ -18,7 +18,7 @@ from dscatter import dscatter
 # ---------------------------------------------------------------------------
 # Number of collisions to simulate
 # ---------------------------------------------------------------------------
-ncoll = 10000
+ncoll = 20000
 savefile = "data/H2H2_collisions.npy"
 
 # ---------------------------------------------------------------------------
@@ -49,13 +49,13 @@ def run_collision(seed: int):
     # Sample total translational energy uniformly between 50 K and 6000 K
     Etr_K_max = 5950.0
     frac_tr = np.random.rand()
-    Etr_tot = (frac_tr * Etr_K_max) + 50.0
+    Etr_tot = (frac_tr * Etr_K_max)
     # Split total translational energy randomly between the two molecules
     frac_tr1 = np.random.rand()
-    Etr_K1 =  frac_tr1 * Etr_tot
+    Etr_K1 =  frac_tr1 * Etr_tot + 50.0  # Ensure minimum energy of 50 K for molecule 1
     Etr_J1 = Etr_K1 * kB
     vtr1 = np.sqrt(2.0 * Etr_J1 / m_H2)
-    Etr_K2 = (1.0 - frac_tr1) * Etr_tot
+    Etr_K2 = (1.0 - frac_tr1) * Etr_tot + 50.0  # Ensure minimum energy of 50 K for molecule 2
     Etr_J2 = Etr_K2 * kB
     vtr2 = np.sqrt(2.0 * Etr_J2 / m_H2)
 

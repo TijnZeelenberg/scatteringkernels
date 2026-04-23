@@ -8,8 +8,8 @@ from tqdm import tqdm
 # ---------------------------------------------------------------------------
 # Simulation settings
 # ---------------------------------------------------------------------------
-ncoll = 50000
-savefile = "data/H2H2_collisions_numba_b1_0.npy"
+ncoll = 20000
+savefile = "data/H2H2_collisions_numba_b1_0_20000.npy"
 
 # ---------------------------------------------------------------------------
 # Physical constants  (module-level so numba can see them as compile-time
@@ -126,17 +126,19 @@ def _run_one(seed):
     np.random.seed(seed)
 
     # ---- initial translational energies ------------------------------------
-    Etr_tot = np.random.random() * 5950.0 + 50.0  # total KE [K]
+    Etr_tot = np.random.random() * 6950.0  # total KE [K]
     frac_tr1 = np.random.random()
-    vtr1 = np.sqrt(2.0 * frac_tr1 * Etr_tot * _kB / _m_H2)
-    vtr2 = np.sqrt(2.0 * (1.0 - frac_tr1) * Etr_tot * _kB / _m_H2)
+    Etr_1 = frac_tr1 * Etr_tot + 50.0  # KE of molecule 1 [K], min 50 K
+    Etr_2 = (1.0 - frac_tr1) * Etr_tot + 50.0  # KE of molecule 2 [K], min 50 K
+    vtr1 = np.sqrt(2.0 * Etr_1 * _kB / _m_H2)
+    vtr2 = np.sqrt(2.0 * Etr_2 * _kB / _m_H2)
 
     b = np.random.random() * 1.0 * _sigma
     b_norm = b / _sigma
 
     # ---- initial rotational energies ---------------------------------------
-    Erot1 = np.random.random() * 3000.0 * _kB
-    Erot2 = np.random.random() * 3000.0 * _kB
+    Erot1 = np.random.random() * 1500.0 * _kB
+    Erot2 = np.random.random() * 1500.0 * _kB
     f11 = np.random.random()
     f21 = np.random.random()
 
