@@ -10,7 +10,7 @@ from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 all_results = []  # list of dicts: {label, train_loss, val_loss}
 
 # ── Dataset loading (done once) ───────────────────────────────────────────────
-DATASETS = ["data/H2H2_collisions_numba_b1_0.npy"]
+DATASETS = ["data/H2H2_collisions.npy"]
 for dataset in DATASETS:
     print(f"Training on dataset: {dataset}")
     if ".npy" in dataset:
@@ -39,25 +39,22 @@ for dataset in DATASETS:
 
     # ── Hyperopt search space ─────────────────────────────────────────────
     search_space = {
-        "batch_size": hp.choice("batch_size", [32, 64, 128, 256]),
-        "learning_rate": hp.loguniform("learning_rate", np.log(5e-5), np.log(1e-3)),
-        "num_mixtures": hp.choice("num_mixtures", [4, 8, 12, 16, 24]),
-        "hidden_dim": hp.choice("hidden_dim", [64, 128, 256, 512]),
+        "learning_rate": hp.loguniform("learning_rate", np.log(1e-5), np.log(1e-3)),
     }
 
     NUM_EPOCHS = 75
+    NUM_trials = 20
 
     def objective(params):
-        batch_size = params["batch_size"]
         lr = params["learning_rate"]
-        num_mix = params["num_mixtures"]
-        hid_dim = params["hidden_dim"]
-        label = f"bs={batch_size}, lr={lr:.2e}, mix={num_mix}, hid={hid_dim}"
-        print(f"\n{'=' * 60}")
-        print(f"Trial {len(all_results) + 1}/50: {label}")
-        print(f"{'=' * 60}")
-
         config = ExperimentConfig()
+        batch_size = config.batch_size
+        num_mix = config.num_mixtures
+        hid_dim = config.hidden_dim
+        label = f"lr={lr:.2e}"
+        print(f"\n{'=' * 60}")
+        print(f"Trial {len(all_results) + 1}/{NUM_trials}: {label}")
+        print(f"{'=' * 60}")
 
         model = MixtureDensityNetwork(
             input_dim=3,
@@ -111,20 +108,13 @@ for dataset in DATASETS:
         fn=objective,
         space=search_space,
         algo=tpe.suggest,
-        max_evals=20,
+        max_evals=NUM_trials,
         trials=trials,
     )
 
-    # Resolve hp.choice indices back to actual values
-    batch_size_options = [32, 64, 128, 256]
-    num_mixtures_options = [4, 8, 12, 16, 24]
-    hidden_dim_options = [64, 128, 256, 512]
     if best is not None:
         print(f"\nBest hyperparameters:")
-        print(f"  batch_size    = {batch_size_options[best['batch_size']]}")
         print(f"  learning_rate = {best['learning_rate']:.2e}")
-        print(f"  num_mixtures  = {num_mixtures_options[best['num_mixtures']]}")
-        print(f"  hidden_dim    = {hidden_dim_options[best['hidden_dim']]}")
 
     # ── Sort results by best validation loss ──────────────────────────────
     sorted_results = sorted(all_results, key=lambda r: min(r["val_loss"]))
