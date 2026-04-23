@@ -37,21 +37,6 @@ mdn = MixtureDensityNetwork(
     hidden_dim=experiment_config.hidden_dim,
     randomseed=randomseed,
 )
-mdn.load_model("results/models/mdn_H2H2v2.pth")
-
-# --- set up DSMC simulation ---
-mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
-mdn_dsmc.create_box(box_size=box_size)
-mdn_dsmc.create_grid(x_cells=5, y_cells=5, z_cells=5)
-mdn_dsmc.create_particles(
-    N_sim=N_sim,
-    N_real=N_real,
-    mass=mass,
-    d=d_H2,
-    trans_temperature=trans_temperature,
-    rot_temperature=rot_temperature,
-    zrot=zrot_mdn
-)
 bl_dsmc = DSMC_Simulation(random_seed=randomseed)
 bl_dsmc.create_box(box_size=box_size)
 bl_dsmc.create_grid(x_cells=10, y_cells=10, z_cells=10)
@@ -65,14 +50,7 @@ bl_dsmc.create_particles(
     zrot=zrot_bl
 )
 
-# Run simulation with both models
-mdn_dsmc.run_simulation(
-    nr_steps=nr_steps,
-    dt=dt,
-    collision_model=mdn,
-)
-mdn_stats = mdn_dsmc.get_stats()
-
+# Run simulation with BL model
 bl_dsmc.run_simulation(
     nr_steps=nr_steps,
     dt=dt,
@@ -97,7 +75,6 @@ T_rot_spartaVSS = spartaVSS[:, 3]
 
 # print table of mean final temperatures from all models
 print("Final mean temperatures:")
-print(f"MDN: T_trans = {mdn_stats['T_trans_mean'][-20:-1].mean():.2f} K, T_rot = {mdn_stats['T_rot_mean'][-20:-1].mean():.2f} K")
 print(f"BL: T_trans = {bl_stats['T_trans_mean'][-20:-1].mean():.2f} K, T_rot = {bl_stats['T_rot_mean'][-20:-1].mean():.2f} K")
 print(f"SPARTA VHS: T_trans = {T_trans_spartaVHS[-20:-1].mean():.2f} K, T_rot = {T_rot_spartaVHS[-20:-1].mean():.2f} K")
 print(f"SPARTA VSS: T_trans = {T_trans_spartaVSS[-20:-1].mean():.2f} K, T_rot = {T_rot_spartaVSS[-20:-1].mean():.2f} K")
@@ -107,26 +84,14 @@ print(f"SPARTA VSS: T_trans = {T_trans_spartaVSS[-20:-1].mean():.2f} K, T_rot = 
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
 
 ax.plot(
-    mdn_stats["timestep"],
-    mdn_stats["T_trans_mean"],
-    label="$T_{trans}$ MDN (ML-DSMC)",
-)
-ax.plot(
-    mdn_stats["timestep"],
-    mdn_stats["T_rot_mean"],
-    label="$T_{rot}$ MDN (ML-DSMC)",
-)
-ax.plot(
     bl_stats["timestep"],
     bl_stats["T_trans_mean"],
-    label="$T_{trans}$ BL (ML-DSMC)",
-    linestyle="--",
+    label="$T_{trans}$ BL VHS",
 )
 ax.plot(
     bl_stats["timestep"],
     bl_stats["T_rot_mean"],
-    label="$T_{rot}$ BL (ML-DSMC)",
-    linestyle="--",
+    label="$T_{rot}$ BL VHS",
 )
 
 ax.set_xlabel(
@@ -145,22 +110,22 @@ ax.set_ylabel(
 ax.plot(
     t_spartaVHS,
     T_trans_spartaVHS,
-    label="$T_{trans}$ BL (SPARTA DSMC)",
+    label="$T_{trans}$ BL VHS (SPARTA)",
     color="red",
     linestyle="--",
 )
 ax.plot(
-    t_spartaVHS, T_rot_spartaVHS, label="$T_{rot}$ BL (SPARTA DSMC)", color="blue", linestyle="--"
+    t_spartaVHS, T_rot_spartaVHS, label="$T_{rot}$ BL VHS (SPARTA)", color="blue", linestyle="--"
 )
-# ax.plot(
-#     t_spartaVSS, T_trans_spartaVSS, label="$T_{trans}$ BL VSS (SPARTA)", color="green", linestyle="--"
-# )
-# ax.plot(
-#     t_spartaVSS, T_rot_spartaVSS, label="$T_{rot}$ BL VSS (SPARTA)", color="orange", linestyle="--"
-# )
+ax.plot(
+    t_spartaVSS, T_trans_spartaVSS, label="$T_{trans}$ BL VSS (SPARTA)", color="green", linestyle="--"
+)
+ax.plot(
+    t_spartaVSS, T_rot_spartaVSS, label="$T_{rot}$ BL VSS (SPARTA)", color="orange", linestyle="--"
+)
 
 ax.legend(loc="upper right", fontsize=plotconfig.legend_fontsize, ncol=2)
 ax.set_ylim(20, 450)
 ax.grid()
-fig.savefig("results/plots/H2_energy_relaxation.png", dpi=500)
+fig.savefig("results/plots/DSMC_validation.png", dpi=500)
 plt.show()
