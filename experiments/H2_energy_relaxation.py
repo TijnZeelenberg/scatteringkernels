@@ -10,7 +10,7 @@ plotconfig = PlottingConfig()
 experiment_config = ExperimentConfig()
 
 # --- simulation parameters ---
-randomseed = 2
+randomseed = 1
 pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
@@ -37,7 +37,7 @@ mdn = MixtureDensityNetwork(
     hidden_dim=experiment_config.hidden_dim,
     randomseed=randomseed,
 )
-mdn.load_model("results/models/mdn_H2H2v2.pth")
+mdn.load_model("results/H2H2_mdn_b1_0_alpha1_0_working.pth")
 
 # --- set up DSMC simulation ---
 mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
@@ -82,25 +82,36 @@ bl_stats = bl_dsmc.get_stats()
 
 # --- load SPARTA data ---
 spartaVHS = np.loadtxt("data/sparta_H2_energy_relaxationVHS_zinv0151.dat", skiprows=2)
-spartaVSS = np.loadtxt("data/sparta_H2_energy_relaxationVSS_zinv0151.dat", skiprows=2)
 
 timestep_spartaVSH = spartaVHS[:, 0]
 t_spartaVHS = spartaVHS[:, 1]
 T_trans_spartaVHS = spartaVHS[:, 2]
 T_rot_spartaVHS = spartaVHS[:, 3]
 
-timestep_spartaVSS = spartaVSS[:, 0]
-t_spartaVSS = spartaVSS[:, 1]
-T_trans_spartaVSS = spartaVSS[:, 2]
-T_rot_spartaVSS = spartaVSS[:, 3]
-
-
 # print table of mean final temperatures from all models
+final_T_trans_mdn = mdn_stats["T_trans_mean"][-20:-1].mean()
+final_T_rot_mdn = mdn_stats["T_rot_mean"][-20:-1].mean()
+final_T_trans_bl = bl_stats["T_trans_mean"][-20:-1].mean()
+final_T_rot_bl = bl_stats["T_rot_mean"][-20:-1].mean()
+final_T_trans_spartaVHS = T_trans_spartaVHS[-20:-1].mean()
+final_T_rot_spartaVHS = T_rot_spartaVHS[-20:-1].mean()
 print("Final mean temperatures:")
-print(f"MDN: T_trans = {mdn_stats['T_trans_mean'][-20:-1].mean():.2f} K, T_rot = {mdn_stats['T_rot_mean'][-20:-1].mean():.2f} K")
-print(f"BL: T_trans = {bl_stats['T_trans_mean'][-20:-1].mean():.2f} K, T_rot = {bl_stats['T_rot_mean'][-20:-1].mean():.2f} K")
-print(f"SPARTA VHS: T_trans = {T_trans_spartaVHS[-20:-1].mean():.2f} K, T_rot = {T_rot_spartaVHS[-20:-1].mean():.2f} K")
-print(f"SPARTA VSS: T_trans = {T_trans_spartaVSS[-20:-1].mean():.2f} K, T_rot = {T_rot_spartaVSS[-20:-1].mean():.2f} K")
+print(f"MDN: T_trans = {final_T_trans_mdn:.2f} K, T_rot = {final_T_rot_mdn:.2f} K")
+print(f"BL: T_trans = {final_T_trans_bl:.2f} K, T_rot = {final_T_rot_bl:.2f} K")
+print(f"SPARTA VHS: T_trans = {final_T_trans_spartaVHS:.2f} K, T_rot = {final_T_rot_spartaVHS:.2f} K")
+
+# print table of relaxation times (time for T_rot to cover 90% of the distance from initial to equilibrium)
+T_rot_initial = rot_temperature
+threshold_mdn = T_rot_initial + 0.90 * (final_T_rot_mdn - T_rot_initial)
+threshold_bl = T_rot_initial + 0.90 * (final_T_rot_bl - T_rot_initial)
+threshold_spartaVHS = T_rot_initial + 0.90 * (final_T_rot_spartaVHS - T_rot_initial)
+relaxation_time_mdn = mdn_stats["timestep"][np.where(mdn_stats["T_rot_mean"] >= threshold_mdn)[0][0]]
+relaxation_time_bl = bl_stats["timestep"][np.where(bl_stats["T_rot_mean"] >= threshold_bl)[0][0]]
+relaxation_time_spartaVHS = t_spartaVHS[np.where(T_rot_spartaVHS >= threshold_spartaVHS)[0][0]]
+print("\nRelaxation times (time for T_rot to reach 90% of equilibrium):")
+print(f"MDN: {relaxation_time_mdn:.6f} s")
+print(f"BL: {relaxation_time_bl:.6f} s")
+print(f"SPARTA VHS: {relaxation_time_spartaVHS:.6f} s")
 
 
 # --- plot energy relaxation ---
@@ -152,15 +163,9 @@ ax.plot(
 ax.plot(
     t_spartaVHS, T_rot_spartaVHS, label="$T_{rot}$ BL (SPARTA DSMC)", color="blue", linestyle="--"
 )
-# ax.plot(
-#     t_spartaVSS, T_trans_spartaVSS, label="$T_{trans}$ BL VSS (SPARTA)", color="green", linestyle="--"
-# )
-# ax.plot(
-#     t_spartaVSS, T_rot_spartaVSS, label="$T_{rot}$ BL VSS (SPARTA)", color="orange", linestyle="--"
-# )
 
 ax.legend(loc="upper right", fontsize=plotconfig.legend_fontsize, ncol=2)
 ax.set_ylim(20, 450)
 ax.grid()
-fig.savefig("results/plots/H2_energy_relaxation.png", dpi=500)
+fig.savefig("results/plots/H2_energy_relaxation.png", dpi=300)
 plt.show()

@@ -113,6 +113,6 @@ def train_mdn(datapath, outputpath, epochs: int, batch_size: int, lr: float, wf:
 
 if __name__ == "__main__":
     config = ExperimentConfig()
-    datapath = "data/H2H2_collisions.npy"
-    outputpath = "results/models/mdn_H2H2v2.pth"
+    datapath = "data/O2O2_collisions_uniform.npy"
+    outputpath = "results/models/mdn_O2O2v1.pth"
     train_mdn(datapath, outputpath, epochs=100, batch_size=128, lr=2.00e-4, wf=10.0, patience=50, showplots=True)

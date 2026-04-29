@@ -16,7 +16,7 @@ pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 dt = 1e-5
-nr_steps = 200
+nr_steps = 100
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 32.0e-3 / 6.022e23  # kg, mass of one O2 molecule
@@ -38,7 +38,7 @@ mdn = MixtureDensityNetwork(
     hidden_dim=experiment_config.hidden_dim,
     randomseed=42,
 )
-mdn.load_model("results/models/mdn_O2O2.pth")
+mdn.load_model("results/models/mdn_O2O2v1.pth")
 
 # --- set up DSMC simulation ---
 mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
@@ -83,50 +83,8 @@ bl_dsmc.run_simulation(
 )
 bl_stats = bl_dsmc.get_stats()
 
-# --- plot energy relaxation ---
-fig, ax = plt.subplots(figsize=plotconfig.figsize)
 
-ax.plot(
-    mdn_stats["timestep"],
-    mdn_stats["T_trans_mean"],
-    label="$T_{trans}$ MDN",
-)
-ax.plot(
-    mdn_stats["timestep"],
-    mdn_stats["T_rot_mean"],
-    label="$T_{rot}$ MDN",
-)
-
-ax.plot(
-    bl_stats["timestep"],
-    bl_stats["T_trans_mean"],
-    label="$T_{trans}$ BL VHS",
-    linestyle="--",
-)
-ax.plot(
-    bl_stats["timestep"],
-    bl_stats["T_rot_mean"],
-    label="$T_{rot}$ BL VHS",
-    linestyle="--",
-)
-
-ax.set_xlabel(
-    "Time [s]",
-    fontsize=plotconfig.label_fontsize,
-    fontweight=plotconfig.label_fontweight,
-)
-ax.ticklabel_format(style="sci", scilimits=(0, 0))
-ax.set_ylabel(
-    "Temperature [K]",
-    fontsize=plotconfig.label_fontsize,
-    fontweight=plotconfig.label_fontweight,
-)
-ax.set_title(
-    "Energy Relaxation Over Time",
-    fontsize=plotconfig.title_fontsize,
-    fontweight=plotconfig.title_fontweight,
-)
-# Add energy relaxation plot from SPARTA
+# Load SPARTA data
 DATA = np.loadtxt("data/sparta_O2_energy_relaxation.dat", skiprows=2)
 
 timestep_sparta = DATA[:, 0]
@@ -134,10 +92,74 @@ t_sparta = DATA[:, 1]
 T_trans_sparta = DATA[:, 2]
 T_rot_sparta = DATA[:, 3]
 
-ax.plot(t_sparta, T_trans_sparta, label="$T_{trans}$ BL VSS (SPARTA)", color="red", linestyle="--")
-ax.plot(t_sparta, T_rot_sparta, label="$T_{rot}$ BL VSS (SPARTA)", color="blue", linestyle="--")
+# print table of mean final temperatures from all models
+final_T_trans_mdn = mdn_stats["T_trans_mean"][-20:-1].mean()
+final_T_rot_mdn = mdn_stats["T_rot_mean"][-20:-1].mean()
+final_T_trans_bl = bl_stats["T_trans_mean"][-20:-1].mean()
+final_T_rot_bl = bl_stats["T_rot_mean"][-20:-1].mean()
+final_T_trans_sparta= T_trans_sparta[-20:-1].mean()
+final_T_rot_sparta= T_rot_sparta[-20:-1].mean()
+print("Final mean temperatures:")
+print(f"MDN: T_trans = {final_T_trans_mdn:.2f} K, T_rot = {final_T_rot_mdn:.2f} K")
+print(f"BL: T_trans = {final_T_trans_bl:.2f} K, T_rot = {final_T_rot_bl:.2f} K")
+print(f"SPARTA: T_trans = {final_T_trans_sparta:.2f} K, T_rot = {final_T_rot_sparta:.2f} K")
 
-ax.legend(loc="upper right", fontsize=plotconfig.legend_fontsize)
+# print table of relaxation times (time for T_rot to cover 90% of the distance from initial to equilibrium)
+T_rot_initial = rot_temperature
+threshold_mdn = T_rot_initial + 0.90 * (final_T_rot_mdn - T_rot_initial)
+threshold_bl = T_rot_initial + 0.90 * (final_T_rot_bl - T_rot_initial)
+threshold_sparta = T_rot_initial + 0.90 * (final_T_rot_sparta - T_rot_initial)
+relaxation_time_mdn = mdn_stats["timestep"][np.where(mdn_stats["T_rot_mean"] >= threshold_mdn)[0][0]]
+relaxation_time_bl = bl_stats["timestep"][np.where(bl_stats["T_rot_mean"] >= threshold_bl)[0][0]]
+relaxation_time_sparta = t_sparta[np.where(T_rot_sparta >= threshold_sparta)[0][0]]
+print("\nRelaxation times (time for T_rot to reach 90% of equilibrium):")
+print(f"MDN: {relaxation_time_mdn:.6f} s")
+print(f"BL: {relaxation_time_bl:.6f} s")
+print(f"SPARTA: {relaxation_time_sparta:.6f} s")
+
+# --- plot energy relaxation ---
+fig, ax = plt.subplots(figsize=plotconfig.figsize)
+
+ax.plot(
+    mdn_stats["timestep"],
+    mdn_stats["T_trans_mean"],
+    label="$T_{trans}$ MDN (ML-DSMC)",
+)
+ax.plot(
+    mdn_stats["timestep"],
+    mdn_stats["T_rot_mean"],
+    label="$T_{rot}$ MDN (ML-DSMC)",
+)
+
+ax.plot(
+    bl_stats["timestep"],
+    bl_stats["T_trans_mean"],
+    label="$T_{trans}$ BL (ML-DSMC)",
+    linestyle="--",
+)
+ax.plot(
+    bl_stats["timestep"],
+    bl_stats["T_rot_mean"],
+    label="$T_{rot}$ BL (ML-DSMC)",
+    linestyle="--",
+)
+ax.plot(t_sparta[:nr_steps], T_trans_sparta[:nr_steps], label="$T_{trans}$ BL (SPARTA DSMC)", color="red", linestyle="--")
+ax.plot(t_sparta[:nr_steps], T_rot_sparta[:nr_steps], label="$T_{rot}$ BL (SPARTA DSMC)", color="blue", linestyle="--")
+
+ax.set_xlabel(
+    "Time [s]",
+    fontsize=plotconfig.label_fontsize,
+    fontweight=plotconfig.label_fontweight,
+)
+ax.ticklabel_format(style="sci", scilimits=(-2, 3))
+ax.set_ylabel(
+    "Temperature [K]",
+    fontsize=plotconfig.label_fontsize,
+    fontweight=plotconfig.label_fontweight,
+)
+
+ax.set_ylim(20, 400)
+ax.legend(loc="upper right", fontsize=plotconfig.legend_fontsize, ncol=2)
 ax.grid()
 fig.savefig("results/plots/O2_energy_relaxation.png", dpi=300)
 plt.show()
