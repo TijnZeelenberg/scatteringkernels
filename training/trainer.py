@@ -6,7 +6,17 @@ import torch
 import matplotlib.pyplot as plt
 
 
-def train_mdn(datapath, outputpath, epochs: int, batch_size: int, lr: float, wf: float = 1, patience: int = 30, showplots=False, pretrained_path: str | None = None):
+def train_mdn(
+    datapath,
+    outputpath,
+    epochs: int,
+    batch_size: int,
+    lr: float,
+    wf: float = 1,
+    patience: int = 30,
+    showplots=False,
+    pretrained_path: str | None = None,
+):
 
     print(f"Training on dataset: {datapath}")
 
@@ -47,7 +57,7 @@ def train_mdn(datapath, outputpath, epochs: int, batch_size: int, lr: float, wf:
 
     # Weigh training samples according to translational energy (faster molecules are more likely to collide)
     E_rel_trans_pre = data[:, 0]
-    sample_weights = E_rel_trans_pre * wf
+    sample_weights = E_rel_trans_pre**wf
     sample_weights = sample_weights / sample_weights.sum()
     sample_weights = torch.tensor(sample_weights, dtype=torch.float32)
 
@@ -111,8 +121,18 @@ def train_mdn(datapath, outputpath, epochs: int, batch_size: int, lr: float, wf:
         plt.legend(fontsize=plottingconfig.legend_fontsize)
         plt.show()
 
+
 if __name__ == "__main__":
     config = ExperimentConfig()
     datapath = "data/O2O2_collisions_uniform.npy"
     outputpath = "results/models/mdn_O2O2v1.pth"
-    train_mdn(datapath, outputpath, epochs=100, batch_size=128, lr=2.00e-4, wf=10.0, patience=50, showplots=True)
+    train_mdn(
+        datapath,
+        outputpath,
+        epochs=100,
+        batch_size=128,
+        lr=2.00e-4,
+        wf=10.0,
+        patience=50,
+        showplots=True,
+    )
