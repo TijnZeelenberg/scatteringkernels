@@ -1,7 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler, random_split
+from torch.utils.data import (
+    DataLoader,
+    TensorDataset,
+    WeightedRandomSampler,
+    random_split,
+)
 import numpy as np
 from tqdm import tqdm
 
@@ -43,10 +48,10 @@ class MixtureDensityNetwork(nn.Module):
             hidden_dim, self.K * self.D
         )  # Mixture standard deviations
 
-        self.input_mean: torch.Tensor | None = None
-        self.input_std: torch.Tensor | None = None
-        self.output_mean: torch.Tensor | None = None
-        self.output_std: torch.Tensor | None = None
+        self.input_mean: torch.Tensor = torch.empty(0)
+        self.input_std: torch.Tensor = torch.empty(0)
+        self.output_mean: torch.Tensor = torch.empty(0)
+        self.output_std: torch.Tensor = torch.empty(0)
 
     def forward(self, x: torch.Tensor):
         h = self.net(x)
@@ -83,7 +88,14 @@ class MixtureDensityNetwork(nn.Module):
                 setattr(self, attr, t.to(device=device, dtype=dtype))
 
     def create_dataloaders(
-        self, X, y, batch_size, shuffle, trainval_split, random_seed, weights=None
+        self,
+        X: torch.Tensor,
+        y: torch.Tensor,
+        batch_size,
+        shuffle,
+        trainval_split,
+        random_seed,
+        weights=None,
     ):
         """
         Creates DataLoaders for training and validation.
@@ -104,6 +116,8 @@ class MixtureDensityNetwork(nn.Module):
             train_loader, val_loader (DataLoader): DataLoaders for training/validation.
         """
         # Normalize the data
+        if not (X.any() and y.any()):
+            raise ValueError("X and y cannot be empty.")
         self.input_mean = X.mean(dim=0)
         self.input_std = X.std(dim=0) + 1e-6
         self.output_mean = y.mean(dim=0)
@@ -126,16 +140,22 @@ class MixtureDensityNetwork(nn.Module):
             sampler = WeightedRandomSampler(
                 train_weights, num_samples=len(train_dataset), replacement=True
             )
-            train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler)
+            train_loader = DataLoader(
+                train_dataset, batch_size=batch_size, sampler=sampler
+            )
 
             val_weights = weights[val_dataset.indices]
             val_weights = val_weights / val_weights.sum()
             val_weighted_dataset = TensorDataset(
                 X[val_dataset.indices], y[val_dataset.indices], val_weights
             )
-            val_loader = DataLoader(val_weighted_dataset, batch_size=batch_size, shuffle=False)
+            val_loader = DataLoader(
+                val_weighted_dataset, batch_size=batch_size, shuffle=False
+            )
         else:
-            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
+            train_loader = DataLoader(
+                train_dataset, batch_size=batch_size, shuffle=shuffle
+            )
             val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
         return train_loader, val_loader
 
@@ -192,7 +212,9 @@ class MixtureDensityNetwork(nn.Module):
                     if len(batch) == 3:
                         x_val, y_val, w_val = batch
                         pi_val, mu_val, sigma_val = self.forward(x_val)
-                        weighted_nll, w_sum = mdn_loss_weighted(pi_val, mu_val, sigma_val, y_val, w_val)
+                        weighted_nll, w_sum = mdn_loss_weighted(
+                            pi_val, mu_val, sigma_val, y_val, w_val
+                        )
                         val_loss += weighted_nll.item()
                         val_weight_total += w_sum.item()
                     else:
@@ -201,8 +223,6 @@ class MixtureDensityNetwork(nn.Module):
                         val_loss += mdn_loss(pi_val, mu_val, sigma_val, y_val).item()
                         val_weight_total += 1
             avg_val_loss = val_loss / val_weight_total
-            if scheduler is not None:
-                scheduler.step(avg_val_loss)
             self.val_loss_history.append(avg_val_loss)
 
             if avg_val_loss < best_val_loss:
@@ -213,14 +233,20 @@ class MixtureDensityNetwork(nn.Module):
             else:
                 epochs_without_improvement += 1
                 if patience is not None and epochs_without_improvement >= patience:
-                    tqdm.write(f"Early stopping at epoch {epoch + 1} (best val loss: {best_val_loss:.4f})")
+                    tqdm.write(
+                        f"Early stopping at epoch {epoch + 1} (best val loss: {best_val_loss:.4f})"
+                    )
                     break
 
         # Restore weights from the best epoch
         if best_weights is not None:
             self.load_state_dict(best_weights)
 
-        print("Training complete. Best validation loss: {:.4f} at epoch {}".format(best_val_loss, best_epoch + 1))
+        print(
+            "Training complete. Best validation loss: {:.4f} at epoch {}".format(
+                best_val_loss, best_epoch + 1
+            )
+        )
         return self.train_loss_history, self.val_loss_history
 
     def predict(self, x: torch.Tensor):
@@ -280,7 +306,9 @@ class MixtureDensityNetwork(nn.Module):
             pi = torch.where(pi_sum > 0, pi / pi_sum, uniform)
 
             # Sample one component per input according to the mixture weights
-            component = torch.multinomial(pi, num_samples=1, replacement=True).squeeze(1)
+            component = torch.multinomial(pi, num_samples=1, replacement=True).squeeze(
+                1
+            )
 
             # select mu and sigma for the chosen components
             mu_sel = mu[torch.arange(mu.size(0)), component]
@@ -309,9 +337,17 @@ class MixtureDensityNetwork(nn.Module):
             if n > 0.0:
                 return d / n
 
-    def collide(self, velocity_i: np.ndarray, e_rot_i: np.ndarray, velocity_j: np.ndarray, e_rot_j: np.ndarray, m: float, zrot: float = 1.0):
+    def collide(
+        self,
+        velocity_i: np.ndarray,
+        e_rot_i: np.ndarray,
+        velocity_j: np.ndarray,
+        e_rot_j: np.ndarray,
+        m: float,
+        zrot: float = 1.0,
+    ):
         """Performs a collision between two particles using the MDN to predict post-collisional energy fractions."""
-        
+
         if velocity_i.shape != velocity_j.shape:
             raise ValueError("Input velocity vectors must have the same shape.")
 
@@ -342,7 +378,9 @@ class MixtureDensityNetwork(nn.Module):
 
         # Sample new energy fractions from the predicted mixture of Gaussians
         device, dtype = self._param_device_dtype()
-        input_features = torch.tensor([[Etot, eta_tr, eta_rot_A]], device=device, dtype=dtype)
+        input_features = torch.tensor(
+            [[Etot, eta_tr, eta_rot_A]], device=device, dtype=dtype
+        )
         etap_tr, etap_rot_i = (
             self.sample(input_features).squeeze(0).detach().cpu().numpy()
         )
@@ -364,7 +402,15 @@ class MixtureDensityNetwork(nn.Module):
         v_j_post = V - 0.5 * g_post
         return v_i_post, E_rot_i_post, v_j_post, E_rot_j_post
 
-    def batch_collide(self, velocity_i: np.ndarray, e_rot_i: np.ndarray, velocity_j: np.ndarray, e_rot_j: np.ndarray, m: float, zrot: float = 1.0):
+    def batch_collide(
+        self,
+        velocity_i: np.ndarray,
+        e_rot_i: np.ndarray,
+        velocity_j: np.ndarray,
+        e_rot_j: np.ndarray,
+        m: float,
+        zrot: float = 1.0,
+    ):
         """Performs a batch of collisions using the MDN to predict post-collisional energy fractions.
         Args:
             velocity_i (np.ndarray): Pre-collisional velocities of particle i
@@ -373,7 +419,7 @@ class MixtureDensityNetwork(nn.Module):
             e_rot_j (np.ndarray): Pre-collisional rotational energies of particle j
             m (float): Mass of the particles
             zrot (float): Rotational degree of freedom parameter
-        Returns:            
+        Returns:
             v_i_post (np.ndarray): Post-collisional velocities of particle i
             e_rot_i_post (np.ndarray): Post-collisional rotational energies of particle i
             v_j_post (np.ndarray): Post-collisional velocities of particle j
@@ -383,16 +429,16 @@ class MixtureDensityNetwork(nn.Module):
         # Compute precollisional energy fractions.
         # Etot is the redistributable energy (relative KE + rotational) — COM KE is
         # conserved implicitly through V and does not enter the redistribution pool.
-        g = velocity_i - velocity_j                    # (N, 3)
-        E_rel = 0.25 * m * np.sum(g**2, axis=1)       # (N,)
-        Etot = E_rel + e_rot_i + e_rot_j              # (N,)
-        Erot = e_rot_i + e_rot_j                       # (N,)
+        g = velocity_i - velocity_j  # (N, 3)
+        E_rel = 0.25 * m * np.sum(g**2, axis=1)  # (N,)
+        Etot = E_rel + e_rot_i + e_rot_j  # (N,)
+        Erot = e_rot_i + e_rot_j  # (N,)
 
         # Guard against degenerate collisions; process only valid pairs.
         valid = (Etot > 0) & (Erot > 0)
 
         V = 0.5 * (velocity_i + velocity_j)  # (N, 3)
-        g_speed = np.linalg.norm(g, axis=1)   # (N,)
+        g_speed = np.linalg.norm(g, axis=1)  # (N,)
 
         # Sample isotropic random velocity directions for all pairs (used by both branches)
         raw = self.rng.normal(size=(len(velocity_i), 3))
