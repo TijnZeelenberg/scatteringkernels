@@ -1,9 +1,9 @@
 from physics.dsmc import DSMC_Simulation
 from machinelearning.mdn import MixtureDensityNetwork
 import numpy as np
-import matplotlib.pyplot as plt
 from config.plotting_config import PlottingConfig
 from config.experiment_config import ExperimentConfig
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 plotconfig = PlottingConfig()
