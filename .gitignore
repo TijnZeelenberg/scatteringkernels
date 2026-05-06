@@ -1,8 +1,9 @@
-# Ignore virtual environment and VSCode settings
+# Ignore environment settings
 .mise.toml
 .venv/
 .vscode/
 __pycache__/
+pyrightconfig.json
 
 # Ignore produced images and plots
 results/
