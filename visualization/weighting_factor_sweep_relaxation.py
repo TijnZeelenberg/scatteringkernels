@@ -50,7 +50,7 @@ for i, wf in tqdm(
         randomseed=randomseed,
     )
     mdn.load_model(
-        f"results/models/weightsensitivity/H2_200000_dataseed41/trainseed42/mdn_H2_wf{str(wf).replace('.', '_')}.pth"
+        f"results/models/weightsensitivity/O2_400000_uniform/mdn_H2_wf{str(wf).replace('.', '_')}.pth"
     )
 
     sim = DSMC_Simulation(random_seed=randomseed)
@@ -94,13 +94,13 @@ for i, wf in tqdm(
     ax.legend(fontsize=7)
 
 fig.suptitle(
-    f"H2 Energy Relaxation — Weighting Factor Sweep - Randomseed {randomseed}",
+    f"O2 Energy Relaxation — Weighting Factor Sweep - Randomseed {randomseed}",
     fontsize=16,
     fontweight="bold",
 )
 fig.tight_layout()
 fig.savefig(
-    f"results/models/weightsensitivity/H2_200000_dataseed41/trainseed42/H2_wfsweep.png",
+    f"results/models/weightsensitivity/O2_400000_uniform/O2_wfsweep.png",
     dpi=300,
 )
 plt.show()

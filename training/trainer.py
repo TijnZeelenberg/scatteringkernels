@@ -119,7 +119,7 @@ def train_mdn(
 
 if __name__ == "__main__":
     config = ExperimentConfig()
-    datapath = "data/H2H2_collisions_numba_b1_0.npy"
+    datapath = "data/O2O2_collisions_uniform.npy"
     outputpath = "results/models/mdn_O2O2v1.pth"
     train_mdn(
         datapath,
