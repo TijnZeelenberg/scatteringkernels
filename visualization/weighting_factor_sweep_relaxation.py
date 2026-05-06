@@ -10,7 +10,7 @@ plotconfig = PlottingConfig()
 experiment_config = ExperimentConfig()
 
 # --- simulation parameters (identical to H2_energy_relaxation.py) ---
-randomseed = 2
+randomseed = 42
 box_size = 7.5e-6
 volume = box_size**3
 dt = 1e-5
@@ -30,15 +30,15 @@ t_spartaVHS = spartaVHS[:, 1]
 T_trans_spartaVHS = spartaVHS[:, 2]
 T_rot_spartaVHS = spartaVHS[:, 3]
 
-weights = [0.25, 0.5, 1, 2, 4, 8]
+weights = [0.25, 0.5, 1, 2, 3, 4, 5, 6, 7]
 
-fig, axes = plt.subplots(2, 3, figsize=(16, 12))
+fig, axes = plt.subplots(3, 3, figsize=(12, 12))
 axes_flat = axes.flatten()
 
 for i, wf in tqdm(
     enumerate(weights),
     desc="Running simulations with different weighting factors",
-    unit="weightingfactor",
+    unit="simulation",
 ):
     ax = axes_flat[i]
 
@@ -50,7 +50,7 @@ for i, wf in tqdm(
         randomseed=randomseed,
     )
     mdn.load_model(
-        f"results/models/weightsensitivity/mdn_H2_wf{str(wf).replace('.', '_')}.pth"
+        f"results/models/weightsensitivity/H2_200000_dataseed41/trainseed42/mdn_H2_wf{str(wf).replace('.', '_')}.pth"
     )
 
     sim = DSMC_Simulation(random_seed=randomseed)
@@ -100,6 +100,7 @@ fig.suptitle(
 )
 fig.tight_layout()
 fig.savefig(
-    f"results/plots/H2_weighting_factor_sweep_relaxation_seed{randomseed}.png", dpi=300
+    f"results/models/weightsensitivity/H2_200000_dataseed41/trainseed42/H2_wfsweep.png",
+    dpi=300,
 )
 plt.show()

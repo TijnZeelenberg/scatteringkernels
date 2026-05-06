@@ -13,7 +13,7 @@ class ExperimentConfig:
         self.num_epochs = 200
         self.trainval_split = 0.7
         self.shuffle = True
-        self.random_seed = 41
+        self.random_seed = 42
 
         # Model parameters
         self.input_dim = 3

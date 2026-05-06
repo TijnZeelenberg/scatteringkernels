@@ -15,12 +15,12 @@ pressure = 1  # Pa
 box_size = 7.5e-6  # m
 volume = box_size**3  # m^3
 dt = 1e-5
-nr_steps =100
+nr_steps = 100
 trans_temperature = 300  # K
 rot_temperature = 100  # K
 mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule
 zrot_bl = 1 / 0.151
-zrot_mdn = zrot_bl/3.5
+zrot_mdn = zrot_bl / 3.5
 
 kB = 1.380649e-23  # J/K
 N_sim = 20000  # number of simulated particles
@@ -37,7 +37,7 @@ mdn = MixtureDensityNetwork(
     hidden_dim=experiment_config.hidden_dim,
     randomseed=randomseed,
 )
-mdn.load_model("results/H2H2_mdn_b1_0_alpha1_0_working.pth")
+mdn.load_model("results/models/weightsensitivity/mdn_H2_wf4_dist.pth")
 
 # --- set up DSMC simulation ---
 mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
@@ -50,7 +50,7 @@ mdn_dsmc.create_particles(
     d=d_H2,
     trans_temperature=trans_temperature,
     rot_temperature=rot_temperature,
-    zrot=zrot_mdn
+    zrot=zrot_mdn,
 )
 bl_dsmc = DSMC_Simulation(random_seed=randomseed)
 bl_dsmc.create_box(box_size=box_size)
@@ -62,7 +62,7 @@ bl_dsmc.create_particles(
     d=d_H2,
     trans_temperature=trans_temperature,
     rot_temperature=rot_temperature,
-    zrot=zrot_bl
+    zrot=zrot_bl,
 )
 
 # Run simulation with both models
@@ -98,16 +98,24 @@ final_T_rot_spartaVHS = T_rot_spartaVHS[-20:-1].mean()
 print("Final mean temperatures:")
 print(f"MDN: T_trans = {final_T_trans_mdn:.2f} K, T_rot = {final_T_rot_mdn:.2f} K")
 print(f"BL: T_trans = {final_T_trans_bl:.2f} K, T_rot = {final_T_rot_bl:.2f} K")
-print(f"SPARTA VHS: T_trans = {final_T_trans_spartaVHS:.2f} K, T_rot = {final_T_rot_spartaVHS:.2f} K")
+print(
+    f"SPARTA VHS: T_trans = {final_T_trans_spartaVHS:.2f} K, T_rot = {final_T_rot_spartaVHS:.2f} K"
+)
 
 # print table of relaxation times (time for T_rot to cover 90% of the distance from initial to equilibrium)
 T_rot_initial = rot_temperature
 threshold_mdn = T_rot_initial + 0.90 * (final_T_rot_mdn - T_rot_initial)
 threshold_bl = T_rot_initial + 0.90 * (final_T_rot_bl - T_rot_initial)
 threshold_spartaVHS = T_rot_initial + 0.90 * (final_T_rot_spartaVHS - T_rot_initial)
-relaxation_time_mdn = mdn_stats["timestep"][np.where(mdn_stats["T_rot_mean"] >= threshold_mdn)[0][0]]
-relaxation_time_bl = bl_stats["timestep"][np.where(bl_stats["T_rot_mean"] >= threshold_bl)[0][0]]
-relaxation_time_spartaVHS = t_spartaVHS[np.where(T_rot_spartaVHS >= threshold_spartaVHS)[0][0]]
+relaxation_time_mdn = mdn_stats["timestep"][
+    np.where(mdn_stats["T_rot_mean"] >= threshold_mdn)[0][0]
+]
+relaxation_time_bl = bl_stats["timestep"][
+    np.where(bl_stats["T_rot_mean"] >= threshold_bl)[0][0]
+]
+relaxation_time_spartaVHS = t_spartaVHS[
+    np.where(T_rot_spartaVHS >= threshold_spartaVHS)[0][0]
+]
 print("\nRelaxation times (time for T_rot to reach 90% of equilibrium):")
 print(f"MDN: {relaxation_time_mdn:.6f} s")
 print(f"BL: {relaxation_time_bl:.6f} s")
@@ -161,7 +169,11 @@ ax.plot(
     linestyle="--",
 )
 ax.plot(
-    t_spartaVHS, T_rot_spartaVHS, label="$T_{rot}$ BL (SPARTA DSMC)", color="blue", linestyle="--"
+    t_spartaVHS,
+    T_rot_spartaVHS,
+    label="$T_{rot}$ BL (SPARTA DSMC)",
+    color="blue",
+    linestyle="--",
 )
 
 ax.legend(loc="upper right", fontsize=plotconfig.legend_fontsize, ncol=2)

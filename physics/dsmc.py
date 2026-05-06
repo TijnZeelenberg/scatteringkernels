@@ -118,7 +118,7 @@ class DSMC_Simulation:
         self.cell_counts = np.bincount(self.Xref, minlength=self.nr_cells)
 
     def accept_collision(self, collisionpair: list, vrmax: float):
-        "Decide wether a collision is accepted."
+        "Decide wether a collision is accepted using probability vr/vrmax."
         if self.velocities is None:
             raise ValueError(
                 "Particle velocities must be initialized before accepting collisions."
@@ -129,6 +129,8 @@ class DSMC_Simulation:
         return self.rng.random() < (magdv / vrmax)
 
     def calculate_no_collisions(self, dt):
+        """Calculate the number of collision pairs to sample in each cell based on Birds No Time Counter method."""
+
         if self.nr_cells is None:
             raise ValueError(
                 "Particles must be initialized and cell indices updated before calculating collisions."
@@ -155,7 +157,6 @@ class DSMC_Simulation:
         # Calculate the number of collision pairs to sample in each cell
         collisions = np.zeros(self.nr_cells, dtype=int)
         collisions = np.round(
-            # 4* # FIX: Remove after testing
             0.5
             * self.cell_counts
             * (self.cell_counts - 1)
@@ -266,7 +267,7 @@ class DSMC_Simulation:
                     vj_old,
                     self.rotational_energies[j],
                     m=self.mass,
-                    zrot=self.zrot
+                    zrot=self.zrot,
                 )
 
                 self.velocities[i] = new_vi

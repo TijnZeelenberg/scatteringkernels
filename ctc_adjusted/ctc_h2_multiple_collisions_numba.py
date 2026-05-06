@@ -1,15 +1,16 @@
 import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from numba import njit, prange
 from tqdm import tqdm
 
 # ---------------------------------------------------------------------------
 # Simulation settings
 # ---------------------------------------------------------------------------
-ncoll = 20000
-savefile = "data/H2H2_collisions_numba_b1_0_20000.npy"
+ncoll = 200000
+seed = 42
 
 # ---------------------------------------------------------------------------
 # Physical constants  (module-level so numba can see them as compile-time
@@ -330,7 +331,7 @@ if __name__ == "__main__":
 
     t0 = time.time()
     print(f"Running {ncoll} collisions …")
-    raw = run_all_collisions(ncoll, seed=42)
+    raw = run_all_collisions(ncoll, chunk_size=1000, seed=seed)
     elapsed = time.time() - t0
     print(
         f"Done. Elapsed: {elapsed:.1f} s  ({elapsed / ncoll * 1e3:.2f} ms/collision)\n"
@@ -348,6 +349,7 @@ if __name__ == "__main__":
         }
     )
 
+    savefile = f"data/H2H2_collisions_numba_b1_0_{ncoll}_seed{seed}.npy"
     np.save(savefile, df.to_numpy())
     print(f"Saved {savefile}")
 
