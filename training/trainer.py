@@ -73,10 +73,7 @@ def train_mdn(
     if pretrained_path is not None:
         model.load_model(pretrained_path)
         print(f"Loaded pretrained weights from: {pretrained_path}")
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="min", factor=0.5, patience=20
-    )
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     # Train the model
     train_loader, val_loader = model.create_dataloaders(
@@ -93,9 +90,7 @@ def train_mdn(
         val_loader,
         optimizer,
         num_epochs=epochs,
-        lr=lr,
         patience=patience,
-        scheduler=None,
     )
 
     # Save the trained model
@@ -124,7 +119,7 @@ def train_mdn(
 
 if __name__ == "__main__":
     config = ExperimentConfig()
-    datapath = "data/O2O2_collisions_uniform.npy"
+    datapath = "data/H2H2_collisions_numba_b1_0.npy"
     outputpath = "results/models/mdn_O2O2v1.pth"
     train_mdn(
         datapath,

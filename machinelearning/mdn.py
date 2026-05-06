@@ -165,9 +165,7 @@ class MixtureDensityNetwork(nn.Module):
         val_loader: DataLoader,
         optimizer: torch.optim.Optimizer,
         num_epochs,
-        lr,
         patience: int | None = None,
-        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     ):
         """
         Trains the Mixture Density Network using the provided training data.
