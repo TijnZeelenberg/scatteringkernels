@@ -8,6 +8,7 @@ from config.experiment_config import ExperimentConfig
 
 plotconfig = PlottingConfig()
 experiment_config = ExperimentConfig()
+mdnfile = "results/models/mdn/weightsensitivity/H2_400000_dataseed42/mdn_H2_wf4.pth"
 
 # --- simulation parameters ---
 randomseed = 1
@@ -19,23 +20,25 @@ nr_steps = 200
 trans_temperature = 220  # K
 rot_temperature = 220  # K
 mass = 2.016e-3 / 6.022e23  # kg, mass of one H2 molecule
+zrot_bl = 1 / 0.151
+zrot_mdn = zrot_bl / 3.5
 
 kB = 1.380649e-23  # J/K
 N_sim = 20000  # number of simulated particles
 N_real = 20000  # number of real molecules in the box
 n_mdn = N_real / volume  # number of real molecules per simulated particle
-d_H2 = 2.9e-10
+d_H2 = 2.92e-10
 
 # --- set up collision model ---
 bl = borgnakke_larssen_model(randomseed=randomseed)
 mdn = MixtureDensityNetwork(
     input_dim=3,
     output_dim=2,
-    num_mixtures=5,
+    num_mixtures=experiment_config.num_mixtures,
     hidden_dim=experiment_config.hidden_dim,
-    randomseed=40,
+    randomseed=randomseed,
 )
-mdn.load_model("results/models/mdn_H2H2.pth")
+mdn.load_model(mdnfile)
 
 # --- set up DSMC simulation ---
 mdn_dsmc = DSMC_Simulation(random_seed=randomseed)
@@ -48,6 +51,7 @@ mdn_dsmc.create_particles(
     d=d_H2,
     trans_temperature=trans_temperature,
     rot_temperature=rot_temperature,
+    zrot=zrot_mdn,
 )
 bl_dsmc = DSMC_Simulation(random_seed=randomseed)
 bl_dsmc.create_box(box_size=box_size)
@@ -59,6 +63,7 @@ bl_dsmc.create_particles(
     d=d_H2,
     trans_temperature=trans_temperature,
     rot_temperature=rot_temperature,
+    zrot=zrot_bl,
 )
 
 # Run simulation with both models
