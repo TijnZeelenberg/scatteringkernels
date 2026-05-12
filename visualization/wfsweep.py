@@ -50,7 +50,7 @@ for i, wf in tqdm(
         randomseed=randomseed,
     )
     mdn.load_model(
-        f"results/models/weightsensitivity/O2_400000_uniform/mdn_H2_wf{str(wf).replace('.', '_')}.pth"
+        f"results/models/mdn/weightsensitivity/H2_400000_dataseed42/mdn_H2_wf{str(wf).replace('.', '_')}.pth"
     )
 
     sim = DSMC_Simulation(random_seed=randomseed)
@@ -100,7 +100,7 @@ fig.suptitle(
 )
 fig.tight_layout()
 fig.savefig(
-    f"results/models/weightsensitivity/O2_400000_uniform/O2_wfsweep.png",
+    f"results/models/mdn/weightsensitivity/H2_400000_dataseed42/H2_wfsweep.png",
     dpi=300,
 )
 plt.show()
