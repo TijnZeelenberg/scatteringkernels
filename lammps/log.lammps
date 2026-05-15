@@ -1,0 +1,129 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-102-g7e52522855)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+### Initialization ###
+units si
+atom_style molecular
+dimension 3
+boundary p p p
+newton on
+
+### System definition ###
+variable L equal 7.5e-7
+region simbox block 0.0 ${L} 0.0 ${L} 0.0 ${L}
+region simbox block 0.0 7.5e-07 0.0 ${L} 0.0 ${L}
+region simbox block 0.0 7.5e-07 0.0 7.5e-07 0.0 ${L}
+region simbox block 0.0 7.5e-07 0.0 7.5e-07 0.0 7.5e-07
+create_box 1 simbox             bond/types 1             extra/bond/per/atom 1             extra/special/per/atom 2
+Created orthogonal box = (0 0 0) to (7.5e-07 7.5e-07 7.5e-07)
+  1 by 1 by 1 MPI processor grid
+
+mass 1 1.67372e-27        # set BEFORE create_atoms
+molecule h2 h2.mol
+Read molecule template h2:
+# H2 molecule template for LAMMPS  (SI units: metres)
+  1 molecules
+  0 fragments
+  0 bodies
+  2 atoms with max type 1
+  1 bonds with max type 1
+  0 angles with max type 0
+  0 dihedrals with max type 0
+  0 impropers with max type 0
+create_atoms 0 random 20000 42 simbox               mol h2 24680               overlap 2.0e-10               maxtry 500
+Created 40000 atoms
+  using lattice units in orthogonal box = (0 0 0) to (7.5e-07 7.5e-07 7.5e-07)
+  create_atoms CPU = 28.176 seconds
+
+### Force field ###
+pair_style lj/cut 1.0e-9
+pair_coeff 1 1 1.056e-21 2.827e-10
+special_bonds lj 0.0 0.0 0.0
+bond_style zero
+bond_coeff 1 7.4e-11
+
+### Group + chunks per molecule ###
+group h2gas type 1
+40000 atoms in group h2gas
+compute molchunk h2gas chunk/atom molecule
+# T_internal: COM motion of each molecule subtracted, leaving rotational DOF.
+# adof=3 (3 velocity components per atom), cdof=3 (subtract 3 COM DOF per chunk).
+compute Tchunk  h2gas temp/chunk molchunk com yes adof 3.0 cdof 3.0
+compute Ttrans  all temp/com                       # translational T (COM)
+
+### Initial velocities ###
+velocity all create 300.0 482748 mom yes rot no dist gaussian
+
+### Neighbor list ###
+neighbor        1.0e-7 bin
+neigh_modify    delay 0 every 20 check yes
+atom_modify     sort 0 0.0
+
+### Time integration: keep H2 rigid so vibration is removed ###
+fix myintegrator all rigid/small molecule
+Fix rigid/small setup ...
+  create bodies CPU = 0.011 seconds
+  20000 rigid bodies with 40000 atoms
+  7.4e-11 = max distance from body owner to body atom
+
+### Thermo ###
+thermo 1000
+thermo_style custom step c_Ttrans c_Tchunk press pe ke etotal
+thermo_modify lost warn
+
+timestep 1.0e-15
+run      10000
+Generated 0 of 0 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 20 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 1.01e-07
+  ghost atom cutoff = 1.01e-07
+  binsize = 5.05e-08, bins = 15 15 15
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 96.89 | 96.89 | 96.89 Mbytes
+   Step        c_Ttrans       c_Tchunk        Press          PotEng         KinEng         TotEng    
+         0   299.85845      66.636495      378.39767     -7.0138249e-23  2.0699363e-16  2.0699356e-16
+      1000   299.85839      66.636497      196.31345     -2.8422459e-23  2.0699359e-16  2.0699356e-16
+      2000   299.85863      66.636516      196.31284     -2.0078324e-22  2.0699376e-16  2.0699355e-16
+      3000   299.85843      66.635253      196.31578     -6.2088293e-23  2.0699362e-16  2.0699356e-16
+      4000   299.85965      66.638243      196.30743     -9.0992367e-22  2.0699446e-16  2.0699355e-16
+      5000   299.85842      66.63998       196.3065      -5.8887902e-23  2.0699361e-16  2.0699355e-16
+      6000   299.85876      66.643232      196.2992      -3.3012927e-22  2.0699385e-16  2.0699352e-16
+      7000   299.85842      66.643212      196.30018     -5.4186763e-23  2.0699361e-16  2.0699356e-16
+      8000   299.85847      66.640116      196.30615     -8.815848e-23   2.0699365e-16  2.0699356e-16
+      9000   299.85868      66.638187      196.30948     -2.2933118e-22  2.0699379e-16  2.0699356e-16
+     10000   299.85836      66.638349      196.30985     -1.1825248e-23  2.0699357e-16  2.0699356e-16
+Loop time of 529.139 on 1 procs for 10000 steps with 40000 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 417.01     | 417.01     | 417.01     |   0.0 | 78.81
+Bond    | 0.0043602  | 0.0043602  | 0.0043602  |   0.0 |  0.00
+Neigh   | 0.35272    | 0.35272    | 0.35272    |   0.0 |  0.07
+Comm    | 6.0409     | 6.0409     | 6.0409     |   0.0 |  1.14
+Output  | 0.010542   | 0.010542   | 0.010542   |   0.0 |  0.00
+Modify  | 104.92     | 104.92     | 104.92     |   0.0 | 19.83
+Other   |            | 0.8007     |            |       |  0.15
+
+Nlocal:          40000 ave       40000 max       40000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:          41267 ave       41267 max       41267 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    8.18297e+06 ave 8.18297e+06 max 8.18297e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 8182974
+Ave neighs/atom = 204.57435
+Ave special neighs/atom = 1
+Neighbor list builds = 1
+Dangerous builds = 0
+Total wall time: 0:09:18
