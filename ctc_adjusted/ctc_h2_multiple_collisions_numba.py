@@ -127,7 +127,10 @@ def _run_one(seed):
     np.random.seed(seed)
 
     # ---- initial translational energies ------------------------------------
-    Etr_tot = np.random.random() * 6950.0  # total KE [K]
+    # Cap chosen so the dataset's E_rel (column 0, COM-frame relative trans) reaches
+    # ~20100 K — covers >99% of NTC queries up to T_trans = 3000 K (P(OOD) < 1%
+    # under Γ(2, T)). E_rel = Etr_tot + 100 in the symmetric-split limit.
+    Etr_tot = np.random.random() * 20000.0  # total KE [K]
     frac_tr1 = np.random.random()
     Etr_1 = frac_tr1 * Etr_tot + 50.0  # KE of molecule 1 [K], min 50 K
     Etr_2 = (1.0 - frac_tr1) * Etr_tot + 50.0  # KE of molecule 2 [K], min 50 K
@@ -138,8 +141,12 @@ def _run_one(seed):
     b_norm = b / _sigma
 
     # ---- initial rotational energies ---------------------------------------
-    Erot1 = np.random.random() * 1500.0 * _kB
-    Erot2 = np.random.random() * 1500.0 * _kB
+    # Cap chosen so each molecule's E_rot reaches 15000 K — covers >99.8% of NTC
+    # queries up to T_rot = 2200 K (P(OOD) ≈ 0.1% under Exp(T)). The previous
+    # 1500 K cap left ~50% of equilibrium queries OOD, which was the dominant
+    # cause of the MDN failing to equilibrate the relaxation experiment.
+    Erot1 = np.random.random() * 15000.0 * _kB
+    Erot2 = np.random.random() * 15000.0 * _kB
     f11 = np.random.random()
     f21 = np.random.random()
 
@@ -349,7 +356,7 @@ if __name__ == "__main__":
         }
     )
 
-    savefile = f"data/H2H2_collisions_numba_b1_0_{ncoll}_seed{seed}.npy"
+    savefile = f"data/H2H2_collisions_numba_b1_0_Etr20k_Erot15k_{ncoll}_seed{seed}.npy"
     np.save(savefile, df.to_numpy())
     print(f"Saved {savefile}")
 
