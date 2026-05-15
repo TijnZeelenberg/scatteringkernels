@@ -131,9 +131,11 @@ experiments.viscosity.green_kubo_viscosity(stats, ...)
 - All collision models operate in the center-of-mass frame
 - `zrot` = rotational collision number (Z_rot). For H2: `zrot_bl = 1/0.151`, `zrot_mdn = zrot_bl / 3.5`. `Species` defaults encode this — experiments should pass `species.zrot_bl` or `species.zrot_mdn` automatically via `run_relaxation`.
 
-### Weighting Factor (`wf`)
+### Weighting Factor (`wf`) — legacy knob
 
 Training samples are weighted by `E_trans^wf` to up-weight high-energy collisions (more physically relevant under NTC collision selection). The sweep `wf ∈ [0.25, 0.5, 1, 2, 3, 4, 5, 6, 7]` is the main hyperparameter study. Models are saved with the `wf` value encoded in the filename (e.g. `beta_mdn_H2_wf4.pth`) via `paths.wf_sweep_model_path`.
+
+**Status**: superseded for single-model training by the principled NTC importance ratio `w ∝ √E_trans · exp(−E_total/T_eq)` — set the `T_eq` kwarg on `train_collision_model` and `wf` is ignored. The `wf` knob is retained for the legacy sweeps and beta_mdn comparison runs. See "Active research line" below.
 
 ### Output Paths
 
@@ -152,6 +154,34 @@ Directories are created on the fly — fresh clones don't need pre-existing `res
 
 - `config/experiment_config.py`: MDN hyperparams — `lr=2e-4`, `batch_size=256`, `num_epochs=200`, `hidden_dim=128`, `num_mixtures=5`, `trainval_split=0.7`, `random_seed=42`
 - `config/plotting_config.py`: Figure styling defaults
+
+## Active research line: H2 MDN equilibration
+
+**Goal**: produce an MDN collision kernel for H2-H2 that drives DSMC from (T_trans=3000K, T_rot=1000K) to the equipartition equilibrium (T_trans = T_rot = 2200K). Borgnakke-Larssen already does this cleanly and is our reference.
+
+**Symptom**: vanilla NLL-trained MDNs conserve total energy but systematically over-deposit it into rotation. First run: T_trans=1669K, T_rot=2991K (1322K gap). After the coverage fix alone: T_trans≈2000K, T_rot≈2500K (500K gap). Target: ≈0K.
+
+### Failure modes found (chronological) and fixes applied
+
+1. **Polynomial `w ∝ E_trans^wf` weighting was seed-fragile.** Replaced with the exact NTC importance ratio `w ∝ √E_trans · exp(−E_total/T_eq)`. Implemented in `training/data_prep.py:ntc_importance_weight`; enabled via the `T_eq` kwarg on `train_collision_model` (takes precedence over `wf`).
+
+2. **CTC dataset coverage was too narrow** for high-T equilibrium queries. Original caps `E_trans ≤ 7049K`, `E_rot ≤ 1500K per particle` → ~50% OOD on E_rot when querying at T_eq=2200K equilibrium. Bumped to `E_trans ≤ 20100K`, `E_rot ≤ 15000K per particle` in `ctc_adjusted/ctc_h2_multiple_collisions_numba.py`. Dataset filename now: `H2H2_collisions_numba_b1_0_Etr20k_Erot15k_{N}_seed{seed}.npy`.
+
+3. **Z-score normalization used unweighted CTC statistics.** `input_mean ≈ [24000K, 0.37, 0.50]` while the NTC-weighted training mass lives around E_total ≈ 11000K. Fixed in `MixtureDensityNetwork.create_dataloaders`: when sample weights are present, input/output mean/std are computed as *weighted* moments over the importance-weighted distribution.
+
+4. **`WeightedRandomSampler` collapsed the effective training set at low ESS.** At T_eq=2200K, ESS ≈ 3.3%. With-replacement sampling re-drew ~9k unique points ~30× per epoch — memorization was mechanical, val loss diverged after epoch 7 while train loss kept falling. Replaced with a uniform shuffled DataLoader + importance-weighted loss (`mdn_loss_weighted` was already used for val; train loop now does the same). Same expected objective, vastly more unique-sample gradient signal per epoch.
+
+5. **Detailed balance not enforced by NLL.** A kernel learned from one-way CTC trajectories has no inductive bias toward time-reversal symmetry — which is exactly the symmetry equipartition requires. Added `time_reverse_augment` in `training/data_prep.py`: every row `(E_pre → E_post)` is paired with `(E_post → E_pre)`. Doubles unique-sample count and forces symmetrization. Always on by default in `load_and_prepare`.
+
+### Current state
+
+All five fixes are in. Smoke test (2 epochs, T_eq=2200K, augmented 800k rows) already produced val_loss=1.30, below the previous run's *best* (1.38 at epoch 7). Full 100-epoch retrain + H2 relaxation re-run pending. The next plot tells us whether the residual 500K gap closes.
+
+### If the equipartition gap persists after retrain
+
+- Inspect the kernel input parameterization `(E_total, η_tr, η_rot_A)` for hidden asymmetries — `η_rot_A = E_rot_A / (E_rot_A + E_rot_B)` is one-sided in particle indexing, which could leak a sign through the kernel.
+- Add an explicit detailed-balance penalty: forward + reverse the kernel on each batch, penalize asymmetry directly (stronger than augmentation-based symmetrization).
+- The SPARTA reference (`data/sparta_H2_energy_relaxationVHS_zinv0151.dat`) was generated at T_trans=298K / T_rot=98K → eq ≈220K. Not directly comparable to the current 3000/1000 → 2200K experiment — regenerate at matching initial conditions or drop SPARTA from the plot.
 
 ## Known TODOs (from `todo.md`)
 
