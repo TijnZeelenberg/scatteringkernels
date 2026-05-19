@@ -172,10 +172,13 @@ class BetaMixtureDensityNetwork(nn.Module):
         epochs_without_improvement = 0
         best_epoch = 0
 
+        device, _ = self._param_device_dtype()
+
         for epoch in tqdm(range(num_epochs), unit="epoch"):
             self.train()
             total_loss = 0
             for x_batch, y_batch in train_loader:
+                x_batch, y_batch = x_batch.to(device), y_batch.to(device)
                 optimizer.zero_grad()
                 pi, alpha, beta = self.forward(x_batch)
                 loss = beta_mdn_loss(pi, alpha, beta, y_batch)
@@ -193,7 +196,7 @@ class BetaMixtureDensityNetwork(nn.Module):
             with torch.no_grad():
                 for batch in val_loader:
                     if len(batch) == 3:
-                        x_val, y_val, w_val = batch
+                        x_val, y_val, w_val = (t.to(device) for t in batch)
                         pi_val, alpha_val, beta_val = self.forward(x_val)
                         weighted_nll, w_sum = beta_mdn_loss_weighted(
                             pi_val, alpha_val, beta_val, y_val, w_val
@@ -201,7 +204,7 @@ class BetaMixtureDensityNetwork(nn.Module):
                         val_loss += weighted_nll.item()
                         val_weight_total += w_sum.item()
                     else:
-                        x_val, y_val = batch
+                        x_val, y_val = x_val.to(device), y_val.to(device)
                         pi_val, alpha_val, beta_val = self.forward(x_val)
                         val_loss += beta_mdn_loss(
                             pi_val, alpha_val, beta_val, y_val
@@ -438,7 +441,7 @@ class BetaMixtureDensityNetwork(nn.Module):
 
     def load_model(self, path):
         """Loads the model state dict and input normalization parameters from a .pth file."""
-        model_dict = torch.load(path)
+        model_dict = torch.load(path, map_location="cpu", weights_only=False)
         self.load_state_dict(model_dict["state_dict"])
         self.input_mean = model_dict["input_mean"]
         self.input_std = model_dict["input_std"]

@@ -66,6 +66,7 @@ def cmd_train(args):
         batch_size=args.batch_size,
         lr=args.lr,
         wf=args.wf,
+        T_eq=args.T_eq,
         patience=args.patience,
         showplots=args.showplots,
     )
@@ -166,6 +167,8 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("--batch-size", type=int, default=128)
     t.add_argument("--lr", type=float, default=2e-4)
     t.add_argument("--wf", type=float, default=1.0)
+    t.add_argument("--T-eq", dest="T_eq", type=float, default=None,
+                   help="Equilibrium temperature [K] for NTC importance weighting (overrides --wf).")
     t.add_argument("--patience", type=int, default=30)
     t.add_argument("--showplots", action="store_true")
     t.set_defaults(func=cmd_train)

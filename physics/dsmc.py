@@ -113,6 +113,11 @@ class DSMC_Simulation:
         x_idx = np.floor(self.positions[:, 0] / self.cell_sizes[0]).astype(int)
         y_idx = np.floor(self.positions[:, 1] / self.cell_sizes[1]).astype(int)
         z_idx = np.floor(self.positions[:, 2] / self.cell_sizes[2]).astype(int)
+        # Float32 positions can land exactly on box_size after np.mod at tiny
+        # box sizes (precision loss); clamp to the valid cell range.
+        x_idx = np.clip(x_idx, 0, self.nx - 1)
+        y_idx = np.clip(y_idx, 0, self.ny - 1)
+        z_idx = np.clip(z_idx, 0, self.nz - 1)
         self.Xref = x_idx + y_idx * self.nx + z_idx * self.nx * self.ny
 
         self.cell_counts = np.bincount(self.Xref, minlength=self.nr_cells)

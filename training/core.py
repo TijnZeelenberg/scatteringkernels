@@ -63,6 +63,7 @@ def train_collision_model(
     showplots: bool = False,
     pretrained_path: str | Path | None = None,
     config: ExperimentConfig | None = None,
+    db_lambda: float = 0.0,
 ):
     """Train an MDN-style collision model on a CTC dataset.
 
@@ -82,6 +83,10 @@ def train_collision_model(
         showplots: if True, show a training/validation loss curve.
         pretrained_path: if given, load these weights before training.
         config: override the default ExperimentConfig (random seed, hidden_dim, ...).
+        db_lambda: detailed-balance penalty strength (MDN only — Beta MDN
+            currently ignores it). When > 0, forces the kernel to satisfy the
+            equilibrium DB relation; data-prep skips time-reversal augmentation
+            since the loss already evaluates both directions per pair.
 
     Returns:
         (model, train_loss_history, val_loss_history)
@@ -93,8 +98,23 @@ def train_collision_model(
         print(f"Training {kind} on dataset: {datapath}  (NTC importance weight, T_eq={T_eq} K)")
     else:
         print(f"Training {kind} on dataset: {datapath}  (polynomial weight, wf={wf})")
-    X, y, sample_weights, raw = load_and_prepare(datapath, wf=wf, T_eq=T_eq)
+    if db_lambda > 0.0 and kind != "mdn":
+        raise NotImplementedError(
+            f"DB penalty is only wired up for kind='mdn', got kind={kind!r}"
+        )
+    # When the DB penalty is on, the loss itself evaluates both directions per
+    # batch — augmenting the data with time-reversed rows would just double the
+    # cost and halve effective batch size. So we skip augmentation in that case.
+    augment = db_lambda == 0.0
+    if db_lambda > 0.0:
+        print(f"DB penalty enabled: λ={db_lambda} (time-reversal augmentation disabled)")
+    X, y, sample_weights, raw = load_and_prepare(
+        datapath, wf=wf, T_eq=T_eq, augment=augment
+    )
     print(f"Dataset contains {raw.shape[0]} rows")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Training device: {device}")
 
     model = _build_model(kind, config)
     if pretrained_path is not None:
@@ -113,12 +133,17 @@ def train_collision_model(
         weights=sample_weights,
     )
 
+    model = model.to(device)
+    model._cast_normalization_tensors()
+
+    train_kwargs: dict = {"num_epochs": epochs, "patience": patience}
+    if kind == "mdn":
+        train_kwargs["db_lambda"] = db_lambda
     train_hist, val_hist = model.train_model(
         train_loader,
         val_loader,
         optimizer,
-        num_epochs=epochs,
-        patience=patience,
+        **train_kwargs,
     )
 
     model.save_model(str(outputpath))

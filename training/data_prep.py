@@ -60,6 +60,22 @@ def load_collision_dataset(datapath: str | Path):
     return data
 
 
+def time_reverse_augment(data: np.ndarray) -> np.ndarray:
+    """Augment a CTC collision dataset with its time-reversed counterpart.
+
+    Classical CTC dynamics are time-reversal symmetric: every recorded
+    transition (E_tr, E_rot1, E_rot2) → (E_tr', E_rot1', E_rot2') is matched
+    by an equally valid reverse trajectory (E_tr', E_rot1', E_rot2') →
+    (E_tr, E_rot1, E_rot2). Stacking both directions into the training set
+    forces the MDN to learn a kernel that respects detailed balance — which a
+    vanilla NLL-trained MDN otherwise breaks, producing the equipartition
+    bias we see in DSMC relaxation experiments. Bonus: doubles the effective
+    sample count.
+    """
+    reversed_data = np.concatenate([data[:, 3:6], data[:, 0:3]], axis=1)
+    return np.concatenate([data, reversed_data], axis=0)
+
+
 def polynomial_weight(data: np.ndarray, wf: float) -> np.ndarray:
     """Original `wf` knob: w_i ∝ E_trans,i**wf, normalised to sum to 1."""
     w = data[:, 0] ** wf
@@ -164,11 +180,26 @@ def load_and_prepare(
     datapath: str | Path,
     wf: float = 1.0,
     T_eq: float | None = None,
+    augment: bool = True,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, np.ndarray]:
     """Convenience: load + convert in one step. Also returns the raw array.
 
-    See `prepare_training_tensors` for `wf` vs `T_eq` semantics.
+    See `prepare_training_tensors` for `wf` vs `T_eq` semantics. When
+    `augment=True` (default), the dataset is doubled with time-reversed
+    collisions before tensor conversion — see `time_reverse_augment`. The
+    returned `raw` array reflects the (post-augmentation) data that was
+    actually used to build the tensors.
     """
     raw = load_collision_dataset(datapath)
+    if augment:
+        raw_orig_n = len(raw)
+        raw = time_reverse_augment(raw)
+        print(f"Time-reversal augmentation: {raw_orig_n} -> {len(raw)} rows")
     X, y, weights = prepare_training_tensors(raw, wf=wf, T_eq=T_eq)
+    if T_eq is not None:
+        ess = effective_sample_size(weights.detach().cpu().numpy())
+        print(
+            f"NTC importance weights @ T_eq={T_eq} K: "
+            f"ESS = {ess:.0f} / {len(weights)} ({ess / len(weights) * 100:.2f}%)"
+        )
     return X, y, weights, raw

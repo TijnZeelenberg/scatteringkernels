@@ -43,11 +43,11 @@ from physics.species import Species
 class SimulationParams:
     """Common DSMC simulation settings shared across experiments."""
 
-    box_size: float = 7.5e-6     # m
-    dt: float = 1.0e-5            # s
+    box_size: float = 7.5e-6  # m
+    dt: float = 1.0e-5  # s
     nr_steps: int = 100
     trans_temperature: float = 300.0  # K
-    rot_temperature: float = 100.0    # K
+    rot_temperature: float = 100.0  # K
     N_sim: int = 20000
     N_real: int = 20000
     grid_cells: tuple[int, int, int] = (5, 5, 5)
@@ -68,7 +68,9 @@ class RelaxationResult:
 # ---------------------------------------------------------------------------
 
 
-def load_mdn(model_path: str | Path, randomseed: int = 1, config: ExperimentConfig | None = None):
+def load_mdn(
+    model_path: str | Path, randomseed: int = 1, config: ExperimentConfig | None = None
+):
     config = config or ExperimentConfig()
     model = MixtureDensityNetwork(
         input_dim=3,
@@ -81,7 +83,9 @@ def load_mdn(model_path: str | Path, randomseed: int = 1, config: ExperimentConf
     return model
 
 
-def load_beta_mdn(model_path: str | Path, randomseed: int = 1, config: ExperimentConfig | None = None):
+def load_beta_mdn(
+    model_path: str | Path, randomseed: int = 1, config: ExperimentConfig | None = None
+):
     config = config or ExperimentConfig()
     model = BetaMixtureDensityNetwork(
         input_dim=3,
@@ -168,12 +172,43 @@ def load_sparta_reference(path: str | Path) -> dict:
 
     Returns dict with keys: timestep, t, T_trans, T_rot.
     """
-    arr = np.loadtxt(str(path), skiprows=2)
+    arr = np.loadtxt(str(path), skiprows=2, ndmin=2)
     return {
         "timestep": arr[:, 0],
         "t": arr[:, 1],
         "T_trans": arr[:, 2],
         "T_rot": arr[:, 3],
+    }
+
+
+def load_lammps_reference(path: str | Path) -> dict:
+    """Load a LAMMPS energy-relaxation .dat file.
+
+    Same column layout as SPARTA (timestep, t, T_trans, T_rot) but with a
+    single-line header.
+    """
+    arr = np.loadtxt(str(path), skiprows=1, ndmin=2)
+    return {
+        "timestep": arr[:, 0],
+        "t": arr[:, 1],
+        "T_trans": arr[:, 2],
+        "T_rot": arr[:, 3],
+    }
+
+
+def load_bl_reference(path: str | Path) -> dict:
+    """Load a cached BL-DSMC energy-relaxation trace.
+
+    The file is produced by `scripts/generate_bl_dsmc.py` and shares the
+    LAMMPS column layout. The returned dict uses the *DSMC* stats convention
+    (keys `timestep`, `T_trans_mean`, `T_rot_mean`) so it can be dropped
+    straight into the `results` dict consumed by `plot_relaxation_comparison`.
+    """
+    arr = np.loadtxt(str(path), skiprows=1, ndmin=2)
+    return {
+        "timestep": arr[:, 1],  # physical time, matches stats["timestep"] semantics
+        "T_trans_mean": arr[:, 2],
+        "T_rot_mean": arr[:, 3],
     }
 
 
@@ -197,6 +232,7 @@ def print_relaxation_table(
     sparta: dict | None = None,
     *,
     rot_temperature_initial: float,
+    lammps: dict | None = None,
 ):
     """Print final mean T_trans/T_rot and 90% rotational relaxation time."""
     print("\nFinal mean temperatures:")
@@ -208,14 +244,23 @@ def print_relaxation_table(
         ft = sparta["T_trans"][-20:-1].mean()
         fr = sparta["T_rot"][-20:-1].mean()
         print(f"  SPARTA: T_trans = {ft:.2f} K, T_rot = {fr:.2f} K")
+    if lammps is not None:
+        ft = lammps["T_trans"][-20:-1].mean()
+        fr = lammps["T_rot"][-20:-1].mean()
+        print(f"  LAMMPS: T_trans = {ft:.2f} K, T_rot = {fr:.2f} K")
 
     print("\nRelaxation times (T_rot reaches 90% of equilibrium):")
     for label, stats in results.items():
-        t90 = _relaxation_time_90(stats["timestep"], stats["T_rot_mean"], rot_temperature_initial)
-        print(f"  {label}: {t90:.6f} s")
+        t90 = _relaxation_time_90(
+            stats["timestep"], stats["T_rot_mean"], rot_temperature_initial
+        )
+        print(f"  {label}: {t90:.4e} s")
     if sparta is not None:
         t90 = _relaxation_time_90(sparta["t"], sparta["T_rot"], rot_temperature_initial)
-        print(f"  SPARTA: {t90:.6f} s")
+        print(f"  SPARTA: {t90:.4e} s")
+    if lammps is not None:
+        t90 = _relaxation_time_90(lammps["t"], lammps["T_rot"], rot_temperature_initial)
+        print(f"  LAMMPS: {t90:.4e} s")
 
 
 def plot_relaxation_comparison(
@@ -226,28 +271,62 @@ def plot_relaxation_comparison(
     sparta_label: str = "BL (SPARTA DSMC)",
     ylim: tuple[float, float] = (20, 450),
     sparta_clip: int | None = None,
+    lammps: dict | None = None,
+    lammps_label: str = "LAMMPS MD",
+    lammps_clip: int | None = None,
 ):
-    """Plot T_trans and T_rot for each model + SPARTA reference, save to disk.
+    """Plot T_trans and T_rot for each model + SPARTA/LAMMPS reference traces.
 
     Output directory is created automatically.
     """
     pc = PlottingConfig()
     fig, ax = plt.subplots(figsize=pc.figsize)
     for label, stats in results.items():
-        ax.plot(stats["timestep"], stats["T_trans_mean"], label=fr"$T_{{trans}}$ {label}")
-        ax.plot(stats["timestep"], stats["T_rot_mean"], label=fr"$T_{{rot}}$ {label}")
+        ax.plot(
+            stats["timestep"], stats["T_trans_mean"], label=rf"$T_{{trans}}$ {label}"
+        )
+        ax.plot(stats["timestep"], stats["T_rot_mean"], label=rf"$T_{{rot}}$ {label}")
 
     if sparta is not None:
         clip = slice(None) if sparta_clip is None else slice(0, sparta_clip)
-        ax.plot(sparta["t"][clip], sparta["T_trans"][clip],
-                color="red", linestyle="--",
-                label=fr"$T_{{trans}}$ {sparta_label}")
-        ax.plot(sparta["t"][clip], sparta["T_rot"][clip],
-                color="blue", linestyle="--",
-                label=fr"$T_{{rot}}$ {sparta_label}")
+        ax.plot(
+            sparta["t"][clip],
+            sparta["T_trans"][clip],
+            color="red",
+            linestyle="--",
+            label=rf"$T_{{trans}}$ {sparta_label}",
+        )
+        ax.plot(
+            sparta["t"][clip],
+            sparta["T_rot"][clip],
+            color="blue",
+            linestyle="--",
+            label=rf"$T_{{rot}}$ {sparta_label}",
+        )
 
-    ax.set_xlabel("Time [s]", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight)
-    ax.set_ylabel("Temperature [K]", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight)
+    if lammps is not None:
+        clip = slice(None) if lammps_clip is None else slice(0, lammps_clip)
+        ax.plot(
+            lammps["t"][clip],
+            lammps["T_trans"][clip],
+            color="red",
+            linestyle=":",
+            label=rf"$T_{{trans}}$ {lammps_label}",
+        )
+        ax.plot(
+            lammps["t"][clip],
+            lammps["T_rot"][clip],
+            color="blue",
+            linestyle=":",
+            label=rf"$T_{{rot}}$ {lammps_label}",
+        )
+
+    ax.set_xlabel(
+        "Time [s]", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight
+    )
+    ax.set_ylabel(
+        "Temperature [K]", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight
+    )
     ax.ticklabel_format(style="sci", scilimits=(-2, 3))
     ax.set_ylim(*ylim)
     ax.grid()

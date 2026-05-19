@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from torch.utils.data import (
     DataLoader,
     TensorDataset,
-    WeightedRandomSampler,
     random_split,
 )
 import numpy as np
@@ -115,13 +114,23 @@ class MixtureDensityNetwork(nn.Module):
         Returns:
             train_loader, val_loader (DataLoader): DataLoaders for training/validation.
         """
-        # Normalize the data
+        # Normalize the data. When importance weights are given, compute the
+        # mean/std over the *weighted* distribution so the model sees inputs
+        # centered on the regime it actually trains on (NTC-reweighted), not
+        # the regime CTC happened to sample uniformly from.
         if not (X.any() and y.any()):
             raise ValueError("X and y cannot be empty.")
-        self.input_mean = X.mean(dim=0)
-        self.input_std = X.std(dim=0) + 1e-6
-        self.output_mean = y.mean(dim=0)
-        self.output_std = y.std(dim=0) + 1e-6
+        if weights is not None:
+            w = (weights / weights.sum()).unsqueeze(1)
+            self.input_mean = (X * w).sum(dim=0)
+            self.input_std = torch.sqrt(((X - self.input_mean) ** 2 * w).sum(dim=0)) + 1e-6
+            self.output_mean = (y * w).sum(dim=0)
+            self.output_std = torch.sqrt(((y - self.output_mean) ** 2 * w).sum(dim=0)) + 1e-6
+        else:
+            self.input_mean = X.mean(dim=0)
+            self.input_std = X.std(dim=0) + 1e-6
+            self.output_mean = y.mean(dim=0)
+            self.output_std = y.std(dim=0) + 1e-6
         X = (X - self.input_mean) / self.input_std
         y = (y - self.output_mean) / self.output_std
 
@@ -134,14 +143,19 @@ class MixtureDensityNetwork(nn.Module):
             dataset, [train_size, val_size], generator=generator
         )
 
-        # Create DataLoaders
+        # Create DataLoaders. When importance weights are present we no longer
+        # use WeightedRandomSampler — at low ESS it collapses the effective
+        # training set to a handful of repeated draws per epoch. Instead we
+        # iterate uniformly over *every* unique sample and let the per-sample
+        # weight enter the loss (importance-weighted SGD). Mathematically the
+        # same expected objective, vastly more gradient signal per epoch.
         if weights is not None:
             train_weights = weights[train_dataset.indices]
-            sampler = WeightedRandomSampler(
-                train_weights, num_samples=len(train_dataset), replacement=True
+            train_weighted_dataset = TensorDataset(
+                X[train_dataset.indices], y[train_dataset.indices], train_weights
             )
             train_loader = DataLoader(
-                train_dataset, batch_size=batch_size, sampler=sampler
+                train_weighted_dataset, batch_size=batch_size, shuffle=shuffle
             )
 
             val_weights = weights[val_dataset.indices]
@@ -166,6 +180,7 @@ class MixtureDensityNetwork(nn.Module):
         optimizer: torch.optim.Optimizer,
         num_epochs,
         patience: int | None = None,
+        db_lambda: float = 0.0,
     ):
         """
         Trains the Mixture Density Network using the provided training data.
@@ -178,28 +193,78 @@ class MixtureDensityNetwork(nn.Module):
             lr (float): Learning rate for the optimizer.
             patience (int | None): Early stopping patience — stop if val loss does not
                 improve for this many consecutive epochs. Default is 20.
+            db_lambda (float): Detailed-balance regulariser strength. When > 0,
+                each batch additionally evaluates the kernel in the time-reversed
+                direction (x_rev = (E_total, η_tr', η_rot_A'), y_rev = (η_tr,
+                η_rot_A)) and adds `db_lambda * mdn_db_residual_weighted(...)`
+                to the loss. Directly enforces detailed balance with respect
+                to the canonical equilibrium distribution — the symmetry that
+                a vanilla NLL fit otherwise breaks. Time-reversal augmentation
+                should be turned off when this is enabled (the loss already
+                does both directions per pair).
         """
         self.train_loss_history = []
         self.val_loss_history = []
+        self.train_nll_history = []
+        self.train_db_history = []
         best_val_loss = float("inf")
         best_weights = None
         epochs_without_improvement = 0
         best_epoch = 0
 
+        device, _ = self._param_device_dtype()
+
         for epoch in tqdm(range(num_epochs), unit="epoch"):
             self.train()
-            total_loss = 0
-            for x_batch, y_batch in train_loader:
+            total_loss = 0.0
+            total_nll = 0.0
+            total_db = 0.0
+            for batch in train_loader:
                 optimizer.zero_grad()
-                pi, mu, sigma = self.forward(x_batch)
-                loss = mdn_loss(pi, mu, sigma, y_batch)
+                if len(batch) == 3:
+                    x_batch, y_batch, w_batch = (t.to(device) for t in batch)
+                    pi, mu, sigma = self.forward(x_batch)
+                    log_p_fwd = _mdn_log_prob(pi, mu, sigma, y_batch)
+                    w_sum = w_batch.sum().clamp(min=1e-8)
+                    nll_loss = -(w_batch * log_p_fwd).sum() / w_sum
+                    loss = nll_loss
+                    db_loss_val = 0.0
+                    if db_lambda > 0.0:
+                        # Build the reversed pair in normalized space.
+                        # x_norm = (x_raw - in_mean)/in_std, x_raw = (E_total, η_tr, η_rot_A)
+                        # y_norm = (y_raw - out_mean)/out_std, y_raw = (η_tr', η_rot_A')
+                        x_raw = x_batch * self.input_std + self.input_mean
+                        y_raw = y_batch * self.output_std + self.output_mean
+                        x_rev_raw = torch.stack(
+                            [x_raw[:, 0], y_raw[:, 0], y_raw[:, 1]], dim=1
+                        )
+                        y_rev_raw = x_raw[:, 1:3]
+                        x_rev_norm = (x_rev_raw - self.input_mean) / self.input_std
+                        y_rev_norm = (y_rev_raw - self.output_mean) / self.output_std
+                        pi_r, mu_r, sigma_r = self.forward(x_rev_norm)
+                        log_p_rev = _mdn_log_prob(pi_r, mu_r, sigma_r, y_rev_norm)
+                        db_sum, _ = mdn_db_residual_weighted(
+                            log_p_fwd, log_p_rev, x_raw[:, 1], y_raw[:, 0], w_batch
+                        )
+                        db_loss = db_sum / w_sum
+                        loss = nll_loss + db_lambda * db_loss
+                        db_loss_val = db_loss.item()
+                    total_nll += nll_loss.item()
+                    total_db += db_loss_val
+                else:
+                    x_batch, y_batch = (t.to(device) for t in batch)
+                    pi, mu, sigma = self.forward(x_batch)
+                    loss = mdn_loss(pi, mu, sigma, y_batch)
+                    total_nll += loss.item()
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
                 optimizer.step()
                 total_loss += loss.item()
 
-            avg_loss = total_loss / len(train_loader)
-            self.train_loss_history.append(avg_loss)
+            n_batches = len(train_loader)
+            self.train_loss_history.append(total_loss / n_batches)
+            self.train_nll_history.append(total_nll / n_batches)
+            self.train_db_history.append(total_db / n_batches)
 
             # Validation loop
             self.eval()
@@ -208,7 +273,7 @@ class MixtureDensityNetwork(nn.Module):
             with torch.no_grad():
                 for batch in val_loader:
                     if len(batch) == 3:
-                        x_val, y_val, w_val = batch
+                        x_val, y_val, w_val = (t.to(device) for t in batch)
                         pi_val, mu_val, sigma_val = self.forward(x_val)
                         weighted_nll, w_sum = mdn_loss_weighted(
                             pi_val, mu_val, sigma_val, y_val, w_val
@@ -216,7 +281,7 @@ class MixtureDensityNetwork(nn.Module):
                         val_loss += weighted_nll.item()
                         val_weight_total += w_sum.item()
                     else:
-                        x_val, y_val = batch
+                        x_val, y_val = (t.to(device) for t in batch)
                         pi_val, mu_val, sigma_val = self.forward(x_val)
                         val_loss += mdn_loss(pi_val, mu_val, sigma_val, y_val).item()
                         val_weight_total += 1
@@ -374,10 +439,19 @@ class MixtureDensityNetwork(nn.Module):
         eta_tr = E_rel / Etot
         eta_rot_A = e_rot_i / Erot
 
+        # Particle-swap symmetrization. Particles i and j are physically
+        # identical, so the kernel ought to be invariant under
+        # (eta_rot_A, eta_rot_A') -> (1 - eta_rot_A, 1 - eta_rot_A'). The
+        # trained MDN doesn't get that for free, so we enforce it at sample
+        # time: with probability 0.5, feed (1 - eta_rot_A) and invert the
+        # sampled output. Marginally exact symmetrization, zero retrain cost.
+        swap = self.rng.random() < 0.5
+        eta_rot_A_in = 1.0 - eta_rot_A if swap else eta_rot_A
+
         # Sample new energy fractions from the predicted mixture of Gaussians
         device, dtype = self._param_device_dtype()
         input_features = torch.tensor(
-            [[Etot, eta_tr, eta_rot_A]], device=device, dtype=dtype
+            [[Etot, eta_tr, eta_rot_A_in]], device=device, dtype=dtype
         )
         etap_tr, etap_rot_i = (
             self.sample(input_features).squeeze(0).detach().cpu().numpy()
@@ -386,6 +460,8 @@ class MixtureDensityNetwork(nn.Module):
         # Physical constraints: energy fractions must lie in [0, 1].
         etap_tr = float(np.clip(etap_tr, 0.0, 1.0))
         etap_rot_i = float(np.clip(etap_rot_i, 0.0, 1.0))
+        if swap:
+            etap_rot_i = 1.0 - etap_rot_i
 
         # Reconstruct post-collisional energies.
         E_rel_post = etap_tr * Etot
@@ -463,16 +539,24 @@ class MixtureDensityNetwork(nn.Module):
         eta_tr = E_rel[idx] / Etot[idx]
         eta_rot_A = e_rot_i[idx] / Erot[idx]
 
+        # Particle-swap symmetrization (see `collide` for the motivation).
+        # With probability 0.5 per pair, feed (1 - eta_rot_A) to the kernel
+        # and invert the sampled output. Marginally enforces invariance under
+        # i <-> j exchange without retraining.
+        swap_mask = self.rng.random(len(idx)) < 0.5
+        eta_rot_A_in = np.where(swap_mask, 1.0 - eta_rot_A, eta_rot_A)
+
         # Sample new energy fractions from the predicted mixture of Gaussians
         device, dtype = self._param_device_dtype()
         input_tensor = torch.tensor(
-            np.stack([Etot[idx], eta_tr, eta_rot_A], axis=1),
+            np.stack([Etot[idx], eta_tr, eta_rot_A_in], axis=1),
             device=device,
             dtype=dtype,
         )
         samples = self.sample(input_tensor).detach().cpu().numpy()
         etap_tr = np.clip(samples[:, 0], 0.0, 1.0)
         etap_rot_i = np.clip(samples[:, 1], 0.0, 1.0)
+        etap_rot_i = np.where(swap_mask, 1.0 - etap_rot_i, etap_rot_i)
 
         # Reconstruct post-collisional energies.
         E_rel_post = etap_tr * Etot[idx]
@@ -512,6 +596,8 @@ class MixtureDensityNetwork(nn.Module):
             "output_std": self.output_std,
             "train_loss_history": self.train_loss_history,
             "val_loss_history": self.val_loss_history,
+            "train_nll_history": getattr(self, "train_nll_history", []),
+            "train_db_history": getattr(self, "train_db_history", []),
         }
         torch.save(model_dict, path)
 
@@ -522,7 +608,7 @@ class MixtureDensityNetwork(nn.Module):
         Args:
             path (str): Path to load the model from, must end with .pth.
         """
-        model_dict = torch.load(path)
+        model_dict = torch.load(path, map_location="cpu", weights_only=False)
         self.load_state_dict(model_dict["state_dict"])
         self.input_mean = model_dict["input_mean"]
         self.input_std = model_dict["input_std"]
@@ -532,29 +618,21 @@ class MixtureDensityNetwork(nn.Module):
 
 
 # Define loss function
-def mdn_loss(pi, mu, sigma, y):
-    """
-    Computes the negative log-likelihood loss for a Mixture Density Network.
-    Args:
-        pi: Mixture weights, shape (batch_size, K)
-        mu: Means of the mixtures, shape (batch_size, K, D)
-        sigma: Standard deviations of the mixtures, shape (batch_size, K, D)
-        y: Target values, shape (batch_size, D)
-    """
-    y = y.unsqueeze(1)  # Shape (batch_size, 1, D)
-
-    # Gaussian probability density function
+def _mdn_log_prob(pi, mu, sigma, y):
+    """Per-row log p(y | pi, mu, sigma) for a Gaussian MDN. Shape (batch_size,)."""
+    y = y.unsqueeze(1)
     log_prob = -0.5 * (
         torch.sum(((y - mu) / sigma) ** 2, dim=2)
         + torch.sum(torch.log(sigma**2), dim=2)
         + mu.size(2) * torch.log(torch.tensor(2 * torch.pi))
-    )  # Shape (batch_size, K)
-
-    # Weighted log probabilities
+    )
     weighted_log_prob = log_prob + torch.log(pi + 1e-8)
-    log_sum_exp = torch.logsumexp(weighted_log_prob, dim=1)
+    return torch.logsumexp(weighted_log_prob, dim=1)
 
-    return -torch.mean(log_sum_exp)
+
+def mdn_loss(pi, mu, sigma, y):
+    """Negative log-likelihood loss for a Gaussian MDN (mean over batch)."""
+    return -torch.mean(_mdn_log_prob(pi, mu, sigma, y))
 
 
 def mdn_loss_weighted(pi, mu, sigma, y, w):
@@ -563,15 +641,44 @@ def mdn_loss_weighted(pi, mu, sigma, y, w):
     Returns (weighted_nll_sum, weight_sum) so the caller can accumulate a
     properly normalized weighted mean across batches.
     """
-    y = y.unsqueeze(1)
+    log_p = _mdn_log_prob(pi, mu, sigma, y)
+    return -(w * log_p).sum(), w.sum()
 
-    log_prob = -0.5 * (
-        torch.sum(((y - mu) / sigma) ** 2, dim=2)
-        + torch.sum(torch.log(sigma**2), dim=2)
-        + mu.size(2) * torch.log(torch.tensor(2 * torch.pi))
-    )
 
-    weighted_log_prob = log_prob + torch.log(pi + 1e-8)
-    log_sum_exp = torch.logsumexp(weighted_log_prob, dim=1)  # (batch_size,)
+def mdn_db_residual_weighted(log_p_fwd, log_p_rev, eta_tr_pre, eta_tr_post, w):
+    """Weighted squared residual of the detailed-balance constraint.
 
-    return -(w * log_sum_exp).sum(), w.sum()
+    For a binary H2 collision with energy-shell variables (E_total, eta_tr,
+    eta_rot_A) where E_total is conserved per collision, the equilibrium
+    distribution conditional on E_total is
+
+        pi_eq(eta_tr, eta_rot_A | E_total)  ∝  eta_tr^(1/2) · (1 - eta_tr)
+
+    (3 trans + 4 rot DOFs; eta_rot_A is uniform given E_total). Detailed
+    balance for the MDN kernel then requires, at every (x, y) pair related
+    by an energy-conserving collision,
+
+        log p_θ(y | x) − log p_θ(x_rev | y_rev) = Δlog pi_eq
+                                                = (1/2) log(η_tr' / η_tr)
+                                                  + log((1−η_tr') / (1−η_tr))
+
+    where x_rev = (E_total, η_tr', η_rot_A') and y_rev = (η_tr, η_rot_A).
+    This function returns the weighted-MSE of that residual.
+
+    Args:
+        log_p_fwd: log p_θ(y | x), shape (batch,) — forward direction.
+        log_p_rev: log p_θ(y_rev | x_rev), shape (batch,) — reverse direction.
+        eta_tr_pre: η_tr in raw [0, 1] space, shape (batch,).
+        eta_tr_post: η_tr' in raw [0, 1] space, shape (batch,).
+        w: per-sample importance weights, shape (batch,).
+
+    Returns:
+        (weighted_sum_sq_residual, weight_sum) — so the caller can normalise
+        across batches the same way it normalises the NLL.
+    """
+    eps = 1e-6
+    a = eta_tr_pre.clamp(min=eps, max=1.0 - eps)
+    b = eta_tr_post.clamp(min=eps, max=1.0 - eps)
+    db_target = 0.5 * (torch.log(b) - torch.log(a)) + (torch.log1p(-b) - torch.log1p(-a))
+    residual = log_p_fwd - log_p_rev - db_target
+    return (w * residual ** 2).sum(), w.sum()
