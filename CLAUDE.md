@@ -15,6 +15,8 @@ source .venv/bin/activate
 
 No `requirements.txt` or `pyproject.toml` — dependencies are inferred from imports: `torch`, `numpy`, `sklearn`, `scipy`, `matplotlib`, `tqdm`, `numba`, `hyperopt`.
 
+LAMMPS is installed and invoked via the `lmp` command. Docs: https://docs.lammps.org/Manual.html.
+
 ## Common Commands
 
 The pipeline entrypoint `scripts/run_pipeline.py` is the preferred way to run things — it routes outputs through `paths.py`, which auto-creates `results/models/...` and `results/plots/...` on demand. The individual scripts in `experiments/`, `training/`, and `visualization/` still work and are now thin wrappers around the same reusable functions.
@@ -157,6 +159,8 @@ Directories are created on the fly — fresh clones don't need pre-existing `res
 
 ## Active research line: H2 MDN equilibration
 
+Update this section upon each research step!
+
 **Goal**: produce an MDN collision kernel for H2-H2 that drives DSMC from (T_trans=3000K, T_rot=1000K) to the equipartition equilibrium (T_trans = T_rot = 2200K). Borgnakke-Larssen already does this cleanly and is our reference.
 
 **Symptom**: vanilla NLL-trained MDNs conserve total energy but systematically over-deposit it into rotation. First run: T_trans=1669K, T_rot=2991K (1322K gap). After the coverage fix alone: T_trans≈2000K, T_rot≈2500K (500K gap). Target: ≈0K.
@@ -173,15 +177,69 @@ Directories are created on the fly — fresh clones don't need pre-existing `res
 
 5. **Detailed balance not enforced by NLL.** A kernel learned from one-way CTC trajectories has no inductive bias toward time-reversal symmetry — which is exactly the symmetry equipartition requires. Added `time_reverse_augment` in `training/data_prep.py`: every row `(E_pre → E_post)` is paired with `(E_post → E_pre)`. Doubles unique-sample count and forces symmetrization. Always on by default in `load_and_prepare`.
 
-### Current state
+### Current state of MDN training
 
-All five fixes are in. Smoke test (2 epochs, T_eq=2200K, augmented 800k rows) already produced val_loss=1.30, below the previous run's *best* (1.38 at epoch 7). Full 100-epoch retrain + H2 relaxation re-run pending. The next plot tells us whether the residual 500K gap closes.
+All five fixes above are in. 100-epoch retrain on the augmented 800k-row dataset:
 
-### If the equipartition gap persists after retrain
+- Best val loss **1.214 at epoch 19** (saved checkpoint). Val drifts back to ~1.30 by epoch 100.
+- DSMC relaxation still biased: MDN settles at **T_trans ≈ 1950K, T_rot ≈ 2580K** (~630K gap). Kernel-marginal probe confirmed the bias is in the learned conditional, not in DSMC integration. Root cause: NLL has no inductive bias toward time-reversal symmetry; at η_tr → 1 (low rot energy) training mass is thin and network reverts toward its overall mean → strong downward pull.
 
-- Inspect the kernel input parameterization `(E_total, η_tr, η_rot_A)` for hidden asymmetries — `η_rot_A = E_rot_A / (E_rot_A + E_rot_B)` is one-sided in particle indexing, which could leak a sign through the kernel.
-- Add an explicit detailed-balance penalty: forward + reverse the kernel on each batch, penalize asymmetry directly (stronger than augmentation-based symmetrization).
-- The SPARTA reference (`data/sparta_H2_energy_relaxationVHS_zinv0151.dat`) was generated at T_trans=298K / T_rot=98K → eq ≈220K. Not directly comparable to the current 3000/1000 → 2200K experiment — regenerate at matching initial conditions or drop SPARTA from the plot.
+### DB penalty (wired up, training pending)
+
+Implemented in `machinelearning/mdn.py`:
+
+- `_mdn_log_prob(pi, mu, sigma, y)` — per-row mixture log-likelihood helper.
+- `mdn_db_residual_weighted(log_p_fwd, log_p_rev, η_tr, η_tr', w)` — weighted squared residual of the equilibrium DB constraint `log p_θ(y|x) − log p_θ(x_rev|y_rev) = ½·log(η_tr'/η_tr) + log((1−η_tr')/(1−η_tr))`, derived from the Beta(3/2, 2) marginal for a 3-trans + 4-rot DOF binary collision.
+- `train_model(..., db_lambda=0.0)` — when `db_lambda > 0`, evaluates reversed pair per batch and adds `db_lambda · MSE_residual` to NLL. Tracks `train_nll_history` and `train_db_history`.
+- `training/core.train_collision_model(..., db_lambda=0.0)` — auto-disables time-reversal augmentation when `db_lambda > 0`.
+- `training/trainer.py` defaults to `db_lambda=0.1`, output: `results/models/mdn/mdn_H2_Etr20k_Erot15k_Teq2200_db01.pth`.
+
+Smoke test (2 epochs, db_lambda=0.1): NLL ≈ 1.23, DB residual ≈ 0.32 and dropping, ~15 s/epoch.
+
+**Pending**: run full 100-epoch training and rerun `experiments/H2_energy_relaxation.py`. May need to sweep `db_lambda` ∈ {0.01, 0.1, 1.0}.
+
+### If the DB penalty doesn't close the gap
+
+- Raise T_eq for the importance weight to broaden ESS (currently 3.28%). At T_eq=4000K the exponential cutoff softens, more rows contribute.
+- Sweep `db_lambda`; consider symmetric KL instead of MSE residual.
+- Switch to BetaMixtureDensityNetwork (naturally bounded output, avoids Gaussian mass leakage outside [0,1]).
+
+### LAMMPS MD reference and classical-MD calibration
+
+A LAMMPS rigid-rotor H2 relaxation experiment has been added as a second reference alongside SPARTA. Key findings:
+
+**Why LAMMPS relaxes faster than DSMC (VHS)**: the LJ cutoff (1 nm) means rotational energy exchange happens over a ~10× larger interaction range than the VHS diameter (2.92 Å). DSMC with VHS undercounts collisions by ~6×. Even setting Z_rot = 1 (all VHS collisions inelastic) gives τ_rot = τ_coll_VHS ≈ 14 ps, while LAMMPS gives τ_rot ≈ 5–40 ps depending on density.
+
+**Classical-MD calibration** (in `experiments/H2_energy_relaxation.py` and `scripts/generate_bl_dsmc.py`):
+- `d_eff = 10.1 Å` (≈ LJ cutoff radius) — sets VHS collision rate to match LAMMPS
+- `Z_rot = 2.0` — classical rigid-rotor value (quantum Parker fit is 6.62)
+- Applied via `dataclasses.replace(Species.H2(), diameter=_D_CLASSICAL_MD, zrot_bl=_ZROT_CLASSICAL_MD, zrot_mdn=_ZROT_CLASSICAL_MD)` — Species defaults are untouched.
+
+**1/Z_rot from LAMMPS** is computed by `analysis/lammps_zrot.py` (fits exponential decay of T_trans − T_rot, divides by VHS τ_coll). At L=100 nm: 1/Z_rot ≈ 6.0 (using VHS σ) — confirms the calibrated Z_rot ≈ 2 is physical for classical rigid-rotor H2.
+
+### Experiment setup (current)
+
+All three simulators run with the same initial conditions and box to enable direct comparison:
+
+| Parameter | LAMMPS | SPARTA | Python DSMC |
+|---|---|---|---|
+| Box L | 100 nm | 100 nm | 100 nm |
+| N molecules | 20 000 | 20 000 | 20 000 |
+| dt | 1 fs | 1 ps | 1 ps |
+| nr_steps | 1 000 000 | 1 000 | 1 000 |
+| Physical time | 1 ns | 1 ns | 1 ns |
+| T_trans init | 3000 K | 3000 K | 3000 K |
+| T_rot init | 1000 K | 1000 K | 1000 K |
+
+**BL-DSMC is now cached** — run `python scripts/generate_bl_dsmc.py` once; `experiments/H2_energy_relaxation.py` loads from `data/bl_H2_energy_relaxation.dat` instead of re-running each time. Only the MDN is run live per experiment.
+
+SPARTA still uses Parker Z_rot (1/0.151) and VHS d=2.92 Å — it represents the quantum-corrected gas-kinetic reference. DSMC models use the classical-MD calibration above.
+
+### Reference data
+
+- SPARTA: `sparta/output/sparta_H2_energy_relaxationTtr3000_Trot1000.dat`
+- LAMMPS: `lammps/output/lammps_H2_energy_relaxation.dat`
+- BL-DSMC cache: `data/bl_H2_energy_relaxation.dat` (regenerate with `scripts/generate_bl_dsmc.py` after changing box/params)
 
 ## Known TODOs (from `todo.md`)
 

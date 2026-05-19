@@ -1,130 +1,243 @@
 # ML Scattering Kernels
 
-Master's thesis project on replacing physics-based molecular collision models with machine-learned scattering kernels inside a DSMC (Direct Simulation Monte Carlo) simulation. The target application is rarefied gas dynamics — specifically $H_2$ and $O_2$ at low pressure.
+Master's thesis project on replacing physics-based molecular collision models with machine-learned scattering kernels inside a DSMC (Direct Simulation Monte Carlo) simulation. The target application is rarefied gas dynamics — specifically H₂ and O₂ at low pressure.
 
-The central question is: can a neural network learn the conditional energy redistribution of a molecular collision from trajectory data, and then act as a drop-in replacement for a phenominological model like the Borgnakke-Larssen physics model, while still producing correct macroscopic transport properties (e.g. viscosity, energy relaxation)?
+The central question is: can a neural network learn the conditional energy redistribution of a molecular collision from trajectory data, and act as a drop-in replacement for the Borgnakke-Larssen phenomenological model, while still producing correct macroscopic transport properties (viscosity, energy relaxation)?
 
-## How it all fits together
+## Pipeline overview
 
 ```
-ctc_adjusted/            ← generate training data via classical trajectory simulation
+ctc_adjusted/                    generate collision data (classical trajectory, Numba)
     │
     ▼
-data/                    ← raw and filtered collision datasets (.npy / .csv)
+data/*.npy                       (Etr, Erot_A, Erot_B, Etr', Erot_A', Erot_B') per row
     │
     ▼
-training/                ← train MDN on collision data
+scripts/run_pipeline.py train    train MDN or Beta MDN
     │
     ▼
-results/models/          ← saved model weights
+results/models/                  saved .pth weights
     │
     ▼
-experiments/             ← validate model inside a full DSMC simulation
+scripts/run_pipeline.py relaxation / viscosity    validate inside full DSMC
+    │
+    ▼
+results/plots/                   figures
 ```
-
-## Repository layout
-
-### `ctc_adjusted/` — Classical Trajectory Code (data generation)
-
-Simulates individual H₂-H₂ or O₂-O₂ molecular collisions using a Lennard-Jones potential and rigid-rotor dynamics. Each collision is independent and run in parallel. The output is a dataset of `(E_trans_in, E_rot_A_in, E_rot_B_in, E_trans_out, E_rot_A_out, E_rot_B_out)` tuples — the raw training data for the ML models.
-
-- `ctc_h2_multiple_collisions.py` — main simulation script (numpy version)
-- `ctc_h2_multiple_collisions_numba.py` — faster Numba-JIT version
-- `lj.py`, `get_fij.py`, `get_rdot.py`, `get_vdot.py`, `get_wdot.py` — force/torque/velocity update helpers
-- `get_rand_rot_mat.py`, `get_m.py` — geometry utilities
-- `dscatter.py` — scattering angle sampling
-- `visualize.py` — quick CTC output inspection plots
-
-### `data/` — Collision datasets
-
-Stores the raw CTC output files and SPARTA reference data.
-
-- `H2H2_collisions.csv` / `H2H2_collisions_numba.npy` — H₂ collision datasets
-- `O2O2_collisions.npy` / `O2O2_collisions_uniform.npy` — O₂ collision datasets
-- `sparta_H2_energy_relaxation.dat` / `sparta_O2_energy_relaxation.dat` — reference DSMC results from SPARTA (used as ground truth in validation experiments)
-- `filter_inelastic.py` — script to remove elastic collisions from a dataset before training (elastic collisions carry no information about rotational energy exchange)
-
-### `physics/` — Physics models
-
-- `dsmc.py` — Full DSMC simulation engine. Sets up a particle box with a spatial grid, selects collision pairs via Enskog-modified NTC (No-Time-Counter), and calls a pluggable collision model per pair. Also tracks stress tensor components for viscosity computation via Green-Kubo.
-- `borgnakkelarssen_model.py` — The classical physics baseline. Probabilistically redistributes translational and rotational energy at each collision according to the Borgnakke-Larssen model. Implements the same `collide()` interface as the ML models so it can be swapped in/out without changing the DSMC code.
-
-### `machinelearning/` — ML collision models
-
-Both models implement a `collide()` method matching the physics model interface.
-
-- `mdn.py` — **Mixture Density Network** (PyTorch). Takes `(E_total, η_trans, η_rot_A)` as input and outputs Gaussian mixture parameters over post-collision energy fractions `(η_trans_out, η_rot_A_out)`. Normalization parameters are saved alongside model weights. This is the primary ML model.
-- `gmm.py` — **Gaussian Mixture Model** (sklearn). Simpler non-conditional baseline: fits a GMM directly to the output distribution and samples from it regardless of input. Useful as a sanity-check lower bound.
-
-### `training/` — Model training
-
-- `param_optimization.py` — Trains the MDN using `hyperopt` for Bayesian hyperparameter search. Loads a collision dataset, converts raw energies to normalized fractions, fits the MDN, and saves trained weights to `results/models/`.
-- `trainer.py` — Trains the MDN using `torch` and `torch.nn`. Loads a collision dataset, converts raw energies to normalized fractions, fits the MDN, and saves trained weights to `results/models/`.
-
-### `experiments/` — Validation
-
-Each experiment runs a full DSMC simulation with multiple collision models and compares a macroscopic observable against a reference.
-
-- `H2_energy_relaxation.py` — Starts a gas with mismatched translational and rotational temperatures (300 K vs 100 K) and tracks how they equilibrate over time. Compares Borgnakke-Larssen, MDN, and SPARTA reference data.
-- `O2_energy_relaxation.py` — Same experiment for O₂.
-- `viscosity.py` — Runs a DSMC simulation in equilibrium and extracts shear viscosity via Green-Kubo integration of the stress autocorrelation function.
-
-### `analysis/` — Analysis utilities
-
-- `kl_divergence.py` — Computes KL divergence between two sets of samples using Gaussian KDE on a shared grid. Used to quantitatively compare model and CTC output distributions.
-- `ctc_equilibrium.py` — Checks equilibrium properties of the CTC dataset.
-
-### `visualization/` — Plotting
-
-- `plots.py` — Reusable plot functions (scatter plots, histograms, energy curves) that take a config object and data arrays. Keeps styling consistent across the project.
-
-### `config/` — Configuration
-
-- `experiment_config.py` — MDN hyperparameters (learning rate, batch size, epochs, hidden dim, number of mixture components) and GMM settings.
-- `plotting_config.py` — Figure styling defaults (font sizes, colors, DPI).
-
-### `create_plots.py` — Distribution comparison
-
-Top-level script that loads a CTC dataset, samples from both the MDN and GMM, and produces side-by-side comparison plots of the output energy fraction distributions.
-
-### `utils/helpers.py`
-
-Small utilities (dataset loading, normalization helpers).
 
 ## Getting started
 
 ```bash
-# Activate the virtual environment
+# 1. Activate the virtual environment
 source .venv/bin/activate
 
-# (Optional) regenerate collision training data
-cd ctc_adjusted && python ctc_h2_multiple_collisions_numba.py
+# 2. Generate collision training data (~5 min for 400k, ~15 min for 1M on 16 cores)
+python ctc_adjusted/ctc_h2_multiple_collisions_numba.py
 
-# Train the MDN
-python training/trainer.py
+# 3. Train a model
+python scripts/run_pipeline.py train \
+    --kind mdn \
+    --dataset data/H2H2_collisions_numba_b1_0_Etr20k_Erot15k_400000_seed42.npy \
+    --T-eq 2200
 
-# Run energy relaxation validation
-python experiments/H2_energy_relaxation.py
-
-# Run viscosity validation
-python experiments/viscosity.py
-
-# Compare output distributions visually
-python create_plots.py
+# 4. Run an energy-relaxation experiment
+python scripts/run_pipeline.py relaxation \
+    --species H2 \
+    --model-kind mdn \
+    --model results/models/mdn/mdn_run.pth \
+    --include-bl \
+    --sparta data/sparta_H2_energy_relaxationVHS_zinv0151.dat \
+    --output results/plots/H2_relaxation.png
 ```
 
-Trained model weights and plots are saved to `results/` (gitignored).
+Trained model weights and plots are saved to `results/` (gitignored). The directory is created automatically on first use.
+
+## CLI reference — `scripts/run_pipeline.py`
+
+All workflows are exposed as sub-commands of a single entry point. Run any command with `--help` for the full option list.
+
+### `train` — train a single model
+
+```
+python scripts/run_pipeline.py train
+    --kind {mdn,beta_mdn}          model architecture
+    --dataset PATH                 .npy collision dataset
+    [--output PATH]                output .pth path (default: results/models/<kind>/<kind>_run.pth)
+    [--epochs N]                   max training epochs (default: 100)
+    [--batch-size N]               mini-batch size (default: 128)
+    [--lr FLOAT]                   Adam learning rate (default: 2e-4)
+    [--T-eq FLOAT]                 equilibrium temperature [K] for NTC importance weighting
+                                   (principled — overrides --wf when set)
+    [--wf FLOAT]                   legacy polynomial weighting exponent (default: 1.0)
+    [--patience N]                 early-stopping patience in epochs (default: 30)
+    [--showplots]                  show loss curve after training
+```
+
+`--T-eq` is the recommended weighting mode. It applies the exact NTC importance ratio
+`w ∝ √E_trans · exp(−E_total / T_eq)`, which matches the collision-energy distribution
+DSMC feeds the kernel at equilibrium temperature `T_eq`. Use `--wf` only for legacy
+sweep comparisons.
+
+### `wf-sweep` — train across weighting factors
+
+```
+python scripts/run_pipeline.py wf-sweep
+    --kind {mdn,beta_mdn}
+    --dataset PATH
+    --tag TAG                      label for the output directory (e.g. H2_400000)
+    [--trainseed N]                training random seed; models go into trainseed<N>/ subdir
+    [--epochs N]  [--batch-size N]  [--lr FLOAT]  [--patience N]
+```
+
+Trains wf ∈ {0.25, 0.5, 1, 2, 3, 4, 5, 6, 7} in sequence. Output:
+`results/models/<kind>/weightsensitivity/<tag>/`.
+
+### `wf-sweep-eval` — validate a whole sweep
+
+```
+python scripts/run_pipeline.py wf-sweep-eval
+    --kind {mdn,beta_mdn}
+    --tag TAG
+    --sparta PATH                  SPARTA reference .dat file
+    [--trainseed N]
+    [--species {H2,O2}]
+```
+
+Runs an energy-relaxation DSMC for every model in the sweep and writes a 3×3
+comparison figure to `results/plots/`.
+
+### `relaxation` — energy-relaxation experiment
+
+```
+python scripts/run_pipeline.py relaxation
+    [--species {H2,O2}]            (default: H2)
+    [--model PATH]                 trained .pth model (omit to run BL only)
+    [--model-kind {mdn,beta_mdn}]
+    [--include-bl]                 also run the Borgnakke-Larssen reference
+    [--sparta PATH]                SPARTA reference .dat file
+    [--trans-T FLOAT]              initial translational temperature [K] (default: 300)
+    [--rot-T FLOAT]                initial rotational temperature [K] (default: 100)
+    [--nr-steps N]                 DSMC timesteps (default: 100)
+    [--randomseed N]
+    [--output PATH]                save comparison figure to this path
+```
+
+### `viscosity` — Green-Kubo shear viscosity
+
+```
+python scripts/run_pipeline.py viscosity
+    --model PATH
+    [--species {H2,O2}]
+    [--model-kind {mdn,beta_mdn}]
+    [-T FLOAT]                     equilibrium temperature [K] (default: 220)
+    [--nr-steps N]                 DSMC steps (default: 200)
+    [--equilibration N]            steps to discard before ACF (default: 50)
+    [--max-lag N]                  ACF lag cutoff (default: 100)
+    [--randomseed N]
+```
+
+Prints `T_eq` and `viscosity [Pa·s]` to stdout.
+
+## Running on the HPC cluster (TU/e)
+
+Pre-written Slurm scripts live in `hpc/`. Submit from the project root after
+cloning the repo to the cluster and creating a virtualenv (`~/ctc_env`):
+
+```bash
+# First-time setup on the cluster
+module load Python/3.11.3-GCCcore-12.3.0
+python3 -m venv ~/ctc_env
+source ~/ctc_env/bin/activate
+pip install numpy numba tqdm pandas matplotlib torch
+
+# Data generation (16 CPU cores, ~3 h for 1M collisions)
+sbatch hpc/run_data_generation.sh
+
+# Model training (1 GPU, ~1-2 h for 100 epochs)
+# Edit the configuration block at the top of the script before submitting.
+sbatch hpc/run_training.sh
+
+# Monitor
+squeue --me
+```
+
+Training automatically uses CUDA if a GPU is present; falls back to CPU otherwise.
+
+## Repository layout
+
+```
+ctc_adjusted/           Classical Trajectory Code — data generation
+    ctc_h2_multiple_collisions_numba.py   main simulation (Numba, parallel)
+    ctc_h2_multiple_collisions.py         slower NumPy reference version
+    lj.py  get_fij.py  get_rdot.py ...   force/torque/geometry helpers
+
+data/                   Collision datasets and reference data
+    *.npy               CTC output: (Etr, Erot_A, Erot_B, Etr', Erot_A', Erot_B')
+    sparta_*.dat        SPARTA reference DSMC results (ground truth)
+    bl_H2_energy_relaxation.dat   cached BL-DSMC run (regen: scripts/generate_bl_dsmc.py)
+
+physics/
+    dsmc.py             DSMC simulation engine (Enskog NTC, stress tensor tracking)
+    species.py          Species dataclass (H2, O2) — mass, diameter, zrot
+    borgnakkelarssen_model.py   physics collision baseline (same interface as ML models)
+
+machinelearning/
+    mdn.py              Gaussian Mixture Density Network (PyTorch)
+    beta_mdn.py         Beta Mixture Density Network (PyTorch, naturally bounded output)
+    gmm.py              sklearn GMM baseline
+
+training/
+    core.py             train_collision_model() — single entry point for both architectures
+    data_prep.py        dataset loading, NTC importance weighting, time-reversal augmentation
+    trainer.py          thin __main__ wrapper for MDN
+    betamdn_trainer.py  thin __main__ wrapper for Beta MDN
+    wfsweep.py          run_wf_sweep() — full wf ∈ {0.25..7} sweep
+
+experiments/
+    energy_relaxation.py   run_relaxation, run_relaxation_comparison, plot_relaxation_comparison
+    viscosity.py           green_kubo_viscosity, plot_acf
+
+visualization/
+    wfsweep.py          run_wf_sweep_experiments — DSMC + figure for every model in a sweep
+
+scripts/
+    run_pipeline.py     CLI entry point (see CLI reference above)
+    generate_bl_dsmc.py regenerate the cached BL-DSMC reference
+
+hpc/
+    run_data_generation.sh   Slurm: CTC data on 16 CPU cores
+    run_training.sh          Slurm: MDN training on 1 GPU
+
+analysis/
+    kl_divergence.py    KDE-based KL divergence for distribution comparison
+    lammps_zrot.py      fit 1/Z_rot from LAMMPS relaxation output
+
+lammps/                 LAMMPS input files and output (classical MD reference)
+sparta/                 SPARTA input files and output (DSMC reference)
+
+config/
+    experiment_config.py    MDN hyperparameters (lr, batch_size, hidden_dim, ...)
+    plotting_config.py      figure styling defaults
+
+paths.py                Central output-path helpers (auto-creates results/ on demand)
+```
 
 ## Physics conventions
 
-- All collision models work in the **center-of-mass frame**.
-- The ML models operate on normalized **energy fractions**: `η_trans = E_trans / E_total`, `η_rot_A = E_rot_A / (E_rot_A + E_rot_B)`. These are dimensionless, bounded in [0, 1], and independent of the absolute energy scale.
-- Total energy and momentum must be conserved by every collision model.
+- All collision models operate in the **center-of-mass frame**.
+- Inputs to the ML models are normalized energy fractions:
+  - `η_trans = E_trans / E_total`
+  - `η_rot_A = E_rot_A / (E_rot_A + E_rot_B)`
+- Outputs are post-collision fractions of the same conserved `E_total`:
+  - `η_trans'`, `η_rot_A'` ∈ [0, 1]
+- Total energy is conserved by construction in every `collide()` implementation.
+- `zrot` (rotational collision number Z_rot) controls the fraction of collisions
+  that exchange rotational energy. All collision models share the same `collide()`
+  and `batch_collide()` interface, making them drop-in swappable inside the DSMC.
 
 ## Open TODOs
-
-See `todo.md` for the full list. Key items still open:
 
 - Increase numerical precision from float32 to float64 throughout DSMC and MDN
 - Support bulk viscosity measurement via compression waves
 - Make DSMC accept SPARTA configuration file format directly
+- Define a formal collision model interface (Protocol/ABC) for cleaner model swapping
