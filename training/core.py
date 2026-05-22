@@ -57,13 +57,11 @@ def train_collision_model(
     epochs: int,
     batch_size: int,
     lr: float,
-    wf: float = 1.0,
-    T_eq: float | None = None,
+    wf: float | None = None,
     patience: int = 30,
     showplots: bool = False,
     pretrained_path: str | Path | None = None,
     config: ExperimentConfig | None = None,
-    db_lambda: float = 0.0,
 ):
     """Train an MDN-style collision model on a CTC dataset.
 
@@ -74,19 +72,12 @@ def train_collision_model(
         epochs: maximum training epochs.
         batch_size: minibatch size.
         lr: Adam learning rate.
-        wf: weighting-factor exponent (legacy polynomial knob). Ignored when
-            `T_eq` is set.
-        T_eq: equilibrium temperature in K. When set, sample weights use the
-            exact NTC importance ratio √E_trans · exp(−E_total/T_eq) instead
-            of the polynomial `wf` weighting — see `training/data_prep.py`.
+        wf: polynomial weighting exponent: w_i ∝ E_trans^wf. When None
+            (default), every sample contributes equally (unweighted NLL).
         patience: early-stopping patience in epochs.
         showplots: if True, show a training/validation loss curve.
         pretrained_path: if given, load these weights before training.
         config: override the default ExperimentConfig (random seed, hidden_dim, ...).
-        db_lambda: detailed-balance penalty strength (MDN only — Beta MDN
-            currently ignores it). When > 0, forces the kernel to satisfy the
-            equilibrium DB relation; data-prep skips time-reversal augmentation
-            since the loss already evaluates both directions per pair.
 
     Returns:
         (model, train_loss_history, val_loss_history)
@@ -94,23 +85,12 @@ def train_collision_model(
     config = config or ExperimentConfig()
     outputpath = paths.ensure_parent(outputpath)
 
-    if T_eq is not None:
-        print(f"Training {kind} on dataset: {datapath}  (NTC importance weight, T_eq={T_eq} K)")
-    else:
+    if wf is not None:
         print(f"Training {kind} on dataset: {datapath}  (polynomial weight, wf={wf})")
-    if db_lambda > 0.0 and kind != "mdn":
-        raise NotImplementedError(
-            f"DB penalty is only wired up for kind='mdn', got kind={kind!r}"
-        )
-    # When the DB penalty is on, the loss itself evaluates both directions per
-    # batch — augmenting the data with time-reversed rows would just double the
-    # cost and halve effective batch size. So we skip augmentation in that case.
-    augment = db_lambda == 0.0
-    if db_lambda > 0.0:
-        print(f"DB penalty enabled: λ={db_lambda} (time-reversal augmentation disabled)")
-    X, y, sample_weights, raw = load_and_prepare(
-        datapath, wf=wf, T_eq=T_eq, augment=augment
-    )
+    else:
+        print(f"Training {kind} on dataset: {datapath}  (uniform weights)")
+
+    X, y, sample_weights, raw = load_and_prepare(datapath, wf=wf)
     print(f"Dataset contains {raw.shape[0]} rows")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -136,14 +116,12 @@ def train_collision_model(
     model = model.to(device)
     model._cast_normalization_tensors()
 
-    train_kwargs: dict = {"num_epochs": epochs, "patience": patience}
-    if kind == "mdn":
-        train_kwargs["db_lambda"] = db_lambda
     train_hist, val_hist = model.train_model(
         train_loader,
         val_loader,
         optimizer,
-        **train_kwargs,
+        num_epochs=epochs,
+        patience=patience,
     )
 
     model.save_model(str(outputpath))

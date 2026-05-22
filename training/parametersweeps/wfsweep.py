@@ -55,9 +55,7 @@ def run_wf_sweep(
 
     saved: dict[float, Path] = {}
     weights = list(weights)
-    for wf in tqdm(
-        weights, desc=f"Training {kind} across wf", unit="weight"
-    ):
+    for wf in tqdm(weights, desc=f"Training {kind} across wf", unit="weight"):
         outputpath = paths.wf_sweep_model_path(kind, tag, wf, trainseed=trainseed)
         train_collision_model(
             kind=kind,  # type: ignore[arg-type]
