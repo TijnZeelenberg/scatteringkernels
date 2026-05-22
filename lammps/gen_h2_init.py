@@ -24,8 +24,8 @@ D_BOND = 7.4e-11  # [m] bond length of H2 (0.074 nm)
 # --- Parameters ---
 N_MOL = 20000  # number of H2 molecules
 L = 1.0e-7  # cubic box edge [m]
-T_TRANS = 3000.0  # initial translational temperature [K]
-T_ROT = 1000.0  # initial rotational temperature [K]
+T_TRANS = 300.0  # initial translational temperature [K]
+T_ROT = 100.0  # initial rotational temperature [K]
 SEED = 42
 OUT = Path(__file__).parent / "h2_init.data"
 
