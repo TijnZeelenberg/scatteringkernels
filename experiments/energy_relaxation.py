@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,6 +31,7 @@ from config.plotting_config import PlottingConfig
 from machinelearning.beta_mdn import BetaMixtureDensityNetwork
 from machinelearning.mdn import MixtureDensityNetwork
 from physics.borgnakkelarssen_model import borgnakke_larssen_model
+from physics.collision_logger import CollisionLogger
 from physics.dsmc import DSMC_Simulation
 from physics.species import Species
 
@@ -109,6 +111,7 @@ def run_relaxation(
     *,
     params: SimulationParams | None = None,
     zrot: float | None = None,
+    collision_logger: CollisionLogger | None = None,
 ) -> dict:
     """Run a single DSMC energy-relaxation simulation.
 
@@ -118,6 +121,8 @@ def run_relaxation(
         params: simulation parameters (defaults to `SimulationParams()`).
         zrot: rotational collision number to use. Defaults to `species.zrot_mdn`
               for ML models and `species.zrot_bl` for the BL model.
+        collision_logger: optional `CollisionLogger`. When provided, per-step
+            aggregates and snapshot collisions are dumped on `finalize()`.
 
     Returns:
         The `stats` dict produced by `DSMC_Simulation.run_simulation`.
@@ -145,7 +150,10 @@ def run_relaxation(
         zrot=zrot_value,
     )
     sim.run_simulation(
-        nr_steps=params.nr_steps, dt=params.dt, collision_model=collision_model
+        nr_steps=params.nr_steps,
+        dt=params.dt,
+        collision_model=collision_model,
+        collision_logger=collision_logger,
     )
     return sim.get_stats()
 
@@ -155,15 +163,27 @@ def run_relaxation_comparison(
     models: dict[str, object],
     *,
     params: SimulationParams | None = None,
+    collision_logger_factory: Callable[[str], CollisionLogger | None] | None = None,
 ) -> dict[str, dict]:
     """Run a relaxation simulation for each (label -> collision_model).
+
+    Args:
+        species: physical parameters for the gas.
+        models: mapping of label -> collision_model.
+        params: simulation parameters shared across runs.
+        collision_logger_factory: optional callable `label -> CollisionLogger`
+            (or None to skip logging for that label). Each model gets its own
+            logger so output paths don't collide.
 
     Returns a dict mapping the same labels to their `stats` outputs.
     """
     results: dict[str, dict] = {}
     for label, model in models.items():
         print(f"\n--- Running DSMC relaxation: {label} ---")
-        results[label] = run_relaxation(species, model, params=params)
+        logger = collision_logger_factory(label) if collision_logger_factory else None
+        results[label] = run_relaxation(
+            species, model, params=params, collision_logger=logger
+        )
     return results
 
 

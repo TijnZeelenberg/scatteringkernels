@@ -28,6 +28,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 RESULTS_DIR = PROJECT_ROOT / "results"
 MODELS_DIR = RESULTS_DIR / "models"
 PLOTS_DIR = RESULTS_DIR / "plots"
+LOGS_DIR = RESULTS_DIR / "logs"
 
 MDN_DIR = MODELS_DIR / "mdn"
 BETA_MDN_DIR = MODELS_DIR / "beta_mdn"
@@ -93,4 +94,10 @@ def wf_sweep_model_path(
 def plot_path(name: str, subdir: str | None = None) -> Path:
     """Full path for a saved figure, ensuring parent dirs exist."""
     target = PLOTS_DIR if subdir is None else PLOTS_DIR / subdir
+    return ensure_parent(target / name)
+
+
+def log_path(name: str, subdir: str | None = None) -> Path:
+    """Full path for a simulation log file, ensuring parent dirs exist."""
+    target = LOGS_DIR if subdir is None else LOGS_DIR / subdir
     return ensure_parent(target / name)

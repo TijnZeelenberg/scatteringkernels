@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 
 import paths
 from experiments.energy_relaxation import (
     SimulationParams,
-    load_bl_reference,
     load_lammps_reference,
     load_mdn,
     load_sparta_reference,
@@ -17,29 +18,29 @@ from experiments.energy_relaxation import (
 )
 from dataclasses import replace
 
+from physics.borgnakkelarssen_model import borgnakke_larssen_model
+from physics.collision_logger import CollisionLogger
 from physics.species import Species
 
-# Calibrated to classical LJ/rigid-rotor MD (matching LAMMPS tau_rot = 2.35 ps):
-#   d_eff = 10.1 Å  (≈ LJ cutoff radius, sets the correct VHS collision rate)
-#   zrot  = 2.0     (classical rigid-rotor: ~2 collisions to thermalize rotation)
-_D_CLASSICAL_MD = 10.1e-10
-_ZROT_CLASSICAL_MD = 5.0
+MDN_CONVERGENT = "results/models/mdn/mdn_H2_uniform_hiddim8_mix20.pth"
 
 
 def main(
-    mdn_model_path: str = "results/models/mdn/mdn_H2_Etr20k_Erot15k_Teq2200_db01.pth",
-    sparta_path: str = "sparta/output/sparta_H2_energy_relaxationTtr3000_Trot1000.dat",
-    lammps_path: str = "lammps/output/lammps_H2_energy_relaxation.dat",
-    bl_path: str = "data/bl_H2_energy_relaxation.dat",
+    mdn_model_path: str = MDN_CONVERGENT,
+    sparta_path: str = "data/sparta/sparta_H2_energy_relaxationTtr3000_Trot1000.dat",
+    lammps_path: str = "data/lammps/lammps_H2_energy_relaxation.dat",
     output_path: str | None = None,
-    nr_steps: int = 1000,
+    nr_steps: int = 100,
     randomseed: int = 1,
+    d=10.1e-10,
+    zrot_bl=5.0,
+    zrot_mdn=5.0 / 2.5,
 ):
     species = replace(
         Species.H2(),
-        diameter=_D_CLASSICAL_MD,
-        zrot_bl=_ZROT_CLASSICAL_MD,
-        zrot_mdn=_ZROT_CLASSICAL_MD,
+        diameter=d,
+        zrot_bl=zrot_bl,
+        zrot_mdn=zrot_mdn,
     )
     params = SimulationParams(
         nr_steps=nr_steps,
@@ -48,14 +49,33 @@ def main(
         randomseed=randomseed,
         grid_cells=(5, 5, 5),
         box_size=1.0e-7,
-        dt=1.0e-12,
+        dt=1.0e-11,
     )
 
+    model_tag = Path(mdn_model_path).stem  # e.g. mdn_H2_wf7
+
     models: dict[str, object] = {
+        "BL (ML-DSMC)": borgnakke_larssen_model(randomseed=randomseed),
         "MDN (ML-DSMC)": load_mdn(mdn_model_path, randomseed=randomseed),
     }
-    results = run_relaxation_comparison(species, models, params=params)
-    results["BL (ML-DSMC)"] = load_bl_reference(bl_path)
+
+    log_suffix_by_label = {
+        "BL (ML-DSMC)": "BL",
+        "MDN (ML-DSMC)": model_tag,
+    }
+
+    def make_logger(label: str) -> CollisionLogger:
+        return CollisionLogger(
+            output_path=paths.log_path(
+                f"H2_energy_relaxation_{log_suffix_by_label[label]}.npz"
+            ),
+            snapshot_every=100,
+            training_caps_K={"E_trans_max_K": 20100.0, "E_rot_max_K": 15000.0},
+        )
+
+    results = run_relaxation_comparison(
+        species, models, params=params, collision_logger_factory=make_logger
+    )
     sparta = load_sparta_reference(sparta_path)
     lammps = load_lammps_reference(lammps_path)
 
@@ -64,7 +84,7 @@ def main(
     )
 
     out_path: str | paths.Path = output_path or paths.plot_path(
-        "H2_energy_relaxation.png"
+        f"H2_energy_relaxation_{model_tag}.png"
     )
     plot_relaxation_comparison(
         results, sparta, lammps=lammps, ylim=(1000.0, 3000.0), output_path=out_path

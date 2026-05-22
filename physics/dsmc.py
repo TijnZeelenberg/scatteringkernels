@@ -211,7 +211,13 @@ class DSMC_Simulation:
 
         return collision_pairs
 
-    def perform_collisions(self, collision_model, collision_pairs: list[np.ndarray]):
+    def perform_collisions(
+        self,
+        collision_model,
+        collision_pairs: list[np.ndarray],
+        step: int = 0,
+        collision_logger=None,
+    ):
         """Perform collisions for the selected pairs of particles using the given collision model."""
         if self.velocities is None or self.rotational_energies is None:
             raise ValueError(
@@ -227,6 +233,16 @@ class DSMC_Simulation:
         Pyz_col = 0.0
 
         if not collision_pairs:
+            if collision_logger is not None:
+                empty_idx = np.empty(0, dtype=np.int64)
+                empty_v = np.empty((0, 3), dtype=np.float32)
+                empty_e = np.empty(0, dtype=np.float32)
+                collision_logger.log_step(
+                    step, self.mass,
+                    empty_idx, empty_idx,
+                    empty_v, empty_v, empty_e, empty_e,
+                    empty_v, empty_v, empty_e, empty_e,
+                )
             return Pxy_col, Pxz_col, Pyz_col
 
         all_pairs = np.concatenate(collision_pairs, axis=0)
@@ -261,6 +277,10 @@ class DSMC_Simulation:
                 + (new_v_j[:, 1] * new_v_j[:, 2] - v_j[:, 1] * v_j[:, 2])
             )
         else:
+            new_v_i = np.empty_like(v_i)
+            new_v_j = np.empty_like(v_j)
+            new_e_rot_i = np.empty_like(e_rot_i)
+            new_e_rot_j = np.empty_like(e_rot_j)
             for k in range(len(all_pairs)):
                 i, j = idx_i[k], idx_j[k]
                 vi_old = self.velocities[i].copy()
@@ -280,6 +300,11 @@ class DSMC_Simulation:
                 self.rotational_energies[i] = new_eri
                 self.rotational_energies[j] = new_erj
 
+                new_v_i[k] = new_vi
+                new_v_j[k] = new_vj
+                new_e_rot_i[k] = new_eri
+                new_e_rot_j[k] = new_erj
+
                 Pxy_col += self.mass * (
                     (new_vi[0] * new_vi[1] - vi_old[0] * vi_old[1])
                     + (new_vj[0] * new_vj[1] - vj_old[0] * vj_old[1])
@@ -292,6 +317,14 @@ class DSMC_Simulation:
                     (new_vi[1] * new_vi[2] - vi_old[1] * vi_old[2])
                     + (new_vj[1] * new_vj[2] - vj_old[1] * vj_old[2])
                 )
+
+        if collision_logger is not None:
+            collision_logger.log_step(
+                step, self.mass,
+                idx_i, idx_j,
+                v_i, v_j, e_rot_i, e_rot_j,
+                new_v_i, new_v_j, new_e_rot_i, new_e_rot_j,
+            )
 
         return Pxy_col, Pxz_col, Pyz_col
 
@@ -311,8 +344,19 @@ class DSMC_Simulation:
         # Handle periodic boundary conditions
         self.positions = np.mod(self.positions, self.box_size)
 
-    def run_simulation(self, collision_model, nr_steps: int, dt: float):
-        """Run the DSMC simulation for a given number of steps and time step."""
+    def run_simulation(
+        self,
+        collision_model,
+        nr_steps: int,
+        dt: float,
+        collision_logger=None,
+    ):
+        """Run the DSMC simulation for a given number of steps and time step.
+
+        If `collision_logger` is provided, its `log_step` is called once per
+        step with the pre/post collision arrays; `finalize()` is called once
+        the loop completes, writing the archive to its configured output path.
+        """
 
         if self.positions is None or self.velocities is None:
             raise ValueError(
@@ -395,13 +439,20 @@ class DSMC_Simulation:
             total_collisions += sum(len(p) for p in collision_pairs)
 
             Pxy_col, Pxz_col, Pyz_col = self.perform_collisions(
-                collision_model, pairs_as_arrays
+                collision_model,
+                pairs_as_arrays,
+                step=step,
+                collision_logger=collision_logger,
             )
 
         self.stats = stats
         end_time = time()
         print(f"Simulation took {end_time - start_time:.2f} seconds.")
         print(f"Total collisions: {total_collisions}")
+
+        if collision_logger is not None:
+            out_path = collision_logger.finalize()
+            print(f"Collision log written to {out_path}")
 
     def get_stats(self):
         """Return the energy history of the simulation."""
