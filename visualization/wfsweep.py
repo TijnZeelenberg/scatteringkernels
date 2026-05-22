@@ -23,7 +23,12 @@ from experiments.energy_relaxation import (
     load_sparta_reference,
     run_relaxation,
 )
+from dataclasses import replace
+
 from physics.species import Species
+
+_D_CLASSICAL_MD = 10.1e-10
+_ZROT_CLASSICAL_MD = 5.0
 
 
 DEFAULT_WEIGHTS: tuple[float, ...] = (0.25, 0.5, 1, 2, 3, 4, 5, 6, 7)
@@ -57,11 +62,13 @@ def run_wf_sweep_experiments(
         params
         if params is not None
         else SimulationParams(
-            nr_steps=150,
+            nr_steps=100,
             trans_temperature=3000.0,
             rot_temperature=1000.0,
             randomseed=42,
             grid_cells=(5, 5, 5),
+            box_size=1.0e-7,
+            dt=1.0e-11,
         )
     )
     sparta = load_sparta_reference(sparta_path)
@@ -110,7 +117,7 @@ def run_wf_sweep_experiments(
         ax.set_xlabel("Time [s]", fontsize=9)
         ax.set_ylabel("Temperature [K]", fontsize=9)
         ax.ticklabel_format(style="sci", scilimits=(-2, 3))
-        ax.set_ylim(20, 450)
+        ax.set_ylim(1000, 3000)
         ax.grid(True)
         ax.legend(fontsize=7)
 
@@ -124,7 +131,7 @@ def run_wf_sweep_experiments(
     if output_path is None:
         output_path = (
             paths.wf_sweep_dir(kind, tag, trainseed)
-            / f"{species.name}_{kind}_wfsweep.png"
+            / f"{species.name}_{kind}_wfsweep20260520.png"
         )
     fig.savefig(paths.ensure_parent(output_path), dpi=300)
     return fig
@@ -133,9 +140,14 @@ def run_wf_sweep_experiments(
 if __name__ == "__main__":
     run_wf_sweep_experiments(
         kind="mdn",
-        tag="H2_400000_dataseed42",
+        tag="H2_200000_dataseed41",
         trainseed=42,
-        species=Species.H2(),
+        species=replace(
+            Species.H2(),
+            diameter=_D_CLASSICAL_MD,
+            zrot_bl=_ZROT_CLASSICAL_MD,
+            zrot_mdn=_ZROT_CLASSICAL_MD / 3.5,
+        ),
         sparta_path="data/sparta_H2_energy_relaxationVHS_zinv0151.dat",
     )
     plt.show()
