@@ -11,6 +11,11 @@ import numpy as np
 from tqdm import tqdm
 
 
+# CTC datasets store energies as E/kB (Kelvin). DSMC passes energies in Joules
+# at inference time, so we divide by kB before feeding the model.
+_KB = 1.380649e-23
+
+
 class BetaMixtureDensityNetwork(nn.Module):
     """
     Mixture Density Network using Beta distributions for modeling post-collision
@@ -337,7 +342,7 @@ class BetaMixtureDensityNetwork(nn.Module):
 
         device, dtype = self._param_device_dtype()
         input_features = torch.tensor(
-            [[Etot, eta_tr, eta_rot_A]], device=device, dtype=dtype
+            [[Etot / _KB, eta_tr, eta_rot_A]], device=device, dtype=dtype
         )
         etap_tr, etap_rot_i = (
             self.sample(input_features).squeeze(0).detach().cpu().numpy()
@@ -403,7 +408,7 @@ class BetaMixtureDensityNetwork(nn.Module):
 
         device, dtype = self._param_device_dtype()
         input_tensor = torch.tensor(
-            np.stack([Etot[idx], eta_tr, eta_rot_A], axis=1),
+            np.stack([Etot[idx] / _KB, eta_tr, eta_rot_A], axis=1),
             device=device,
             dtype=dtype,
         )
