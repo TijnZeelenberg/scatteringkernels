@@ -13,6 +13,7 @@ results/
 
 # Ignore data files
 data/
+output/
 
 # Ignore hpc job scripts
 hpc/
