@@ -12,16 +12,17 @@ __all__ = ["train_mdn"]
 
 
 if __name__ == "__main__":
-    datapath = paths.DATA_DIR / "H2H2_collisions_numba_b1_0_Etr20k_Erot15k_400000_seed42.npy"
-    outputpath = paths.model_path("mdn", "mdn_H2_Etr20k_Erot15k_Teq2200_db01")
+    datapath = (
+        paths.DATA_DIR
+        / "ctc/H2/impactparam/H2_collisions_b1_0_uniform_Erelmax10000_ncoll800000_seed42.npy"
+    )
+    outputpath = paths.model_path("mdn", "mdn_H2_uniform_hiddim8_mix20")
     train_mdn(
         datapath=str(datapath),
         outputpath=str(outputpath),
         epochs=100,
-        batch_size=2048,
-        lr=2.0e-4,
-        T_eq=2200.0,
+        batch_size=10000,
+        lr=1.0e-4,
         patience=100,
         showplots=True,
-        db_lambda=0.1,
     )
