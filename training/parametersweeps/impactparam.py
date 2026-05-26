@@ -6,6 +6,8 @@ a standard MDN (config from ExperimentConfig) for each bfac value.
 Output: results/models/mdn/impactparam/mdn_H2_b{bfac_tag}.pth
 """
 
+from tqdm import tqdm
+
 from config.experiment_config import ExperimentConfig
 from training.core import train_collision_model
 import paths
@@ -22,7 +24,7 @@ OUTPUT_DIR = paths.ensure_dir(paths.MDN_DIR / "impactparam")
 
 config = ExperimentConfig()
 
-for bfac in bfac_sweep:
+for bfac in tqdm(bfac_sweep, desc="bfac sweep", unit="model"):
     bfac_tag = str(bfac).replace(".", "_")
     dataset = (
         paths.DATA_DIR
