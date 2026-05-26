@@ -1,3 +1,7 @@
+""" "
+Defines the default settings for the CTC, MDN and training.
+"""
+
 from typing import Literal
 
 CovarianceType = Literal["full", "tied", "diag", "spherical"]
@@ -5,6 +9,9 @@ CovarianceType = Literal["full", "tied", "diag", "spherical"]
 
 class ExperimentConfig:
     def __init__(self):
+
+        # CTC settings
+        self.bfac = 1.5
 
         # MDN settings
         # Training parameters

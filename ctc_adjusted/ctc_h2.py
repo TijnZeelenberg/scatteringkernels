@@ -383,6 +383,7 @@ if __name__ == "__main__":
         }
     )
 
+    # tag to indicate distribution of data
     if dist == "uniform":
         dist_tag = f"uniform_Erelmax{E_rel_max:.0f}"
     else:

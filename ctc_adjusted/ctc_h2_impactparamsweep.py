@@ -1,7 +1,7 @@
-import os
 import time
 
 import numpy as np
+import paths
 import pandas as pd
 from numba import njit, prange
 from tqdm import tqdm
@@ -363,6 +363,7 @@ def run_all_collisions(
 # Main — sweep over bfac values
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
+    # tag to indicate the distribution of the data
     if dist == "uniform":
         dist_tag = f"uniform_Erelmax{E_rel_max:.0f}"
     else:
@@ -405,11 +406,10 @@ if __name__ == "__main__":
         )
 
         bfac_tag = str(bfac).replace(".", "_")
-        savefile = (
-            f"data/ctc/H2/impactparam/"
-            f"H2_collisions_b{bfac_tag}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
+        savefile = paths.ensure_parent(
+            paths.DATA_DIR / "ctc/H2/impactparam"
+            / f"H2_collisions_b{bfac_tag}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
         )
-        os.makedirs(os.path.dirname(savefile), exist_ok=True)
         np.save(savefile, df.to_numpy())
         print(f"Saved {savefile}")
 
