@@ -17,9 +17,6 @@ results/
 data/
 output/
 
-# Ignore hpc job scripts
-hpc/
-
 # Ignore projectplanning
 projectplanning.md
 todo.md
