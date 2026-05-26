@@ -1,7 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=my_job
-#SBATCH --output=my_job_output_%j.txt
+#SBATCH --job-name=impactparam_sweep
 #SBATCH --partition=tue.gpu.q         # Choose a partition that has GPUs
 #SBATCH --time=16:00:00
 #SBATCH --nodes=1
@@ -9,6 +8,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=2G
 #SBATCH --gpus=1                      # This is how to request a GPU
+#SBATCH --output=hpc/logs/%x_%j.out
+#SBATCH --error=hpc/logs/%x_%j.err
 
 # Set bash options for better error handling
 set -euo pipefail

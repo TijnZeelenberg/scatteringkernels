@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem-per-cpu=2gb
 #SBATCH --time=04:00:00
-#SBATCH --output=hpc/logs/data_gen_%j.out
-#SBATCH --error=hpc/logs/data_gen_%j.err
+#SBATCH --output=hpc/logs/%x_%j.out
+#SBATCH --error=hpc/logs/%x_%j.err
 
 # Set bash options for better error handling
 set -euo pipefail
