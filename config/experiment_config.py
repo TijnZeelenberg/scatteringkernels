@@ -15,13 +15,13 @@ class ExperimentConfig:
 
         # MDN settings
         # Training parameters
-        self.learning_rate = 2.00e-04
-        self.batch_size = 256
+        self.learning_rate = 1.00e-04
+        self.batch_size = 10000
         self.num_epochs = 200
         self.trainval_split = 0.7
         self.shuffle = True
         self.random_seed = 42
-        self.patience = 100
+        self.patience = 200
 
         # Model parameters
         self.input_dim = 3
