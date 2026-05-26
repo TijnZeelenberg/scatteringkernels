@@ -10,6 +10,7 @@
 #SBATCH --gpus=1                      # This is how to request a GPU
 #SBATCH --output=hpc/logs/%x_%j.out
 #SBATCH --error=hpc/logs/%x_%j.err
+#SBATCH --chdir=/home/20193567/scatteringkernels
 
 # Set bash options for better error handling
 set -euo pipefail
@@ -21,4 +22,4 @@ module load uv
 source .venv/bin/activate
 
 # Execute the script or command
-python training/parametersweeps/impactparam.py
+uv run python -m training.parametersweeps.impactparam

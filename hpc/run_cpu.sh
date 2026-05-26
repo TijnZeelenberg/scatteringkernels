@@ -8,6 +8,7 @@
 #SBATCH --time=04:00:00
 #SBATCH --output=hpc/logs/%x_%j.out
 #SBATCH --error=hpc/logs/%x_%j.err
+#SBATCH --chdir=/home/20193567/scatteringkernels
 
 # Set bash options for better error handling
 set -euo pipefail
@@ -15,6 +16,7 @@ set -euo pipefail
 # Set enivornment
 module purge
 module load Python/3.13.1-GCCcore-14.2.0
+module load uv
 source .venv/bin/activate
 
 # Pin all threading layers to the Slurm allocation so no layer steals extra
@@ -26,4 +28,4 @@ export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
 echo "Using $NUMBA_NUM_THREADS threads (SLURM_CPUS_PER_TASK)"
 echo "Working directory: $(pwd)"
 
-python ctc_adjusted/ctc_h2_impactparamsweep.py
+uv run python -m ctc_adjusted.ctc_h2_impactparamsweep
