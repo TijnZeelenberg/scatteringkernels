@@ -42,7 +42,7 @@ def plot_energy_relaxation(stats):
     return fig, ax
 
 
-def plot_loss_history(train_loss_history, val_loss_history, dataset_name):
+def plot_loss_history(train_loss_history, val_loss_history):
     plt.figure(figsize=config.figsize)
     plt.plot(train_loss_history, label="Training Loss")
     plt.plot(val_loss_history, label="Validation Loss")
@@ -105,9 +105,7 @@ def plot_density_scatter(ax, datasets: dict):
 
 def plot_histogram(datasets: dict):
     """Plots histograms of the CTC, MDN and GMM datasets for both output variables."""
-    fig, ax = plt.subplots(
-        1, 2, figsize=(config.figsize[0] * 2, config.figsize[1])
-    )
+    fig, ax = plt.subplots(1, 2, figsize=(config.figsize[0] * 2, config.figsize[1]))
     for i, dataset_name in enumerate(datasetnames):
         ax[0].hist(
             datasets[dataset_name][:, 0],
@@ -173,3 +171,4 @@ def plot_histogram(datasets: dict):
         ax[1].legend(fontsize=config.legend_fontsize)
     plt.tight_layout()
     plt.show()
+

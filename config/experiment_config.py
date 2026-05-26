@@ -14,6 +14,7 @@ class ExperimentConfig:
         self.trainval_split = 0.7
         self.shuffle = True
         self.random_seed = 42
+        self.patience = 100
 
         # Model parameters
         self.input_dim = 3
