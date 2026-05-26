@@ -19,8 +19,8 @@ class ExperimentConfig:
         # Model parameters
         self.input_dim = 3
         self.output_dim = 2
-        self.num_mixtures = 5
-        self.hidden_dim = 128
+        self.num_mixtures = 20
+        self.hidden_dim = 8
         self.dropout = 0.0
 
         # Dataset parameters

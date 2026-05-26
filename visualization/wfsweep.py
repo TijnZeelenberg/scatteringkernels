@@ -1,106 +1,153 @@
-from physics.dsmc import DSMC_Simulation
-from machinelearning.mdn import MixtureDensityNetwork
-import numpy as np
-from config.plotting_config import PlottingConfig
-from config.experiment_config import ExperimentConfig
+"""Run DSMC energy-relaxation experiments across a weighting-factor sweep.
+
+`run_wf_sweep_experiments` is the reusable function: given a model kind and
+the directory tag of a previously-trained sweep, it loads each model, runs a
+DSMC relaxation, and plots a 3x3 grid comparing to SPARTA. Both this script
+and `visualization/betamdn_wfsweep.py` call it.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Iterable
+
 import matplotlib.pyplot as plt
+import numpy as np
 from tqdm import tqdm
 
-plotconfig = PlottingConfig()
-experiment_config = ExperimentConfig()
+import paths
+from experiments.energy_relaxation import (
+    SimulationParams,
+    load_beta_mdn,
+    load_mdn,
+    load_sparta_reference,
+    run_relaxation,
+)
+from dataclasses import replace
 
-# --- simulation parameters (identical to H2_energy_relaxation.py) ---
-randomseed = 42
-box_size = 7.5e-6
-volume = box_size**3
-dt = 1e-5
-nr_steps = 150
-trans_temperature = 300
-rot_temperature = 100
-mass = 2.016e-3 / 6.022e23
-zrot_bl = 1 / 0.151
-zrot_mdn = zrot_bl / 3.5
-N_sim = 20000
-N_real = 20000
-d_H2 = 2.92e-10
+from physics.species import Species
 
-# --- load SPARTA reference data ---
-spartaVHS = np.loadtxt("data/sparta_H2_energy_relaxationVHS_zinv0151.dat", skiprows=2)
-t_spartaVHS = spartaVHS[:, 1]
-T_trans_spartaVHS = spartaVHS[:, 2]
-T_rot_spartaVHS = spartaVHS[:, 3]
+_D_CLASSICAL_MD = 10.1e-10
+_ZROT_CLASSICAL_MD = 5.0
 
-weights = [0.25, 0.5, 1, 2, 3, 4, 5, 6, 7]
 
-fig, axes = plt.subplots(3, 3, figsize=(12, 12))
-axes_flat = axes.flatten()
+DEFAULT_WEIGHTS: tuple[float, ...] = (0.25, 0.5, 1, 2, 3, 4, 5, 6, 7)
 
-for i, wf in tqdm(
-    enumerate(weights),
-    desc="Running simulations with different weighting factors",
-    unit="simulation",
+
+def run_wf_sweep_experiments(
+    kind: str,
+    tag: str,
+    *,
+    species: Species,
+    sparta_path: str,
+    trainseed: int | None = None,
+    weights: Iterable[float] = DEFAULT_WEIGHTS,
+    params: SimulationParams | None = None,
+    output_path: str | Path | None = None,
 ):
-    ax = axes_flat[i]
+    """Load each model in a wf sweep, run DSMC, plot a comparison grid.
 
-    mdn = MixtureDensityNetwork(
-        input_dim=3,
-        output_dim=2,
-        num_mixtures=experiment_config.num_mixtures,
-        hidden_dim=experiment_config.hidden_dim,
-        randomseed=randomseed,
+    Args:
+        kind: "mdn" or "beta_mdn".
+        tag: the wf-sweep directory tag, e.g. "H2_400000_dataseed42".
+        species: gas species parameters.
+        sparta_path: SPARTA reference data file.
+        trainseed: when set, load models from the `trainseed<N>/` subdirectory.
+        weights: weighting factors that have models on disk.
+        params: simulation parameters (default suited for H2 relaxation).
+        output_path: figure save path (default: alongside the trained models).
+    """
+    weights = list(weights)
+    sim_params: SimulationParams = (
+        params
+        if params is not None
+        else SimulationParams(
+            nr_steps=100,
+            trans_temperature=3000.0,
+            rot_temperature=1000.0,
+            randomseed=42,
+            grid_cells=(5, 5, 5),
+            box_size=1.0e-7,
+            dt=1.0e-11,
+        )
     )
-    mdn.load_model(
-        f"results/models/mdn/weightsensitivity/H2_400000_dataseed42/mdn_H2_wf{str(wf).replace('.', '_')}.pth"
-    )
+    sparta = load_sparta_reference(sparta_path)
 
-    sim = DSMC_Simulation(random_seed=randomseed)
-    sim.create_box(box_size=box_size)
-    sim.create_grid(x_cells=5, y_cells=5, z_cells=5)
-    sim.create_particles(
-        N_sim=N_sim,
-        N_real=N_real,
-        mass=mass,
-        d=d_H2,
-        trans_temperature=trans_temperature,
-        rot_temperature=rot_temperature,
-        zrot=zrot_mdn,
-    )
-    sim.run_simulation(nr_steps=nr_steps, dt=dt, collision_model=mdn)
-    stats = sim.get_stats()
+    loader = load_beta_mdn if kind.startswith("beta") else load_mdn
+    model_label = "Beta MDN" if kind.startswith("beta") else "MDN"
 
-    ax.plot(stats["timestep"], stats["T_trans_mean"], label="$T_{trans}$ MDN")
-    ax.plot(stats["timestep"], stats["T_rot_mean"], label="$T_{rot}$ MDN")
-    ax.plot(
-        t_spartaVHS,
-        T_trans_spartaVHS,
-        linestyle="--",
-        color="red",
-        label="$T_{trans}$ SPARTA",
-    )
-    ax.plot(
-        t_spartaVHS,
-        T_rot_spartaVHS,
-        linestyle="--",
-        color="blue",
-        label="$T_{rot}$ SPARTA",
-    )
+    fig, axes = plt.subplots(3, 3, figsize=(12, 12))
+    axes_flat = np.asarray(axes).flatten()
 
-    ax.set_title(f"wf = {wf}", fontsize=11, fontweight="bold")
-    ax.set_xlabel("Time [s]", fontsize=9)
-    ax.set_ylabel("Temperature [K]", fontsize=9)
-    ax.ticklabel_format(style="sci", scilimits=(-2, 3))
-    ax.set_ylim(20, 450)
-    ax.grid(True)
-    ax.legend(fontsize=7)
+    for i, wf in tqdm(
+        enumerate(weights),
+        desc=f"Running {model_label} wf sweep simulations",
+        unit="simulation",
+        total=len(weights),
+    ):
+        ax = axes_flat[i]
+        model_path = paths.wf_sweep_model_path(kind, tag, wf, trainseed=trainseed)
+        model = loader(model_path, randomseed=sim_params.randomseed)
+        stats = run_relaxation(species, model, params=sim_params)
 
-fig.suptitle(
-    f"O2 Energy Relaxation — Weighting Factor Sweep - Randomseed {randomseed}",
-    fontsize=16,
-    fontweight="bold",
-)
-fig.tight_layout()
-fig.savefig(
-    f"results/models/mdn/weightsensitivity/H2_400000_dataseed42/H2_wfsweep.png",
-    dpi=300,
-)
-plt.show()
+        ax.plot(
+            stats["timestep"],
+            stats["T_trans_mean"],
+            label=rf"$T_{{trans}}$ {model_label}",
+        )
+        ax.plot(
+            stats["timestep"], stats["T_rot_mean"], label=rf"$T_{{rot}}$ {model_label}"
+        )
+        ax.plot(
+            sparta["t"],
+            sparta["T_trans"],
+            linestyle="--",
+            color="red",
+            label=r"$T_{trans}$ SPARTA",
+        )
+        ax.plot(
+            sparta["t"],
+            sparta["T_rot"],
+            linestyle="--",
+            color="blue",
+            label=r"$T_{rot}$ SPARTA",
+        )
+
+        ax.set_title(f"wf = {wf}", fontsize=11, fontweight="bold")
+        ax.set_xlabel("Time [s]", fontsize=9)
+        ax.set_ylabel("Temperature [K]", fontsize=9)
+        ax.ticklabel_format(style="sci", scilimits=(-2, 3))
+        ax.set_ylim(1000, 3000)
+        ax.grid(True)
+        ax.legend(fontsize=7)
+
+    fig.suptitle(
+        f"{species.name} Energy Relaxation — {model_label} Weighting Factor Sweep — Randomseed {sim_params.randomseed}",
+        fontsize=16,
+        fontweight="bold",
+    )
+    fig.tight_layout()
+
+    if output_path is None:
+        output_path = (
+            paths.wf_sweep_dir(kind, tag, trainseed)
+            / f"{species.name}_{kind}_wfsweep20260520.png"
+        )
+    fig.savefig(paths.ensure_parent(output_path), dpi=300)
+    return fig
+
+
+if __name__ == "__main__":
+    run_wf_sweep_experiments(
+        kind="mdn",
+        tag="H2_200000_dataseed41",
+        trainseed=42,
+        species=replace(
+            Species.H2(),
+            diameter=_D_CLASSICAL_MD,
+            zrot_bl=_ZROT_CLASSICAL_MD,
+            zrot_mdn=_ZROT_CLASSICAL_MD / 3.5,
+        ),
+        sparta_path="data/sparta_H2_energy_relaxationVHS_zinv0151.dat",
+    )
+    plt.show()

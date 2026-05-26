@@ -1,0 +1,40 @@
+# Couette flow to compute viscosity of H2
+
+### Initialization ###
+seed                12345
+dimension           3
+units               si
+
+### Problem definition ###
+boundary            s p p
+create_box          -0.0005 0.0005 -0.0005 0.0005 -0.0005 0.0005
+create_grid         10 10 10
+species             h2.species H2
+global              fnum 7.07043E6
+mixture             gas H2 vstream 0.0 0.0 0.0 temp 300
+create_particles    gas n 20000 twopass
+
+### Settings ###
+collide             vss gas h2.vss
+surf_collide        1 diffuse 300 0 translate 0.0 100.0 0.0
+surf_collide        2 diffuse 300 0 translate 0.0 -100.0 0.0
+bound_modify        xlo collide 1
+bound_modify        xhi collide 2
+
+### Output ###
+# Bulk viscosity
+# momxy is the off-diagonal component of the momentum flux density tensor (shear stress)
+compute         momflux pflux/grid all gas momxy
+fix             ave_momflux ave/grid all 100 10 1000 c_momflux
+variable        viscosity equal -f_ave_momflux/(200/0.001)
+# Wall viscosity
+
+### Actions ###
+timestep           1.0e-8
+stats              1000
+stats_style        step cpu np nattempt ncoll c_momflux v_viscosity
+run                10000
+
+# Print final values
+#print "Bulk viscosity: ${tau_bulk}"
+#print "Wall viscosity: ${tau_wall}"

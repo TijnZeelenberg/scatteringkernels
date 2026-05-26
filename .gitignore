@@ -4,6 +4,8 @@
 .vscode/
 __pycache__/
 pyrightconfig.json
+.claude/
+CLAUDE.md
 
 # Ignore produced images and plots
 results/
@@ -11,3 +13,11 @@ results/
 
 # Ignore data files
 data/
+output/
+
+# Ignore hpc job scripts
+hpc/
+
+# Ignore projectplanning
+projectplanning.md
+todo.md
