@@ -28,4 +28,4 @@ export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
 echo "Using $NUMBA_NUM_THREADS threads (SLURM_CPUS_PER_TASK)"
 echo "Working directory: $(pwd)"
 
-uv run python -m ctc_adjusted.ctc_h2_impactparamsweep
+uv run python -m h2_ctc.ctc

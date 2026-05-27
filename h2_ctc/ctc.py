@@ -23,13 +23,13 @@ _nstep = int(2e-12 / _dt)  # max integration steps
 # ---------------------------------------------------------------------------
 # Simulation settings
 # ---------------------------------------------------------------------------
-ncoll = 80  # number of collisions to simulate
+ncoll = 1000000  # number of collisions to simulate
 seed = 42
 dist = "uniform"  # 'uniform' | 'mb' | 'ntc'
 T_eq = 6000.0  # equilibrium temperature [K] — used by mb and ntc distributions
 E_rel_max = 10000.0  # upper cap [K] — used by uniform distribution
 Erotmax = E_rel_max / 2  # max initial rotational energy [K]
-bfac = 1.1  # impact parameter multiplier: collisions are sampled with b ∈ [0, bfac·σ]
+bfac = 1.5  # impact parameter multiplier: collisions are sampled with b ∈ [0, bfac·σ]
 bmax = bfac * _sigma
 
 _DIST_IDS = {"uniform": 0, "mb": 1, "ntc": 2}
@@ -150,7 +150,7 @@ def _run_one(seed, dist_id, T_eq, E_rel_max):
     # v_COM = 0 → equal and opposite speeds; E_rel = m_H2 * v²  (μ = m/2, v_rel = 2v)
     v = np.sqrt(E_rel * _kB / _m_H2)
 
-    b = np.random.random() * bmax
+    b = np.sqrt(np.random.random()) * bmax
     b_norm = b / _sigma
 
     # ---- initial rotational energies ---------------------------------------
