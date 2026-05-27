@@ -18,6 +18,8 @@ data/
 output/
 *.npy
 *.dat
+*.csv
+
 # Ignore projectplanning
 projectplanning.md
 todo.md

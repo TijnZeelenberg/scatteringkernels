@@ -27,9 +27,27 @@ ncoll = 1000000  # number of collisions to simulate
 seed = 42
 dist = "uniform"  # 'uniform' | 'mb' | 'ntc'
 T_eq = 6000.0  # equilibrium temperature [K] — used by mb and ntc distributions
-E_rel_max = 10000.0  # upper cap [K] — used by uniform distribution
+E_rel_max = 2000.0  # upper cap [K] — used by uniform distribution
 Erotmax = E_rel_max / 2  # max initial rotational energy [K]
-bfac_sweep = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]  # impact-parameter sweep values
+bfac_sweep = [
+    1.0,
+    1.05
+    1.1,
+    1.15,
+    1.2,
+    1.25,
+    1.3,
+    1.35,
+    1.4,
+    1.45,
+    1.5,
+    1.55,
+    1.6,
+    1.65,
+    1.7,
+    1.75,
+    1.8,
+]  # impact-parameter sweep values
 
 _DIST_IDS = {"uniform": 0, "mb": 1, "ntc": 2}
 
