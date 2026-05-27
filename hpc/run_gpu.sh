@@ -22,4 +22,4 @@ module load uv
 source .venv/bin/activate
 
 # Execute the script or command
-uv run python -m training.parametersweeps.impactparam
+uv run python -m training.parametersweeps.batch_size
