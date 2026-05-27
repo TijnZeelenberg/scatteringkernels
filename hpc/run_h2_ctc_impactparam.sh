@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem-per-cpu=2gb
 #SBATCH --time=04:00:00
-#SBATCH --output=hpc/logs/%x_%j.out
-#SBATCH --error=hpc/logs/%x_%j.err
+#SBATCH --output=hpc/logs/%j.out
+#SBATCH --error=hpc/logs/%j.err
 #SBATCH --chdir=/home/20193567/scatteringkernels
 
 # Set bash options for better error handling

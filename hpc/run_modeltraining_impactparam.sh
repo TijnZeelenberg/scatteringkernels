@@ -8,8 +8,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=10G                     # request enough RAM for the job
 #SBATCH --gpus=1                      # This is how to request a GPU
-#SBATCH --output=hpc/logs/%x_%j.out
-#SBATCH --error=hpc/logs/%x_%j.err
+#SBATCH --output=hpc/logs/%j.out
+#SBATCH --error=hpc/logs/%j.err
 #SBATCH --chdir=/home/20193567/scatteringkernels
 #SBATCH --dependency=afterok:JOBID_H2_IMPACTPARAM
 
