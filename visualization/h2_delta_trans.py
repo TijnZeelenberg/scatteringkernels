@@ -8,7 +8,10 @@ import matplotlib.pyplot as plt
 import paths
 from config.plotting_config import PlottingConfig
 
-DATA_PATH = paths.DATA_DIR / "ctc/H2/H2_collisions_b1_5_uniform_Erelmax10000_ncoll1000000_seed42.npy"
+DATA_PATH = (
+    paths.DATA_DIR
+    / "ctc/H2/H2_collisions_b1_2_uniform_Erelmax10000_ncoll1000000_seed42.npy"
+)
 N_BINS = 80
 
 pc = PlottingConfig()

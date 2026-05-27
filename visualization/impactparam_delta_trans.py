@@ -8,7 +8,25 @@ import matplotlib.pyplot as plt
 import paths
 from config.plotting_config import PlottingConfig
 
-BFAC_VALUES = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+bfac_sweep = [
+    1.0,
+    1.05
+    1.1,
+    1.15,
+    1.2,
+    1.25,
+    1.3,
+    1.35,
+    1.4,
+    1.45,
+    1.5,
+    1.55,
+    1.6,
+    1.65,
+    1.7,
+    1.75,
+    1.8,
+]  # impact-parameter sweep values
 DATA_DIR = paths.DATA_DIR / "ctc/H2/impactparam"
 FNAME_TEMPLATE = "H2_collisions_b{tag}_uniform_Erelmax10000_ncoll1000000_seed42.npy"
 N_BINS = 80
@@ -19,7 +37,7 @@ fig, ax = plt.subplots(figsize=pc.figsize)
 bin_edges = np.linspace(0, 1, N_BINS + 1)
 bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
 
-for bfac in BFAC_VALUES:
+for bfac in bfac_sweep:
     tag = str(bfac).replace(".", "_")
     data = np.load(DATA_DIR / FNAME_TEMPLATE.format(tag=tag))
 
