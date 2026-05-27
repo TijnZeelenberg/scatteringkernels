@@ -388,7 +388,7 @@ if __name__ == "__main__":
         dist_tag = f"uniform_Erelmax{E_rel_max:.0f}"
     else:
         dist_tag = f"{dist}_Teq{T_eq:.0f}"
-    savefile = f"data/ctc/H2/impactparam/H2_collisions_b{str(bfac).replace('.', '_')}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
+    savefile = f"data/ctc/H2/H2_collisions_b{str(bfac).replace('.', '_')}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
     np.save(savefile, df.to_numpy())
     print(f"Saved {savefile}")
 
