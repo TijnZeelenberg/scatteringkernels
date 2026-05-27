@@ -15,7 +15,7 @@ for bfac in bfac_sweep:
     bfac_tag = str(bfac).replace(".", "_")
     model_dict = torch.load(f"results/models/mdn/impactparam/mdn_H2_b{bfac_tag}.pth")
     val_loss_history = model_dict["val_loss_history"]
-    ax.plot(val_loss_history, label="Validation Loss")
+    ax.plot(val_loss_history, label=f"$b_{{fac}}={bfac}$")
 ax.set_xlabel(
     "Epoch",
     fontsize=config.label_fontsize,
@@ -29,7 +29,7 @@ ax.set_ylabel(
 ax.legend(fontsize=config.legend_fontsize)
 fig.tight_layout()
 fig.savefig("results/plots/mdn_impactparam_loss_history.png", dpi=300)
-fig.show()
+plt.show()
 
 
 # ## batch size sweep loss history ##
