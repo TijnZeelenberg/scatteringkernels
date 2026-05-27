@@ -12,7 +12,7 @@ PROGRAM Omega_O2
   REAL(dp)::g,gstar,coschi,sinchi,sinchi2
   REAL(dp)::erot1,erot1_star,erot2,erot2_star
   REAL(dp)::ttrasl,trot,T0,dens0
-  REAL(dp)::Etr1,Etr2,Etr_min,Etr_max,Erot_min,Erot_max
+  REAL(dp)::Etr_rel,Etr_max,Erot_min,Erot_max,v_mag
   REAL(dp)::omega22,omega11,viscosity,diffusion_coefficient
   REAL(dp)::omega22_tax,Viscosity_tax
   REAL(dp)::fbulk,omega_bulk_tax,bulk_viscosity_tax
@@ -42,13 +42,12 @@ PROGRAM Omega_O2
   READ(1,*)seme
   READ(1,*)h
   !
-  ! Temperature ranges for non-equilibrium sampling.
-  ! Tt and Tr are drawn independently from [Tt_min,Tt_max] and [Tr_min,Tr_max]
-  ! for each collision, giving broad coverage of the energy space.
-  Etr_min = kb*50.0D0     ! ~50 K equivalent
-  Etr_max = kb*5000.0D0   ! ~5000 K equivalent
+  ! Sampling aligned with h2_ctc/ctc.py (uniform mode): relative translational
+  ! energy uniform in [0, Etr_max] in the COM frame (v_COM=0, head-on);
+  ! per-molecule rotational energy uniform in [0, Erot_max].
+  Etr_max = kb*2000.0D0
   Erot_min = 0.0D0
-  Erot_max = kb*3000.0D0  ! ~3000 K equivalent
+  Erot_max = kb*2000.0D0/2
 
   !
   dens0=P0/(kb*T0)
@@ -62,14 +61,14 @@ PROGRAM Omega_O2
   !
   DO test=1,Ntest
    !  write(*,*) test
-     ! Sample Tt and Tr independently from uniform ranges for non-equilibrium coverage
-     Etr1 = Etr_min + rf(seme)*(Etr_max - Etr_min)
-     Etr2 = Etr_min + rf(seme)*(Etr_max - Etr_min)
-
-     CALL Maxwell(v1(1),v1(2),v1(3))
-     v1 = v1 / SQRT(DOT_PRODUCT(v1,v1)) * SQRT(2.0D0*Etr1/molmass(2))
-     CALL Maxwell(v2(1),v2(2),v2(3))
-     v2 = v2 / SQRT(DOT_PRODUCT(v2,v2)) * SQRT(2.0D0*Etr2/molmass(2))
+     ! Uniform relative translational energy in COM frame (v_COM=0, head-on).
+     ! With v1=-v2 and equal masses: E_rel = 1/2 mu v_rel^2 = m v^2, so v = sqrt(E_rel/m).
+     ! 1 K floor matches H2 (avoids v=0 which would prevent approach).
+     Etr_rel = rf(seme)*Etr_max
+     IF (Etr_rel < kb*1.0D0) Etr_rel = kb*1.0D0
+     v_mag = SQRT(Etr_rel/molmass(2))
+     v1 = (/ v_mag, 0.0D0, 0.0D0/)
+     v2 = (/-v_mag, 0.0D0, 0.0D0/)
 
      CALL Genk(omega1(1),omega1(2),omega1(3))
      erot = Erot_min + rf(seme)*(Erot_max - Erot_min)
