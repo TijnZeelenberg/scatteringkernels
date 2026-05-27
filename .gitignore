@@ -16,7 +16,11 @@ results/
 # Ignore data files
 data/
 output/
-
+*.npy
+*.dat
 # Ignore projectplanning
 projectplanning.md
 todo.md
+
+# ignore build files
+*.mod

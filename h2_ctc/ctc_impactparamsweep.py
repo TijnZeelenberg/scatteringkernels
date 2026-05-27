@@ -149,7 +149,7 @@ def _run_one(seed, dist_id, T_eq, E_rel_max, bmax):
     # v_COM = 0 → equal and opposite speeds; E_rel = m_H2 * v²  (μ = m/2, v_rel = 2v)
     v = np.sqrt(E_rel * _kB / _m_H2)
 
-    b = np.random.random() * bmax
+    b = np.sqrt(np.random.random()) * bmax
     b_norm = b / _sigma
 
     # ---- initial rotational energies ---------------------------------------
@@ -407,7 +407,8 @@ if __name__ == "__main__":
 
         bfac_tag = str(bfac).replace(".", "_")
         savefile = paths.ensure_parent(
-            paths.DATA_DIR / "ctc/H2/impactparam"
+            paths.DATA_DIR
+            / "ctc/H2/impactparam"
             / f"H2_collisions_b{bfac_tag}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
         )
         np.save(savefile, df.to_numpy())
