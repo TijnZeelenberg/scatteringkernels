@@ -13,7 +13,7 @@ import paths
 config = ExperimentConfig()
 
 # Sweep settings
-batch_sizes = [64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]
+batch_sizes = [256, 512, 1024, 2048, 4096, 8192, 16384]
 ncoll = 1000000
 seed = 42
 dist_tag = "uniform_Erelmax10000"  # distribution tag
