@@ -10,7 +10,7 @@ from config.plotting_config import PlottingConfig
 
 bfac_sweep = [
     1.0,
-    1.05
+    1.05,
     1.1,
     1.15,
     1.2,
@@ -27,7 +27,8 @@ bfac_sweep = [
     1.75,
     1.8,
 ]  # impact-parameter sweep values
-DATA_DIR = paths.DATA_DIR / "ctc/H2/impactparam"
+
+DATA_DIR = paths.DATA_DIR / "ctc/H2/impactparam/sqrtbmax"
 FNAME_TEMPLATE = "H2_collisions_b{tag}_uniform_Erelmax10000_ncoll1000000_seed42.npy"
 N_BINS = 80
 

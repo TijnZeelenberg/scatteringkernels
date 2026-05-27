@@ -15,7 +15,25 @@ import paths
 # ---------------------------------------------------------------------------
 # Sweep settings — must match ctc_adjusted/ctc_h2_impactparamsweep.py
 # ---------------------------------------------------------------------------
-bfac_sweep = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+bfac_sweep = [
+    1.0,
+    1.05,
+    1.1,
+    1.15,
+    1.2,
+    1.25,
+    1.3,
+    1.35,
+    1.4,
+    1.45,
+    1.5,
+    1.55,
+    1.6,
+    1.65,
+    1.7,
+    1.75,
+    1.8,
+]  # impact-parameter sweep values
 ncoll = 1000000
 seed = 42
 dist_tag = "uniform_Erelmax10000"  # distribution tag

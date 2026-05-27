@@ -31,7 +31,7 @@ E_rel_max = 2000.0  # upper cap [K] — used by uniform distribution
 Erotmax = E_rel_max / 2  # max initial rotational energy [K]
 bfac_sweep = [
     1.0,
-    1.05
+    1.05,
     1.1,
     1.15,
     1.2,
