@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=impactparam_sweep
+#SBATCH --job-name=impactparam
 #SBATCH --partition=tue.gpu.q         # Choose a partition that has GPUs
 #SBATCH --time=16:00:00
 #SBATCH --nodes=1
@@ -11,6 +11,7 @@
 #SBATCH --output=hpc/logs/%x_%j.out
 #SBATCH --error=hpc/logs/%x_%j.err
 #SBATCH --chdir=/home/20193567/scatteringkernels
+#SBATCH --dependency=afterok:<jobid>
 
 # Set bash options for better error handling
 set -euo pipefail
@@ -22,5 +23,4 @@ module load uv
 source .venv/bin/activate
 
 # Execute the script or command
-# uv run python -m training.parametersweeps.impactparamsweep
-uv run python -m training.parametersweeps.batch_size
+uv run python -m training.parametersweeps.impactparamsweep

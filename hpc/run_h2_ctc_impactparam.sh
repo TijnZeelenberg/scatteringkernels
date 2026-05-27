@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=ctc_h2_data
-#SBATCH --partition=tue.cpu.q        # verify with: sinfo
+#SBATCH --job-name=impactparam
+#SBATCH --partition=tue.cpu2.q        # verify with: sinfo
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -29,5 +29,4 @@ echo "Using $NUMBA_NUM_THREADS threads (SLURM_CPUS_PER_TASK)"
 echo "Working directory: $(pwd)"
 
 # Run as module to ensure correct working directory and environment on hpc
-uv run python -m h2_ctc.ctc
-# uv run python -m h2_ctc.ctc_impactparamsweep
+uv run python -m h2_ctc.ctc_impactparamsweep
