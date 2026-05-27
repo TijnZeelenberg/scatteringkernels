@@ -6,7 +6,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=10G                     # request enough RAM for the job
+#SBATCH --mem=32G                     # request enough RAM for the job
 #SBATCH --gpus=1                      # This is how to request a GPU
 #SBATCH --output=hpc/logs/%x_%j.out
 #SBATCH --error=hpc/logs/%x_%j.err
