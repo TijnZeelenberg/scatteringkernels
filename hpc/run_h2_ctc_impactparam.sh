@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=impactparam
-#SBATCH --partition=tue.cpu2.q        # verify with: sinfo
+#SBATCH --partition=mech.pf-student.q        # verify with: sinfo
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16

@@ -25,21 +25,14 @@ _nstep = int(2e-12 / _dt)  # max integration steps
 # ---------------------------------------------------------------------------
 ncoll = 1000000  # number of collisions to simulate
 seed = 42
-dist = "uniform"  # 'uniform' | 'mb' | 'ntc'
-T_eq = 6000.0  # equilibrium temperature [K] — used by mb and ntc distributions
-E_rel_max = 2000.0  # upper cap [K] — used by uniform distribution
+E_rel_max = 2000.0  # upper cap [K]
 Erotmax = E_rel_max / 2  # max initial rotational energy [K]
 bfac_sweep = [
     1.0,
-    1.05,
     1.1,
-    1.15,
     1.2,
-    1.25,
     1.3,
-    1.35,
     1.4,
-    1.45,
     1.5,
     1.55,
     1.6,
@@ -49,7 +42,6 @@ bfac_sweep = [
     1.8,
 ]  # impact-parameter sweep values
 
-_DIST_IDS = {"uniform": 0, "mb": 1, "ntc": 2}
 
 # ---------------------------------------------------------------------------
 # JIT-compiled building blocks
@@ -137,7 +129,7 @@ def _rand_rot_mat():
 
 
 @njit(cache=True)
-def _run_one(seed, dist_id, T_eq, E_rel_max, bmax):
+def _run_one(seed, E_rel_max, bmax):
     """
     Simulate one H2-H2 collision and return a 13-element result array.
 
@@ -149,19 +141,13 @@ def _run_one(seed, dist_id, T_eq, E_rel_max, bmax):
       [10] E_rel (trans) before   [11] E_rel (trans) after
       [12] b / σ
 
-    dist_id: 0=uniform over [0, E_rel_max], 1=Maxwell-Boltzmann Gamma(3/2, T_eq),
-             2=NTC-matched Gamma(2, T_eq)
+    E_rel is drawn uniformly over [0, E_rel_max].
     v_COM is set to zero: molecules approach with equal and opposite speeds.
     """
     np.random.seed(seed)
 
     # ---- initial relative translational energy (E_rel, COM frame) ----------
-    if dist_id == 0:  # uniform
-        E_rel = np.random.random() * E_rel_max
-    elif dist_id == 1:  # Maxwell-Boltzmann: p(E) ∝ √E · exp(-E/T) = Gamma(3/2, T)
-        E_rel = np.random.gamma(1.5, T_eq)
-    else:  # NTC-matched: p(E) ∝ E · exp(-E/T) = Gamma(2, T)
-        E_rel = np.random.gamma(2.0, T_eq)
+    E_rel = np.random.random() * E_rel_max
     if E_rel < 1.0:
         E_rel = 1.0
     # v_COM = 0 → equal and opposite speeds; E_rel = m_H2 * v²  (μ = m/2, v_rel = 2v)
@@ -323,23 +309,15 @@ def _run_one(seed, dist_id, T_eq, E_rel_max, bmax):
 
 
 @njit(parallel=True, cache=True)
-def _run_chunk(seed_offset, count, dist_id, T_eq, E_rel_max, bmax):
+def _run_chunk(seed_offset, count, E_rel_max, bmax):
     """Run *count* collisions starting at seed *seed_offset*, in parallel."""
     results = np.empty((count, 13))
     for i in prange(count):
-        results[i] = _run_one(seed_offset + i, dist_id, T_eq, E_rel_max, bmax)
+        results[i] = _run_one(seed_offset + i, E_rel_max, bmax)
     return results
 
 
-def run_all_collisions(
-    ncoll,
-    seed=0,
-    chunk_size=1000,
-    dist="uniform",
-    T_eq=2200.0,
-    E_rel_max=20100.0,
-    bfac=1.1,
-):
+def run_all_collisions(ncoll, seed=0, chunk_size=1000, E_rel_max=20100.0, bfac=1.1):
     """Run ncoll collisions with a tqdm progress bar.
 
     Work is split into chunks of *chunk_size* so that tqdm can update
@@ -347,14 +325,8 @@ def run_all_collisions(
 
     Parameters
     ----------
-    dist : 'uniform' | 'mb' | 'ntc'
-        E_rel sampling distribution. 'uniform' draws uniformly over [0, E_rel_max];
-        'mb' draws from Gamma(3/2, T_eq) (Maxwell-Boltzmann); 'ntc' draws from
-        Gamma(2, T_eq) (NTC-selected collision distribution).
-    T_eq : float
-        Equilibrium temperature [K], used by mb and ntc distributions.
     E_rel_max : float
-        Upper cap [K] for the uniform distribution.
+        Upper cap [K] for the uniform E_rel distribution.
     bfac : float
         Impact-parameter multiplier; collisions are sampled with b ∈ [0, bfac·σ].
 
@@ -362,16 +334,13 @@ def run_all_collisions(
     -------
     results : np.ndarray, shape (ncoll, 13)
     """
-    dist_id = _DIST_IDS[dist]
     bmax = bfac * _sigma
     results = np.empty((ncoll, 13))
     with tqdm(total=ncoll, unit="collision") as bar:
         offset = 0
         while offset < ncoll:
             n = min(chunk_size, ncoll - offset)
-            results[offset : offset + n] = _run_chunk(
-                seed + offset, n, dist_id, T_eq, E_rel_max, bmax
-            )
+            results[offset : offset + n] = _run_chunk(seed + offset, n, E_rel_max, bmax)
             offset += n
             bar.update(n)
     return results
@@ -381,28 +350,22 @@ def run_all_collisions(
 # Main — sweep over bfac values
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    # tag to indicate the distribution of the data
-    if dist == "uniform":
-        dist_tag = f"uniform_Erelmax{E_rel_max:.0f}"
-    else:
-        dist_tag = f"{dist}_Teq{T_eq:.0f}"
+    dist_tag = f"uniform_Erelmax{E_rel_max:.0f}"
 
     # Trigger JIT compilation once before the timed sweep.
     print("Compiling (first run only) …")
-    _ = _run_chunk(0, 1, _DIST_IDS[dist], T_eq, E_rel_max, bfac_sweep[0] * _sigma)
+    _ = _run_chunk(0, 1, E_rel_max, bfac_sweep[0] * _sigma)
     print("Compilation done.\n")
 
     for bfac in bfac_sweep:
         t0 = time.time()
         print(
-            f"Running {ncoll} collisions (bfac={bfac}, dist={dist}, T_eq={T_eq:.0f} K) …"
+            f"Running {ncoll} collisions (bfac={bfac}, uniform, E_rel_max={E_rel_max:.0f} K) …"
         )
         raw = run_all_collisions(
             ncoll,
             chunk_size=1000,
             seed=seed,
-            dist=dist,
-            T_eq=T_eq,
             E_rel_max=E_rel_max,
             bfac=bfac,
         )
