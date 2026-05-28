@@ -8,7 +8,7 @@ USE Precision
   REAL(dp), PARAMETER:: mr=molmass(1)*molmass(2)/(molmass(1)+molmass(2))
   REAL(dp), DIMENSION(2),PARAMETER:: momin=(/1.4009d-46,1.9471d-46/)
   REAL(dp), DIMENSION(2),PARAMETER:: d_intnuc=(/1.0977e-10,1.2075e-10/)
-  REAL(dp), PARAMETER::bmax=3.0D0
+  REAL(dp), PARAMETER::bmax=1.0D0
   !
   ! Profondita delle buche del potenziale isotropo V000 [J]
   ! Nell'ordine: N2-N2, O2-O2, N2-O2

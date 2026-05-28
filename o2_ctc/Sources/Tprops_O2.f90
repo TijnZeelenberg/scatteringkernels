@@ -6,7 +6,9 @@ PROGRAM Omega_O2
   USE CT_Collider
   USE Scattering
   IMPLICIT NONE
-  INTEGER::test,Ntest,ncrit
+  INTEGER::test,Ntest,ncrit,i
+  CHARACTER(LEN=50)::filename
+  CHARACTER(LEN=10)::bmax_str
   REAL(dp),DIMENSION(3)::v1,v2,omega1,omega2
   REAL(dp),DIMENSION(3)::vr,vrstar,umed
   REAL(dp)::g,gstar,coschi,sinchi,sinchi2
@@ -31,7 +33,13 @@ PROGRAM Omega_O2
   OPEN(unit=2,file='Viscosity_O2.dat')
   OPEN(unit=3,file='Thermal_cond_O2.dat')
   OPEN(Unit=4,file='Diffusion_coeff_O2.dat')
-  OPEN(unit=20,file='O2O2_collisions_uniform.csv', status='replace', action='write', form='formatted')
+  WRITE(bmax_str,'(F10.1)') bmax
+  bmax_str = ADJUSTL(bmax_str)
+  DO i=1,LEN_TRIM(bmax_str)
+    IF (bmax_str(i:i) == '.') bmax_str(i:i) = '_'
+  END DO
+  filename = 'O2O2_collisions_uniform_bmax'//TRIM(bmax_str)//'.csv'
+  OPEN(unit=20,file=TRIM(filename), status='replace', action='write', form='formatted')
   !OPEN(unit=11,file='Scattering.dat')
 
   WRITE(20,'(A)') 'Etr,Erot1_in,Erot2_in,Etr_out,Erot1_out,Erot2_out'

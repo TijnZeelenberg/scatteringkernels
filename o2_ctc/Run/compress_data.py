@@ -1,8 +1,12 @@
 # run once after generating CSV
+import glob
 import numpy as np
 import os
 
-file = "O2O2_collisions_uniform.csv"
+matches = glob.glob("O2O2_collisions_uniform_bmax*.csv")
+if len(matches) != 1:
+    raise FileNotFoundError(f"Expected 1 matching CSV, found {len(matches)}: {matches}")
+file = matches[0]
 
 kB = 1.380649e-23  # Boltzmann constant in J/K
 
