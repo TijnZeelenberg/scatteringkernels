@@ -3,7 +3,8 @@ import glob
 import numpy as np
 import os
 
-matches = glob.glob("O2O2_collisions_uniform_bmax*.csv")
+script_dir = os.path.dirname(os.path.abspath(__file__))
+matches = glob.glob(os.path.join(script_dir, "O2O2_collisions_uniform_bmax*.csv"))
 if len(matches) != 1:
     raise FileNotFoundError(f"Expected 1 matching CSV, found {len(matches)}: {matches}")
 file = matches[0]
