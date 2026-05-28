@@ -9,7 +9,7 @@ create_box          -0.5e-7, 0.5e-7, -0.5e-7, 0.5e-7, -0.5e-7, 0.5e-7
 create_grid         5 5 5
 species             h2.species H2
 global              fnum 1  # Use 1 molecule per particle
-mixture             gas H2 vstream 0.0 0.0 0.0 temp 3000 trot 1000
+mixture             gas H2 vstream 0.0 0.0 0.0 temp 300 trot 100
 
 ### Settings ###
 collide             vss gas h2.vhs
@@ -28,7 +28,7 @@ variable            T_rot equal c_3 # rename for clarity
 variable            sim_time equal time # turn simulation time into a variable for output
 
 # Put your preffered output filepath at the end here
-fix                 1 ave/time 1 1 1 v_sim_time v_T_trans v_T_rot file output/sparta_H2_energy_relaxationTtr3000_Trot1000.dat
+fix                 1 ave/time 1 1 1 v_sim_time v_T_trans v_T_rot file output/sparta_H2_energy_relaxationTtr300_Trot100.dat
 
 ### Actions ###
 timestep           1.0e-12
