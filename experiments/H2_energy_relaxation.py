@@ -9,28 +9,27 @@ import matplotlib.pyplot as plt
 import paths
 from experiments.energy_relaxation import (
     SimulationParams,
-    load_lammps_reference,
     load_mdn,
+    load_lammps_reference,
     load_sparta_reference,
+    load_bl_reference,
     plot_relaxation_comparison,
     print_relaxation_table,
     run_relaxation_comparison,
 )
 from dataclasses import replace
-
-from physics.borgnakkelarssen_model import borgnakke_larssen_model
-from physics.collision_logger import CollisionLogger
 from physics.species import Species
 
-MDN_CONVERGENT = "results/models/mdn/mdn_H2_uniform_hiddim8_mix20.pth"
+MDN_CONVERGENT = "results/models/mdn/mdn_H2_b1_55_bs10000Erelmax2000.pth"
 
 
 def main(
     mdn_model_path: str = MDN_CONVERGENT,
     sparta_path: str = "data/sparta/sparta_H2_energy_relaxationTtr3000_Trot1000.dat",
     lammps_path: str = "data/lammps/lammps_H2_energy_relaxation.dat",
+    bl_path="data/ml-dsmc/BL/bl_H2_energy_relaxation.dat",
     output_path: str | None = None,
-    nr_steps: int = 100,
+    nr_steps: int = 150,
     randomseed: int = 1,
     d=10.1e-10,
     zrot_bl=5.0,
@@ -44,8 +43,8 @@ def main(
     )
     params = SimulationParams(
         nr_steps=nr_steps,
-        trans_temperature=3000.0,
-        rot_temperature=1000.0,
+        trans_temperature=300.0,
+        rot_temperature=100.0,
         randomseed=randomseed,
         grid_cells=(5, 5, 5),
         box_size=1.0e-7,
@@ -55,39 +54,31 @@ def main(
     model_tag = Path(mdn_model_path).stem  # e.g. mdn_H2_wf7
 
     models: dict[str, object] = {
-        "BL (ML-DSMC)": borgnakke_larssen_model(randomseed=randomseed),
         "MDN (ML-DSMC)": load_mdn(mdn_model_path, randomseed=randomseed),
     }
 
-    log_suffix_by_label = {
-        "BL (ML-DSMC)": "BL",
-        "MDN (ML-DSMC)": model_tag,
-    }
-
-    def make_logger(label: str) -> CollisionLogger:
-        return CollisionLogger(
-            output_path=paths.log_path(
-                f"H2_energy_relaxation_{log_suffix_by_label[label]}.npz"
-            ),
-            snapshot_every=100,
-            training_caps_K={"E_trans_max_K": 20100.0, "E_rot_max_K": 15000.0},
-        )
-
     results = run_relaxation_comparison(
-        species, models, params=params, collision_logger_factory=make_logger
+        species,
+        models,
+        params=params,
     )
     sparta = load_sparta_reference(sparta_path)
     lammps = load_lammps_reference(lammps_path)
+    bl = load_bl_reference(bl_path)
 
     print_relaxation_table(
-        results, sparta, rot_temperature_initial=params.rot_temperature, lammps=lammps
+        results,
+        sparta,
+        rot_temperature_initial=params.rot_temperature,
+        lammps=lammps,
+        bl=bl,
     )
 
     out_path: str | paths.Path = output_path or paths.plot_path(
         f"H2_energy_relaxation_{model_tag}.png"
     )
     plot_relaxation_comparison(
-        results, sparta, lammps=lammps, ylim=(1000.0, 3000.0), output_path=out_path
+        results, sparta, lammps=lammps, bl=bl, ylim=(100.0, 300.0), output_path=out_path
     )
     plt.show()
 

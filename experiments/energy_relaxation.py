@@ -250,9 +250,11 @@ def _relaxation_time_90(timesteps, trace, T_initial: float) -> float:
 def print_relaxation_table(
     results: dict[str, dict],
     sparta: dict | None = None,
+    lammps: dict | None = None,
     *,
     rot_temperature_initial: float,
-    lammps: dict | None = None,
+    bl: dict | None = None,
+    bl_label: str = "BL (ML-DSMC)",
 ):
     """Print final mean T_trans/T_rot and 90% rotational relaxation time."""
     print("\nFinal mean temperatures:")
@@ -268,6 +270,10 @@ def print_relaxation_table(
         ft = lammps["T_trans"][-20:-1].mean()
         fr = lammps["T_rot"][-20:-1].mean()
         print(f"  LAMMPS: T_trans = {ft:.2f} K, T_rot = {fr:.2f} K")
+    if bl is not None:
+        ft = bl["T_trans_mean"][-20:-1].mean()
+        fr = bl["T_rot_mean"][-20:-1].mean()
+        print(f"  {bl_label}: T_trans = {ft:.2f} K, T_rot = {fr:.2f} K")
 
     print("\nRelaxation times (T_rot reaches 90% of equilibrium):")
     for label, stats in results.items():
@@ -281,6 +287,9 @@ def print_relaxation_table(
     if lammps is not None:
         t90 = _relaxation_time_90(lammps["t"], lammps["T_rot"], rot_temperature_initial)
         print(f"  LAMMPS: {t90:.4e} s")
+    if bl is not None:
+        t90 = _relaxation_time_90(bl["timestep"], bl["T_rot_mean"], rot_temperature_initial)
+        print(f"  {bl_label}: {t90:.4e} s")
 
 
 def plot_relaxation_comparison(
@@ -294,6 +303,9 @@ def plot_relaxation_comparison(
     lammps: dict | None = None,
     lammps_label: str = "LAMMPS MD",
     lammps_clip: int | None = None,
+    bl: dict | None = None,
+    bl_label: str = "BL (ML-DSMC)",
+    bl_clip: int | None = None,
 ):
     """Plot T_trans and T_rot for each model + SPARTA/LAMMPS reference traces.
 
@@ -339,6 +351,23 @@ def plot_relaxation_comparison(
             color="blue",
             linestyle=":",
             label=rf"$T_{{rot}}$ {lammps_label}",
+        )
+
+    if bl is not None:
+        clip = slice(None) if bl_clip is None else slice(0, bl_clip)
+        ax.plot(
+            bl["timestep"][clip],
+            bl["T_trans_mean"][clip],
+            color="red",
+            linestyle="-.",
+            label=rf"$T_{{trans}}$ {bl_label}",
+        )
+        ax.plot(
+            bl["timestep"][clip],
+            bl["T_rot_mean"][clip],
+            color="blue",
+            linestyle="-.",
+            label=rf"$T_{{rot}}$ {bl_label}",
         )
 
     ax.set_xlabel(
