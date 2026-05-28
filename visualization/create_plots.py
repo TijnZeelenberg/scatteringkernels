@@ -2,13 +2,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from config.plotting_config import PlottingConfig
+from config.experiment_config import ExperimentConfig
+from experiments.energy_relaxation import load_mdn
 from visualization.plot import plot_density_scatter
 from utils.helpers import load_dataset
 
-config = PlottingConfig()
+plotconfig = PlottingConfig()
+experimentconfig = ExperimentConfig()
 
 ## impact parameter sweep loss history ##
-fig, ax = plt.subplots(figsize=config.figsize)
+fig, ax = plt.subplots(figsize=plotconfig.figsize)
 
 bfac_sweep = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
 for bfac in bfac_sweep:
@@ -18,52 +21,95 @@ for bfac in bfac_sweep:
     ax.plot(val_loss_history, label=f"$b_{{fac}}={bfac}$")
 ax.set_xlabel(
     "Epoch",
-    fontsize=config.label_fontsize,
-    fontweight=config.label_fontweight,
+    fontsize=plotconfig.label_fontsize,
+    fontweight=plotconfig.label_fontweight,
 )
 ax.set_ylabel(
     "Loss",
-    fontsize=config.label_fontsize,
-    fontweight=config.label_fontweight,
+    fontsize=plotconfig.label_fontsize,
+    fontweight=plotconfig.label_fontweight,
 )
-ax.legend(fontsize=config.legend_fontsize)
+ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.tight_layout()
-fig.savefig("results/plots/mdn_impactparam_loss_history.png", dpi=300)
+fig.savefig("results/plots/report/mdn_impactparam_loss_history.png", dpi=300)
+
+
+## batch size sweep loss history ##
+fig, ax = plt.subplots(figsize=plotconfig.figsize)
+batch_sizes = [128, 256, 512, 1024, 2048, 4096, 8192, 10000, 16384]
+for bs in batch_sizes:
+    bs_tag = str(bs)
+    print(f"Loading model with batch size {bs}...")
+    model_dict = torch.load(f"results/models/mdn/batch_size/mdn_H2_b{bs_tag}.pth")
+    val_loss_history = model_dict["val_loss_history"]
+    ax.plot(val_loss_history, label="batch size = " + bs_tag)
+ax.set_xlabel(
+    "Epoch",
+    fontsize=plotconfig.label_fontsize,
+    fontweight=plotconfig.label_fontweight,
+)
+ax.set_ylabel(
+    "Loss",
+    fontsize=plotconfig.label_fontsize,
+    fontweight=plotconfig.label_fontweight,
+)
+ax.legend(fontsize=plotconfig.legend_fontsize)
+fig.tight_layout()
+fig.savefig("results/plots/report/mdn_batch_size_loss_history.png", dpi=300)
+
+
+################ H2 scatterplot of CTC and MDN predictions ##
+mdn_path = "results/models/mdn/impactparam/mdn_H2_b1_5.pth"
+fig, ax = plt.subplots(figsize=(2 * (plotconfig.figsize[0]), plotconfig.figsize[1]))
+datafile = "data/ctc/H2/impactparam/Erelmax10000/H2_collisions_b1_5_uniform_Erelmax10000_ncoll1000000_seed42.npy"
+
+data = load_dataset(datafile, rows=experimentconfig.num_samples)
+
+# Sample MDN predictions
+mdn = load_mdn(mdn_path, randomseed=experimentconfig.random_seed)
+torch.manual_seed(experimentconfig.random_seed + 1)
+mdn_samples = mdn.sample(x=data[0])
+
+datasets = {
+    "inputs": data[0][:, 1:],  # Use only the energy fractions for plotting
+    "CTC": data[1],
+    "MDN": mdn_samples,
+}
+plot_density_scatter(ax, datasets=datasets)
+
+
+## impact parameter Delta_trans binned average ##
+N_BINS = 80
+
+fig, ax = plt.subplots(figsize=plotconfig.figsize)
+
+bin_edges = np.linspace(0, 1, N_BINS + 1)
+bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+for bfac in bfac_sweep:
+    tag = str(bfac).replace(".", "_")
+    data = np.load(
+        f"data/ctc/H2/impactparam/H2_collisions_b{tag}_uniform_Erelmax10000_ncoll1000000_seed42.npy"
+    )
+
+    E_c_pre = data[:, 0] + data[:, 1] + data[:, 2]
+    E_c_post = data[:, 3] + data[:, 4] + data[:, 5]
+    eta_trans = data[:, 0] / E_c_pre
+    delta_trans = data[:, 3] / E_c_post - eta_trans
+
+    bin_idx = np.digitize(eta_trans, bin_edges) - 1
+    bin_idx = np.clip(bin_idx, 0, N_BINS - 1)
+    bin_mean = np.array([delta_trans[bin_idx == i].mean() for i in range(N_BINS)])
+
+    ax.plot(bin_centers, bin_mean, label=f"$b_{{fac}}={bfac}$")
+
+ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
+ax.set_xlabel(r"$\eta_{trans}$", fontsize=plotconfig.label_fontsize)
+ax.set_ylabel(r"$\Delta\eta_{trans}$", fontsize=plotconfig.label_fontsize)
+ax.legend(fontsize=plotconfig.legend_fontsize)
+ax.grid()
+fig.tight_layout()
+fig.savefig("results/plots/report/mdn_impactparam_delta_trans.png", dpi=300)
+
+
 plt.show()
-
-
-# ## batch size sweep loss history ##
-# fig, ax = plt.subplots(figsize=config.figsize)
-# batch_sizes = [64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]
-# for bs in batch_sizes:
-#     bs_tag = str(bs)
-#     model_dict = torch.load("results/models/mdn/batch_size/mdn_H2_b{bs_tag}.pth")
-#     val_loss_history = model_dict["val_loss_history"]
-#     ax.plot(val_loss_history, label="Validation Loss")
-# ax.set_xlabel(
-#     "Epoch",
-#     fontsize=config.label_fontsize,
-#     fontweight=config.label_fontweight,
-# )
-# ax.set_ylabel(
-#     "Loss",
-#     fontsize=config.label_fontsize,
-#     fontweight=config.label_fontweight,
-# )
-# ax.legend(fontsize=config.legend_fontsize)
-# fig.tight_layout()
-# fig.savefig("results/plots/mdn_batch_size_loss_history.png", dpi=300)
-#
-#
-# ## H2 scatterplot of CTC and MDN predictions ##
-# fig, ax = plt.subplots(figsizse=(2 * (config.figsize[0]), config.figsize[1]))
-# ctc_data = load_dataset(
-#     "data/ctc/H2/impactparam/H2_collisions_b1_0_uniform_Erelmax10000_ncoll1000000_seed42.npy"
-# )
-# ctc_out = ctc_data[:,1]
-#
-# datasets = {
-#     "inputs":
-#     "CTC": ctc_data,
-#     "MDN": "results/datasets/mdn/H2/impactparam/H2_collisions_b1_5_uniform_Erelmax10000_ncoll1000000_seed42.npy",
-# }
