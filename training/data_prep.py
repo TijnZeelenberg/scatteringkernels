@@ -19,6 +19,7 @@ Energies are stored in CTC datasets as E / k_B in Kelvin (see the numba
 generator in `ctc_adjusted/`).
 """
 
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -49,22 +50,6 @@ def load_collision_dataset(datapath: str | Path):
             f"(Etr, Erot1, Erot2, Etr', Erot1', Erot2'), got {data.shape[1]}"
         )
     return data
-
-
-def time_reverse_augment(data: np.ndarray) -> np.ndarray:
-    """Augment a CTC collision dataset with its time-reversed counterpart.
-
-    Classical CTC dynamics are time-reversal symmetric: every recorded
-    transition (E_tr, E_rot1, E_rot2) → (E_tr', E_rot1', E_rot2') is matched
-    by an equally valid reverse trajectory (E_tr', E_rot1', E_rot2') →
-    (E_tr, E_rot1, E_rot2). Stacking both directions into the training set
-    forces the MDN to learn a kernel that respects detailed balance — which a
-    vanilla NLL-trained MDN otherwise breaks, producing the equipartition
-    bias we see in DSMC relaxation experiments. Bonus: doubles the effective
-    sample count.
-    """
-    reversed_data = np.concatenate([data[:, 3:6], data[:, 0:3]], axis=1)
-    return np.concatenate([data, reversed_data], axis=0)
 
 
 def polynomial_weight(data: np.ndarray, wf: float) -> np.ndarray:
@@ -112,19 +97,12 @@ def prepare_training_tensors(
 def load_and_prepare(
     datapath: str | Path,
     wf: float | None = None,
-    augment: bool = True,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, np.ndarray]:
     """Convenience: load + convert in one step. Also returns the raw array.
 
     When `wf` is None (default), training uses an unweighted loss. Pass a
     float to apply polynomial importance weighting w_i ∝ E_trans,i**wf.
-    When `augment=True` (default), the dataset is doubled with time-reversed
-    collisions — see `time_reverse_augment`.
     """
     raw = load_collision_dataset(datapath)
-    if augment:
-        raw_orig_n = len(raw)
-        raw = time_reverse_augment(raw)
-        print(f"Time-reversal augmentation: {raw_orig_n} -> {len(raw)} rows")
     X, y, weights = prepare_training_tensors(raw, wf=wf)
     return X, y, weights, raw
