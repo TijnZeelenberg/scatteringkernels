@@ -50,12 +50,9 @@ PROGRAM Omega_O2
   READ(1,*)seme
   READ(1,*)h
   !
-  ! Sampling aligned with h2_ctc/ctc.py (uniform mode): relative translational
-  ! energy uniform in [0, Etr_max] in the COM frame (v_COM=0, head-on);
-  ! per-molecule rotational energy uniform in [0, Erot_max].
-  Etr_max = kb*2000.0D0
+  Etr_max = kb*10000.0D0
   Erot_min = 0.0D0
-  Erot_max = kb*2000.0D0/2
+  Erot_max = kb*10000.0D0/2
 
   !
   dens0=P0/(kb*T0)
