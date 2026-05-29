@@ -19,5 +19,6 @@ module load LAMMPS/29Aug2024_update2-foss-2024a-kokkos
 
 echo "Working directory: $(pwd)"
 
-# Run LAMMPS H2 relaxation simulation
-lmp <scatteringkernels/lammps/in.h2relaxation
+# Run from lammps/ so relative paths in the input file (h2_init.data, output/) resolve correctly
+cd lammps
+lmp < in.h2relaxation

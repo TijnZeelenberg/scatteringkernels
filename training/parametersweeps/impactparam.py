@@ -16,7 +16,6 @@ import paths
 # Sweep settings — must match ctc_adjusted/ctc_h2_impactparamsweep.py
 # ---------------------------------------------------------------------------
 bfac_sweep = [
-    1.6,
     1.7,
     1.8,
 ]  # impact-parameter sweep values
@@ -32,7 +31,7 @@ for bfac in tqdm(bfac_sweep, desc="bfac sweep", unit="model"):
     bfac_tag = str(bfac).replace(".", "_")
     dataset = (
         paths.DATA_DIR
-        / "ctc/H2/impactparam"
+        / "ctc/H2/impactparam/Erelmax10000"
         / f"H2_collisions_b{bfac_tag}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
     )
 
