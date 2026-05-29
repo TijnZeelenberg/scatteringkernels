@@ -5,9 +5,9 @@
 #prop3 = rotational degrees of freedom (integer, unitless)
 #prop4 = inverse rotational relaxtion number (unitless)
 #prop5 = vibrational degrees of freedom (integer, unitless)
-#prop6 = inverse vibrational relaxation number (unitless)
+#prop6 = inverse vibrational relaxation number (unitless) (from Bird 1994)
 #prop7 = vibrational temperature (temperature units)
 #prop8 = species weight (unitless)
 #prop9 = multiple of electon charge (1 for a proton)
 
-O2  31.998  5.314e-26  2  0.17  0  0.0  0.0  1.0  0.0
+O2  31.998  5.314e-26  2  1.00  0  0.0  0.0  1.0  0.0

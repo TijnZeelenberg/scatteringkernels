@@ -5,14 +5,15 @@ units               si
 
 ### Problem definition ###
 boundary            p p p # periodic boundaries in all directions
-create_box          -0.00000375 0.00000375 -0.00000375 0.00000375 -0.00000375 0.00000375
-create_grid         10 10 10
-species             o2.species O2
+variable            L equal 100e-9 # [m] box length
+create_box          -${L}/2 ${L}/2 -${L}/2 ${L}/2 -${L}/2 ${L}/2
+create_grid         5 5 5
+species             h2.species H2
 global              fnum 1  # Use 1 molecule per particle
-mixture             gas O2 vstream 0.0 0.0 0.0 temp 300 trot 100
+mixture             gas H2 vstream 0.0 0.0 0.0 temp 300 trot 100
 
 ### Settings ###
-collide             vss gas o2.vhs
+collide             vss gas h2.vhs
 collide_modify      rotate smooth vibrate no # enable rotational energy, disable vibrational energy
 
 create_particles    gas n 20000 twopass
@@ -27,10 +28,11 @@ variable            T_trans equal c_2 # rename for clarity
 variable            T_rot equal c_3 # rename for clarity
 variable            sim_time equal time # turn simulation time into a variable for output
 
-fix                 1 ave/time 100 1 100 v_sim_time v_T_trans v_T_rot file ../../scatteringkernels/data/sparta_O2_energy_relaxation.dat
+# Put your preffered output filepath at the end here
+fix                 1 ave/time 1 1 1 v_sim_time v_T_trans v_T_rot file ../data/sparta/h2_energy_relaxation.dat
 
 ### Actions ###
-timestep           1.0e-7
-stats              100 
+timestep           1.0e-12
+stats              10
 stats_style        step ncoll time v_T_trans v_T_rot v_total_temp
-run                20000
+run                1000

@@ -48,4 +48,4 @@ fix dumpinfo all print 1000 "$(step) $(time) $(v_Ttrans) $(c_Trot)" file output/
 
 ### Run ###
 timestep 1.0e-15
-run      1000000
+run      2000000
