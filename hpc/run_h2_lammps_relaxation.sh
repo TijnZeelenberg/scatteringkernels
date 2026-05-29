@@ -24,7 +24,7 @@ echo "MPI tasks: $SLURM_NTASKS, threads/task: $SLURM_CPUS_PER_TASK"
 
 cd lammps
 mpirun -np "$SLURM_NTASKS" lmp \
-    -k on t "$SLURM_CPUS_PER_TASK" \
-    -sf kk \
-    -pk kokkos newton on neigh half \
-    < in.h2relaxation
+  -k on t "$SLURM_CPUS_PER_TASK" \
+  -sf kk \
+  -pk kokkos newton on neigh half \
+  <in.h2relaxation

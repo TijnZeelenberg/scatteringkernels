@@ -11,12 +11,12 @@ from experiments.energy_relaxation import SimulationParams, run_relaxation
 from physics.borgnakkelarssen_model import borgnakke_larssen_model
 from physics.species import Species
 
-OUTPUT_PATH = "data/ml-dsmc/BL/bl_H2_energy_relaxation.dat"
+OUTPUT_PATH = "data/ml-dsmc/BL/h2_energy_relaxation.dat"
 
 
 def main(
     output_path: str = OUTPUT_PATH,
-    nr_steps: int = 150,
+    nr_steps: int = 250,
     randomseed: int = 1,
     d: float = 10.1e-10,
     zrot_bl: float = 5.0,
@@ -40,12 +40,14 @@ def main(
     stats = run_relaxation(species, model, params=params)
 
     steps = np.arange(nr_steps)
-    data = np.column_stack([
-        steps,
-        stats["timestep"],
-        stats["T_trans_mean"],
-        stats["T_rot_mean"],
-    ])
+    data = np.column_stack(
+        [
+            steps,
+            stats["timestep"],
+            stats["T_trans_mean"],
+            stats["T_rot_mean"],
+        ]
+    )
 
     out = paths.ensure_parent(output_path)
     np.savetxt(

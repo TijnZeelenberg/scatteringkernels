@@ -21,7 +21,7 @@ bfac_sweep = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
 for bfac in bfac_sweep:
     bfac_tag = str(bfac).replace(".", "_")
     model_dict = torch.load(
-        f"results/models/mdn/impactparam/Erelmax10000/mdn_H2_b{bfac_tag}.pth"
+        f"results/models/mdn/impactparam/Erelmax10000/mdn_O2_b{bfac_tag}.pth"
     )
     val_loss_history = model_dict["val_loss_history"]
     ax.plot(val_loss_history, label=f"$b_{{fac}}={bfac}$")

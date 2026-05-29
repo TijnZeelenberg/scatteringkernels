@@ -10,4 +10,4 @@
 #prop8 = species weight (unitless)
 #prop9 = multiple of electon charge (1 for a proton)
 
-H2  2.016  3.347e-27  2  0.2  0  0.0  0.0  1.0  0.0
+H2  2.016  3.347e-27  2  1.0  0  0.0  0.0  1.0  0.0

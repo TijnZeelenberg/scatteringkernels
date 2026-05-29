@@ -35,4 +35,4 @@ fix                 1 ave/time 1 1 1 v_sim_time v_T_trans v_T_rot file ../data/s
 timestep           1.0e-12
 stats              10
 stats_style        step ncoll time v_T_trans v_T_rot v_total_temp
-run                1000
+run                2500
