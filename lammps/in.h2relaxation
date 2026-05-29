@@ -43,8 +43,8 @@ fix myintegrator all rigid/small molecule
 thermo 1000
 thermo_style custom step v_Ttrans c_Trot c_Ttot ke etotal
 thermo_modify lost warn
-fix dumpinfo all print 1000 "$(step) $(time) $(v_Ttrans) $(c_Trot)" file output/lammps_H2_energy_relaxation.dat screen no title "timestep simtime Ttrans Trot"
+fix dumpinfo all print 1000 "$(step) $(time) $(v_Ttrans) $(c_Trot)" file ../data/lammps/h2_energy_relaxation.dat screen no title "timestep simtime Ttrans Trot"
 
 ### Run ###
 timestep 1.0e-15
-run      1000000
+run      2500000
