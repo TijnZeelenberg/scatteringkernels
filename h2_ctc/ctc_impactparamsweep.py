@@ -25,17 +25,9 @@ _nstep = int(2e-12 / _dt)  # max integration steps
 # ---------------------------------------------------------------------------
 ncoll = 1000000  # number of collisions to simulate
 seed = 42
-E_rel_max = 6000.0  # upper cap [K]
+E_rel_max = 10000.0  # upper cap [K]
 Erotmax = E_rel_max / 2  # max initial rotational energy [K]
-bfac_sweep = [
-    1.0,
-    1.1,
-    1.2,
-    1.3,
-    1.4,
-    1.5,
-    1.6,
-]  # impact-parameter sweep values
+bfac_sweep = [1.6, 1.7, 1.8]  # impact-parameter sweep values
 
 
 # ---------------------------------------------------------------------------
@@ -384,7 +376,7 @@ if __name__ == "__main__":
         bfac_tag = str(bfac).replace(".", "_")
         savefile = paths.ensure_parent(
             paths.DATA_DIR
-            / "ctc/H2/impactparam/Erelmax6000"
+            / "ctc/H2/impactparam/Erelmax10000"
             / f"H2_collisions_b{bfac_tag}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
         )
         np.save(savefile, df.to_numpy())

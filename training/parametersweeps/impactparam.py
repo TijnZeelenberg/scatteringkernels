@@ -16,19 +16,15 @@ import paths
 # Sweep settings — must match ctc_adjusted/ctc_h2_impactparamsweep.py
 # ---------------------------------------------------------------------------
 bfac_sweep = [
-    1.0,
-    1.1,
-    1.2,
-    1.3,
-    1.4,
-    1.5,
     1.6,
+    1.7,
+    1.8,
 ]  # impact-parameter sweep values
 ncoll = 1000000
 seed = 42
-dist_tag = "uniform_Erelmax6000"  # distribution tag
+dist_tag = "uniform_Erelmax10000"  # distribution tag
 
-OUTPUT_DIR = paths.ensure_dir(paths.MDN_DIR / "impactparam")
+OUTPUT_DIR = paths.ensure_dir(paths.MDN_DIR / "impactparam/Erelmax10000")
 
 config = ExperimentConfig()
 

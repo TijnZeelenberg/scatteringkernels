@@ -22,10 +22,10 @@ bfac = config.bfac
 bfac_tag = str(bfac).replace(".", "_")
 dataset = (
     paths.DATA_DIR
-    / "ctc/H2/impactparam"
+    / "ctc/H2/impactparam/Erelmax10000"
     / f"H2_collisions_b{bfac_tag}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
 )
-OUTPUT_DIR = paths.MDN_DIR / "batch_size"
+OUTPUT_DIR = paths.MDN_DIR / "batch_size/Erelmax10000"
 
 for bs in batch_sizes:
     bs_tag = str(bs)
