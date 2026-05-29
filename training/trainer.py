@@ -14,9 +14,9 @@ __all__ = ["train_mdn"]
 if __name__ == "__main__":
     datapath = (
         paths.DATA_DIR
-        / "ctc/H2/impactparam/H2_collisions_b1_55_uniform_Erelmax2000_ncoll1000000_seed42.npy"
+        / "ctc/H2/impactparam/Erelmax6000/H2_collisions_b1_5_uniform_Erelmax6000_ncoll1000000_seed42.npy"
     )
-    outputpath = paths.model_path("mdn", "mdn_H2_b1_55_bs10000Erelmax2000.pth")
+    outputpath = paths.model_path("mdn", "mdn_H2_b1_5_bs10000Erelmax6000.pth")
     train_mdn(
         datapath=str(datapath),
         outputpath=str(outputpath),

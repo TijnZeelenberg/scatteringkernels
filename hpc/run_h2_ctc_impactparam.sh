@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=impactparam
+#SBATCH --job-name=b_ctc
 #SBATCH --partition=mech.pf-student.q        # verify with: sinfo
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem-per-cpu=2gb
 #SBATCH --time=04:00:00
-#SBATCH --output=hpc/logs/%j.out
-#SBATCH --error=hpc/logs/%j.err
+#SBATCH --output=hpc/logs/%x%j.out
+#SBATCH --error=hpc/logs/%x%j.err
 #SBATCH --chdir=/home/20193567/scatteringkernels
 
 # Set bash options for better error handling
