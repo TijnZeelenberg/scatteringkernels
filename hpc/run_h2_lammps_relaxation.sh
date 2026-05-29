@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=h2_lammps_relax
-#SBATCH --partition=tue.cpu1.q        # verify with: sinfo
+#SBATCH --partition=mech.pf-student.q        # verify with: sinfo
 #SBATCH --nodes=1
 #SBATCH --ntasks=4
 #SBATCH --cpus-per-task=4
