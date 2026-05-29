@@ -26,3 +26,5 @@ todo.md
 
 # ignore build files
 *.mod
+fort.16
+tprops_O2
