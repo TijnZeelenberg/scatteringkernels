@@ -20,7 +20,7 @@ from experiments.energy_relaxation import (
 from dataclasses import replace
 from physics.species import Species
 
-MDN_CONVERGENT = "results/models/mdn/mdn_H2_b1_55_bs10000Erelmax2000.pth"
+MDN_CONVERGENT = "results/models/mdn/impactparam/Erelmax6000/mdn_H2_b1_5.pth"
 
 
 def main(
@@ -29,7 +29,7 @@ def main(
     lammps_path: str = "data/lammps/lammps_H2_energy_relaxation.dat",
     bl_path="data/ml-dsmc/BL/bl_H2_energy_relaxation.dat",
     output_path: str | None = None,
-    nr_steps: int = 150,
+    nr_steps: int = 250,
     randomseed: int = 1,
     d=10.1e-10,
     zrot_bl=5.0,
