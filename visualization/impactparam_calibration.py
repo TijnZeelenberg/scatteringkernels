@@ -14,9 +14,9 @@ import paths
 from config.plotting_config import PlottingConfig
 
 BFAC_VALUES = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
-DATA_DIR = paths.DATA_DIR / "ctc/H2/impactparam/bmax"
+DATA_DIR = paths.DATA_DIR / "ctc/H2/impactparam/Erelmax10000"
 FNAME_TEMPLATE = "H2_collisions_b{tag}_uniform_Erelmax10000_ncoll1000000_seed42.npy"
-THRESHOLD = 0.01
+THRESHOLD = 0.1
 
 frac_near_elastic = []
 for bfac in BFAC_VALUES:

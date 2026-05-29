@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 import torch
 from config.plotting_config import PlottingConfig
 from config.experiment_config import ExperimentConfig
-from experiments.energy_relaxation import load_mdn
+from experiments.energy_relaxation import load_mdn, run_relaxation, SimulationParams
+from physics.species import Species
+from dataclasses import replace
 from visualization.plot import plot_density_scatter
 from utils.helpers import load_dataset
 
@@ -16,7 +18,9 @@ fig, ax = plt.subplots(figsize=plotconfig.figsize)
 bfac_sweep = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
 for bfac in bfac_sweep:
     bfac_tag = str(bfac).replace(".", "_")
-    model_dict = torch.load(f"results/models/mdn/impactparam/mdn_H2_b{bfac_tag}.pth")
+    model_dict = torch.load(
+        f"results/models/mdn/impactparam/Erelmax10000/mdn_H2_b{bfac_tag}.pth"
+    )
     val_loss_history = model_dict["val_loss_history"]
     ax.plot(val_loss_history, label=f"$b_{{fac}}={bfac}$")
 ax.set_xlabel(
@@ -36,7 +40,7 @@ fig.savefig("results/plots/report/mdn_impactparam_loss_history.png", dpi=300)
 
 ## batch size sweep loss history ##
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
-batch_sizes = [128, 256, 512, 1024, 2048, 4096, 8192, 10000, 16384]
+batch_sizes = [1000, 2000, 5000, 10000, 12500, 15625]
 for bs in batch_sizes:
     bs_tag = str(bs)
     print(f"Loading model with batch size {bs}...")
@@ -57,10 +61,40 @@ ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.tight_layout()
 fig.savefig("results/plots/report/mdn_batch_size_loss_history.png", dpi=300)
 
+## Perform relaxation comparison between batch_size models
+fig, ax = plt.subplots(figsize=plotconfig.figsize)
+for bs in batch_sizes:
+    bs_tag = str(bs)
+    print(f"Loading model with batch size {bs}...")
+    mdn = load_mdn(
+        f"results/models/mdn/batch_size/mdn_H2_b{bs_tag}.pth",
+        randomseed=experimentconfig.random_seed,
+    )
+    species = replace(
+        Species.H2(),
+        diameter=10.1e-10,
+        zrot_bl=5.0,
+        zrot_mdn=5.0 / 2.5,
+    )
+    params = SimulationParams(
+        nr_steps=150,
+        trans_temperature=300.0,
+        rot_temperature=100.0,
+        randomseed=42,
+        grid_cells=(5, 5, 5),
+        box_size=1.0e-7,
+        dt=1.0e-11,
+    )
+    stats = run_relaxation(species=species, collision_model=mdn, params=params)
+    ax.plot(stats["timestep"], stats["T_rot_mean"])
+ax.set_xlabel("Time [$s$]", fontsize=plotconfig.label_fontsize)
+ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize)
 
 ################ H2 scatterplot of CTC and MDN predictions ##
-mdn_path = "results/models/mdn/impactparam/mdn_H2_b1_5.pth"
-fig, ax = plt.subplots(figsize=(2 * (plotconfig.figsize[0]), plotconfig.figsize[1]))
+mdn_path = "results/models/mdn/impactparam/Erelmax10000/mdn_H2_b1_5.pth"
+fig, ax = plt.subplots(
+    2, 2, figsize=(2 * (plotconfig.figsize[0]), 2 * plotconfig.figsize[1])
+)
 datafile = "data/ctc/H2/impactparam/Erelmax10000/H2_collisions_b1_5_uniform_Erelmax10000_ncoll1000000_seed42.npy"
 
 data = load_dataset(datafile, rows=experimentconfig.num_samples)
@@ -89,7 +123,7 @@ bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
 for bfac in bfac_sweep:
     tag = str(bfac).replace(".", "_")
     data = np.load(
-        f"data/ctc/H2/impactparam/H2_collisions_b{tag}_uniform_Erelmax10000_ncoll1000000_seed42.npy"
+        f"data/ctc/H2/impactparam/Erelmax10000/H2_collisions_b{tag}_uniform_Erelmax10000_ncoll1000000_seed42.npy"
     )
 
     E_c_pre = data[:, 0] + data[:, 1] + data[:, 2]

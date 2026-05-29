@@ -7,7 +7,7 @@ class PlottingConfig:
         self.label_fontsize = 12
         self.label_fontweight = "normal"
         self.legend_fontsize = 10
-        self.title_fontsize = 24
+        self.title_fontsize = 18
         self.title_fontweight = "bold"
 
         # scatter plot settings
@@ -19,4 +19,3 @@ class PlottingConfig:
         self.bin_count = 50
         self.hist_density = True
         self.hist_alpha = 0.3
-
