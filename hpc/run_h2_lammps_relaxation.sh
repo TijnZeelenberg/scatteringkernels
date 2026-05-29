@@ -2,23 +2,29 @@
 #SBATCH --job-name=h2_lammps_relax
 #SBATCH --partition=tue.cpu1.q        # verify with: sinfo
 #SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
+#SBATCH --ntasks=4
+#SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=2gb
 #SBATCH --time=04:00:00
 #SBATCH --output=hpc/logs/%x%j.out
 #SBATCH --error=hpc/logs/%x%j.err
 #SBATCH --chdir=/home/20193567/scatteringkernels
 
-# Set bash options for better error handling
 set -euo pipefail
 
-# Set environment
 module purge
 module load LAMMPS/29Aug2024_update2-foss-2024a-kokkos
 
-echo "Working directory: $(pwd)"
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_PROC_BIND=spread
+export OMP_PLACES=threads
 
-# Run from lammps/ so relative paths in the input file (h2_init.data, output/) resolve correctly
+echo "Working directory: $(pwd)"
+echo "MPI tasks: $SLURM_NTASKS, threads/task: $SLURM_CPUS_PER_TASK"
+
 cd lammps
-lmp < in.h2relaxation
+mpirun -np "$SLURM_NTASKS" lmp \
+    -k on t "$SLURM_CPUS_PER_TASK" \
+    -sf kk \
+    -pk kokkos newton on neigh half \
+    < in.h2relaxation
