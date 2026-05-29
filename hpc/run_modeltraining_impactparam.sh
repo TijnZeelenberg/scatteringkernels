@@ -11,7 +11,7 @@
 #SBATCH --output=hpc/logs/%j.out
 #SBATCH --error=hpc/logs/%j.err
 #SBATCH --chdir=/home/20193567/scatteringkernels
-#SBATCH --dependency=afterok:JOBID_H2_IMPACTPARAM
+#SBATCH --dependency=afterany:5564367
 
 # Set bash options for better error handling
 set -euo pipefail

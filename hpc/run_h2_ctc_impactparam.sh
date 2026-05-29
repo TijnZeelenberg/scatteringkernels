@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=b_ctc
-#SBATCH --partition=mech.pf-student.q        # verify with: sinfo
+#SBATCH --partition=tue.cpu1.q        # verify with: sinfo
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
