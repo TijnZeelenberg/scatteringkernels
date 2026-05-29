@@ -15,7 +15,7 @@ experimentconfig = ExperimentConfig()
 ## impact parameter sweep loss history ##
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
 
-bfac_sweep = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+bfac_sweep = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
 for bfac in bfac_sweep:
     bfac_tag = str(bfac).replace(".", "_")
     model_dict = torch.load(
@@ -38,13 +38,15 @@ fig.tight_layout()
 fig.savefig("results/plots/report/mdn_impactparam_loss_history.png", dpi=300)
 
 
-## batch size sweep loss history ##
+# ## batch size sweep loss history ##
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
 batch_sizes = [1000, 2000, 5000, 10000, 12500, 15625]
 for bs in batch_sizes:
     bs_tag = str(bs)
     print(f"Loading model with batch size {bs}...")
-    model_dict = torch.load(f"results/models/mdn/batch_size/mdn_H2_b{bs_tag}.pth")
+    model_dict = torch.load(
+        f"results/models/mdn/batch_size/Erelmax10000/mdn_H2_b{bs_tag}.pth"
+    )
     val_loss_history = model_dict["val_loss_history"]
     ax.plot(val_loss_history, label="batch size = " + bs_tag)
 ax.set_xlabel(
@@ -61,13 +63,16 @@ ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.tight_layout()
 fig.savefig("results/plots/report/mdn_batch_size_loss_history.png", dpi=300)
 
+
 ## Perform relaxation comparison between batch_size models
+nr_steps = 150
+dt = 1.0e-11
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
 for bs in batch_sizes:
     bs_tag = str(bs)
     print(f"Loading model with batch size {bs}...")
     mdn = load_mdn(
-        f"results/models/mdn/batch_size/mdn_H2_b{bs_tag}.pth",
+        f"results/models/mdn/batch_size/Erelmax10000/mdn_H2_b{bs_tag}.pth",
         randomseed=experimentconfig.random_seed,
     )
     species = replace(
@@ -77,16 +82,24 @@ for bs in batch_sizes:
         zrot_mdn=5.0 / 2.5,
     )
     params = SimulationParams(
-        nr_steps=150,
+        nr_steps=nr_steps,
         trans_temperature=300.0,
         rot_temperature=100.0,
         randomseed=42,
         grid_cells=(5, 5, 5),
         box_size=1.0e-7,
-        dt=1.0e-11,
+        dt=dt,
     )
     stats = run_relaxation(species=species, collision_model=mdn, params=params)
     ax.plot(stats["timestep"], stats["T_rot_mean"])
+ax.hlines(
+    220.0,
+    xmin=0,
+    xmax=nr_steps * dt,
+    color="black",
+    linestyle="--",
+    label="Equilibrium $T_{rot}$",
+)
 ax.set_xlabel("Time [$s$]", fontsize=plotconfig.label_fontsize)
 ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize)
 
