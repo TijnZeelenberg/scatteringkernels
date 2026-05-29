@@ -11,11 +11,10 @@ newton on
 read_data o2_init.data
 
 ### Force field ###
-# LJ parameters from o2_ctc/Sources/Molprops.f90 (O2-O2 isotropic well):
-#   eps = 11.7e-3 eV = 1.875e-21 J,  Rm = 3.90e-10 m
-#   sigma = Rm / 2^(1/6) = 3.474e-10 m
+# 2-center LJ O-O atom parameters from Vrabec, Stoll & Hasse, J. Phys. Chem. B 105, 12126 (2001):
+#   eps/k_B = 49.60 K -> eps = 6.85e-22 J,  sigma = 3.006e-10 m
 pair_style lj/cut 1.0e-9
-pair_coeff 1 1 1.875e-21 3.474e-10
+pair_coeff 1 1 6.85e-22 3.006e-10
 special_bonds lj 0.0 0.0 0.0
 bond_style zero
 bond_coeff 1 1.2075e-10
