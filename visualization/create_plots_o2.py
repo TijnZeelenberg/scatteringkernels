@@ -9,13 +9,15 @@ from dataclasses import replace
 from visualization.plot import plot_density_scatter
 from utils.helpers import load_dataset
 
+# FIX: this is currently a copy of create_plots_h2.py, but should be updated to reflect the O2 datasets and models once those are available. The structure of the plots should be similar, but the specific paths and parameters may need to be adjusted.
+
 plotconfig = PlottingConfig()
 experimentconfig = ExperimentConfig()
 
 ## impact parameter sweep loss history ##
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
 
-bfac_sweep = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
+bfac_sweep = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
 for bfac in bfac_sweep:
     bfac_tag = str(bfac).replace(".", "_")
     model_dict = torch.load(

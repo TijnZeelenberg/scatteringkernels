@@ -1,4 +1,4 @@
-"""Train one MDN per impact-parameter value from the bfac sweep datasets.
+"""Train an mdn for each batch size in the batch size sweep.
 
 Reads datasets produced by ctc_adjusted/ctc_h2_impactparamsweep.py and trains
 a standard MDN (config from ExperimentConfig) for each bfac value.
