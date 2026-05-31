@@ -1,8 +1,8 @@
 # VSS collision model parameters for each species
 
 # diameter (m)
-# omega
+# omega (= 0.77 for O2 at 273 K (Bird 1994))
 # tref
 # alpha (setting it to 1 results in the vhs model)
 
-O2  4.07e-10  0.77  300.0  1.00
+O2  4.07e-10  0.77  273.0  1.00

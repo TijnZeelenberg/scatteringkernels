@@ -32,7 +32,7 @@ class Species:
 
     @classmethod
     def H2(cls) -> "Species":
-        zrot_bl = 76
+        zrot_bl = 1
         return cls(
             name="H2",
             mass=2.016e-3 / _AVOGADRO,
