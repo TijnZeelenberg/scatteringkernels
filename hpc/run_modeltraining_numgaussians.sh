@@ -1,17 +1,16 @@
 #!/bin/bash
 
-#SBATCH --job-name=impactparam
+#SBATCH --job-name=ng_modeltraining
 #SBATCH --partition=tue.gpu.q         # Choose a partition that has GPUs
 #SBATCH --time=16:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=10G                     # request enough RAM for the job
+#SBATCH --mem=32G                     # request enough RAM for the job
 #SBATCH --gpus=1                      # This is how to request a GPU
 #SBATCH --output=hpc/logs/%x%j.out
 #SBATCH --error=hpc/logs/%x%j.err
 #SBATCH --chdir=/home/20193567/scatteringkernels
-#SBATCH --dependency=afterany:5564367
 
 # Set bash options for better error handling
 set -euo pipefail
@@ -23,4 +22,4 @@ module load uv
 source .venv/bin/activate
 
 # Execute the script or command
-uv run python -m training.parametersweeps.impactparamsweep
+uv run python -m training.parametersweeps.num_gaussians

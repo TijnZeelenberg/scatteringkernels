@@ -43,7 +43,7 @@ for bfac in tqdm(bfac_sweep, desc="bfac sweep", unit="model"):
         kind="mdn",
         datapath=dataset,
         outputpath=outputpath,
-        epochs=2,
+        epochs=config.num_epochs,
         batch_size=config.batch_size,
         lr=config.learning_rate,
         wf=None,
