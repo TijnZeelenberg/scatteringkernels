@@ -20,7 +20,7 @@ from experiments.energy_relaxation import (
 from dataclasses import replace
 from physics.species import Species
 
-MDN_CONVERGENT = "results/h2/models/mdn/impactparam/Erelmax10000/mdn_H2_b1_6.pth"
+MDN_CONVERGENT = "results/h2/models/mdn/best_model_mdn_H2_bs2000_bmax1_6.pth"
 
 
 def main(
@@ -29,27 +29,10 @@ def main(
     lammps_path: str = "data/lammps/h2_energy_relaxation.dat",
     bl_path="data/ml-dsmc/bl/h2_energy_relaxation.dat",
     output_path: str | None = None,
-    nr_steps: int = 250,
     randomseed: int = 1,
-    d=10.1e-10,
-    zrot_bl=1.0,
-    zrot_mdn=1.0,
 ):
-    species = replace(
-        Species.H2(),
-        diameter=d,
-        zrot_bl=zrot_bl,
-        zrot_mdn=zrot_mdn,
-    )
-    params = SimulationParams(
-        nr_steps=nr_steps,
-        trans_temperature=300.0,
-        rot_temperature=100.0,
-        randomseed=randomseed,
-        grid_cells=(5, 5, 5),
-        box_size=1.0e-7,
-        dt=1.0e-11,
-    )
+    species = Species.H2()
+    params = SimulationParams(nr_steps=250)
 
     model_tag = Path(mdn_model_path).stem  # e.g. mdn_H2_wf7
 
