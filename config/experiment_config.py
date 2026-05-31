@@ -16,7 +16,7 @@ class ExperimentConfig:
         # MDN settings
         # Training parameters
         self.learning_rate = 1.00e-04
-        self.batch_size = 10000
+        self.batch_size = 2000
         self.num_epochs = 200
         self.trainval_split = 0.7
         self.shuffle = True
