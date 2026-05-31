@@ -3,14 +3,61 @@ import matplotlib.pyplot as plt
 import torch
 from config.plotting_config import PlottingConfig
 from config.experiment_config import ExperimentConfig
-from experiments.energy_relaxation import load_mdn, run_relaxation, SimulationParams
-from physics.species import Species
-from dataclasses import replace
+from experiments.energy_relaxation import load_mdn
 from visualization.plot import plot_density_scatter
 from utils.helpers import load_dataset
 
 plotconfig = PlottingConfig()
 experimentconfig = ExperimentConfig()
+
+best_model_path = "results/h2/models/mdn/impactparam/Erelmax10000/mdn_H2_b1_5.pth"
+
+## DSMC validation relaxation comparison ##
+fig, axes = plt.subplots(
+    1, 2, figsize=(2 * plotconfig.figsize[0], plotconfig.figsize[1])
+)
+
+sparta = np.loadtxt("data/sparta/h2_energy_relaxation.dat")
+lammps = np.loadtxt("data/lammps/h2_energy_relaxation.dat", skiprows=1)
+bl = np.loadtxt("data/ml-dsmc/bl/h2_energy_relaxation.dat", skiprows=1)
+
+# Convert time to nanoseconds
+sparta_t = sparta[:, 1] * 1e9
+lammps_t = lammps[:, 1] * 1e9
+bl_t = bl[:, 1] * 1e9
+
+sources = [
+    (lammps_t, lammps[:, 2], lammps[:, 3], "MD (LAMMPS)"),
+    (sparta_t, sparta[:, 2], sparta[:, 3], "SPARTA (BL)"),
+    (bl_t, bl[:, 2], bl[:, 3], "ml-DSMC (BL)"),
+]
+
+for t, T_trans, T_rot, label in sources:
+    axes[0].plot(t, T_trans, label=label)
+    axes[1].plot(t, T_rot, label=label)
+
+for ax, title, ylabel in zip(
+    axes,
+    ["Translational Temperature", "Rotational Temperature"],
+    ["$T_{trans}$ [K]", "$T_{rot}$ [K]"],
+):
+    ax.set_xlabel(
+        "Time [ns]",
+        fontsize=plotconfig.label_fontsize,
+        fontweight=plotconfig.label_fontweight,
+    )
+    ax.set_ylabel(
+        ylabel,
+        fontsize=plotconfig.label_fontsize,
+        fontweight=plotconfig.label_fontweight,
+    )
+    ax.set_title(title, fontsize=plotconfig.label_fontsize)
+    ax.legend(fontsize=plotconfig.legend_fontsize)
+    ax.grid()
+
+fig.tight_layout()
+fig.savefig("results/h2/plots/report/dsmc_validation_relaxation.png", dpi=300)
+
 
 ## impact parameter sweep loss history ##
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
@@ -64,7 +111,7 @@ fig.savefig("results/h2/plots/report/mdn_batch_size_loss_history.png", dpi=300)
 
 
 ################ H2 scatterplot of CTC and MDN predictions ##
-mdn_path = "results/h2/models/mdn/impactparam/Erelmax10000/mdn_H2_b1_5.pth"
+mdn_path = best_model_path
 fig, ax = plt.subplots(
     2, 2, figsize=(2 * (plotconfig.figsize[0]), 2 * plotconfig.figsize[1])
 )
@@ -83,6 +130,12 @@ datasets = {
     "MDN": mdn_samples,
 }
 plot_density_scatter(ax, datasets=datasets)
+fig.tight_layout()
+
+for row in ax:
+    for a in row:
+        a.set_xlim(0, 1)
+        a.set_ylim(0, 1)
 
 
 ## impact parameter Delta_trans binned average ##

@@ -11,8 +11,8 @@ class PlottingConfig:
         self.title_fontweight = "bold"
 
         # scatter plot settings
-        self.scatter_point_size = 20
-        self.scatter_alpha = 0.7
+        self.scatter_point_size = 1
+        self.scatter_alpha = 0.3
         self.scatter_cmap = "viridis"
 
         # histogram settings
