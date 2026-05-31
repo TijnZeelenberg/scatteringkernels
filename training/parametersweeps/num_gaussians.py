@@ -22,7 +22,7 @@ bfac_tag = str(config.bfac).replace(".", "_")
 dataset = (
     paths.DATA_DIR
     / "ctc/H2/impactparam/Erelmax10000"
-    / f"H2_collisions_b{bfac_tag}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
+    / f"h2_collisions_b{bfac_tag}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
 )
 OUTPUT_DIR = paths.MDN_DIR / "num_gaussians"
 
