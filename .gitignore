@@ -28,3 +28,7 @@ todo.md
 *.mod
 fort.16
 tprops_O2
+
+# Ignore logs
+log.sparta
+log.lammps
