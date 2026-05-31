@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=ng_modeltraining
-#SBATCH --partition=tue.gpu.q         # Choose a partition that is free
+#SBATCH --partition=tue.gpu1.q         # Choose a partition that is free
 #SBATCH --time=16:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1

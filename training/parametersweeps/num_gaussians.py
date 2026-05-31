@@ -19,7 +19,7 @@ bfac_tag = str(config.bfac_o2).replace(".", "_")
 dataset = (
     paths.DATA_DIR
     / "ctc/o2/impactparam/Erelmax10000"
-    / f"O2_collisions_bmax{bfac_tag}.npy"
+    / f"O2_collisions_uniform_bmax{bfac_tag}.npy"
 )
 OUTPUT_DIR = paths.O2_MDN_DIR / "num_gaussians"
 
