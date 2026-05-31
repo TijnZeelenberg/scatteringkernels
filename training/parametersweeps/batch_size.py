@@ -1,9 +1,9 @@
 """Train an mdn for each batch size in the batch size sweep.
 
-Reads datasets produced by ctc_adjusted/ctc_h2_impactparamsweep.py and trains
-a standard MDN (config from ExperimentConfig) for each bfac value.
+Reads datasets produced by ctc_adjusted/ctc_o2_impactparamsweep.py and trains
+a standard MDN (config from ExperimentConfig) for each batch size value.
 
-Output: results/models/mdn/impactparam/mdn_H2_b{bfac_tag}.pth
+Output: results/models/mdn/batch_size/o2/Erelmax10000/mdn_O2_b{bs_tag}.pth
 """
 
 from config.experiment_config import ExperimentConfig
@@ -14,23 +14,19 @@ config = ExperimentConfig()
 
 # Sweep settings
 batch_sizes = [1000, 2000, 5000, 10000, 12500, 15625]
-ncoll = 1000000
-seed = 42
-dist_tag = "uniform_Erelmax10000"  # distribution tag
 
-bfac = config.bfac_h2
-bfac_tag = str(bfac).replace(".", "_")
+bfac_tag = str(config.bfac_o2).replace(".", "_")
 dataset = (
     paths.DATA_DIR
-    / "ctc/h2/impactparam/Erelmax10000"
-    / f"H2_collisions_b{bfac_tag}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
+    / "ctc/o2/impactparam/Erelmax10000"
+    / f"O2_collisions_bmax{bfac_tag}.npy"
 )
-OUTPUT_DIR = paths.MDN_DIR / "batch_size/Erelmax10000"
+OUTPUT_DIR = paths.O2_MDN_DIR / "batch_size/Erelmax10000"
 
 for bs in batch_sizes:
     bs_tag = str(bs)
 
-    outputpath = OUTPUT_DIR / f"mdn_H2_b{bs_tag}.pth"
+    outputpath = OUTPUT_DIR / f"mdn_O2_b{bs_tag}.pth"
 
     print(f"\n{'=' * 60}")
     print(f"batch_size={bs}  →  {outputpath.name}")

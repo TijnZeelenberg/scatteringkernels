@@ -1,9 +1,9 @@
 """Train one MDN per number of Gaussian mixtures.
 
-Reads the default H2 dataset and trains a standard MDN for each value of
+Reads the default O2 dataset and trains a standard MDN for each value of
 num_mixtures in the sweep.
 
-Output: results/models/h2/mdn/num_gaussians/mdn_H2_ng{n}.pth
+Output: results/models/mdn/num_gaussians/o2/mdn_O2_ng{n}.pth
 """
 
 from config.experiment_config import ExperimentConfig
@@ -14,21 +14,18 @@ config = ExperimentConfig()
 
 # Sweep settings
 num_gaussians_sweep = [1, 3, 5, 8, 10, 12, 15, 18, 20]
-ncoll = 1000000
-seed = 42
-dist_tag = "uniform_Erelmax10000"
 
-bfac_tag = str(config.bfac_h2).replace(".", "_")
+bfac_tag = str(config.bfac_o2).replace(".", "_")
 dataset = (
     paths.DATA_DIR
-    / "ctc/h2/impactparam/Erelmax10000"
-    / f"H2_collisions_b{bfac_tag}_{dist_tag}_ncoll{ncoll}_seed{seed}.npy"
+    / "ctc/o2/impactparam/Erelmax10000"
+    / f"O2_collisions_bmax{bfac_tag}.npy"
 )
-OUTPUT_DIR = paths.MDN_DIR / "num_gaussians"
+OUTPUT_DIR = paths.O2_MDN_DIR / "num_gaussians"
 
 for ng in num_gaussians_sweep:
     config.num_mixtures = ng
-    outputpath = OUTPUT_DIR / f"mdn_H2_ng{ng}.pth"
+    outputpath = OUTPUT_DIR / f"mdn_O2_ng{ng}.pth"
 
     print(f"\n{'=' * 60}")
     print(f"num_gaussians={ng}  →  {outputpath.name}")
