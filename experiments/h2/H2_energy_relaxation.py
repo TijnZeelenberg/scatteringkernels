@@ -17,7 +17,6 @@ from experiments.energy_relaxation import (
     print_relaxation_table,
     run_relaxation_comparison,
 )
-from dataclasses import replace
 from physics.species import Species
 
 MDN_CONVERGENT = "results/h2/models/mdn/best_model_mdn_H2_bs2000_bmax1_6.pth"
@@ -32,7 +31,7 @@ def main(
     randomseed: int = 1,
 ):
     species = Species.H2()
-    params = SimulationParams(nr_steps=250)
+    params = SimulationParams(nr_steps=400)
 
     model_tag = Path(mdn_model_path).stem  # e.g. mdn_H2_wf7
 

@@ -84,6 +84,31 @@ ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.tight_layout()
 fig.savefig("results/h2/plots/report/mdn_impactparam_loss_history.png", dpi=300)
 
+## num gaussians sweep loss history ##
+# fig, ax = plt.subplots(figsize=plotconfig.figsize)
+# num_gaussians = [1, 3, 5, 8, 10, 12, 15, 18, 20]
+#
+# for num in num_gaussians:
+#     ng_tag = str(num)
+#     model_dict = torch.load(
+#         f"results/h2/models/mdn/batch_size/Erelmax10000/b1_6/mdn_H2_ns{ng_tag}.pth"
+#     )
+#     val_loss_history = model_dict["val_loss_history"]
+#     ax.plot(val_loss_history, label="n/o Gaussians = " + ng_tag)
+# ax.set_xlabel(
+#     "Epoch",
+#     fontsize=plotconfig.label_fontsize,
+#     fontweight=plotconfig.label_fontweight,
+# )
+# ax.set_ylabel(
+#     "Loss",
+#     fontsize=plotconfig.label_fontsize,
+#     fontweight=plotconfig.label_fontweight,
+# )
+# ax.legend(fontsize=plotconfig.legend_fontsize)
+# fig.tight_layout()
+# fig.savefig("results/h2/plots/report/mdn_number_gaussians_loss_history.png", dpi=300)
+
 
 # ## batch size sweep loss history ##
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
@@ -91,7 +116,7 @@ batch_sizes = [1000, 2000, 5000, 10000, 12500, 15625]
 for bs in batch_sizes:
     bs_tag = str(bs)
     model_dict = torch.load(
-        f"results/h2/models/mdn/batch_size/Erelmax10000/mdn_H2_bs{bs_tag}.pth"
+        f"results/h2/models/mdn/batch_size/Erelmax10000/b1_6/mdn_H2_b{bs_tag}.pth"
     )
     val_loss_history = model_dict["val_loss_history"]
     ax.plot(val_loss_history, label="batch size = " + bs_tag)
@@ -115,7 +140,7 @@ mdn_path = best_model_path
 fig, ax = plt.subplots(
     2, 2, figsize=(2 * (plotconfig.figsize[0]), 2 * plotconfig.figsize[1])
 )
-datafile = "data/ctc/h2/impactparam/Erelmax10000/H2_collisions_b1_5_uniform_Erelmax10000_ncoll1000000_seed42.npy"
+datafile = "data/ctc/h2/impactparam/Erelmax10000/H2_collisions_b1_6_uniform_Erelmax10000_ncoll1000000_seed42.npy"
 
 data = load_dataset(datafile, rows=experimentconfig.num_samples)
 

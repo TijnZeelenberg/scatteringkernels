@@ -9,7 +9,9 @@ from physics.species import Species
 
 b_facs = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
 
-params = SimulationParams()
+nr_steps = 350
+
+params = SimulationParams(nr_steps=nr_steps)
 species = Species.H2()
 
 out_dir = paths.ensure_dir(paths.DATA_DIR / "ml-dsmc" / "mdn" / "h2" / "impactparam")

@@ -10,7 +10,9 @@ from physics.species import Species
 
 batch_sizes = [1000, 2000, 5000, 10000, 12500, 15625]
 
-params = SimulationParams()
+nr_steps = 350
+
+params = SimulationParams(nr_steps=nr_steps)
 species = Species.H2()
 
 out_dir = paths.ensure_dir(paths.DATA_DIR / "ml-dsmc" / "mdn" / "h2" / "batch_size")
@@ -18,7 +20,7 @@ out_dir = paths.ensure_dir(paths.DATA_DIR / "ml-dsmc" / "mdn" / "h2" / "batch_si
 dtype = np.dtype([("timestep", float), ("T_trans_mean", float), ("T_rot_mean", float)])
 
 for bs in batch_sizes:
-    model_path = f"results/h2/models/mdn/batch_size/Erelmax10000/mdn_H2_bs{bs}.pth"
+    model_path = f"results/h2/models/mdn/batch_size/Erelmax10000/b1_6/mdn_H2_bs{bs}.pth"
     print(f"Running relaxation for batch size {bs}...")
     model = load_mdn(model_path, randomseed=params.randomseed)
     stats = run_relaxation(species, model, params=params)
