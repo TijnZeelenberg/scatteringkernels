@@ -18,7 +18,7 @@ ncoll = 1000000
 seed = 42
 dist_tag = "uniform_Erelmax10000"
 
-bfac_tag = str(config.bfac).replace(".", "_")
+bfac_tag = str(config.bfac_h2).replace(".", "_")
 dataset = (
     paths.DATA_DIR
     / "ctc/h2/impactparam/Erelmax10000"

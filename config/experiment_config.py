@@ -10,8 +10,8 @@ CovarianceType = Literal["full", "tied", "diag", "spherical"]
 class ExperimentConfig:
     def __init__(self):
 
-        # CTC settings
-        self.bfac = 1.5
+        # H2 CTC settings
+        self.bfac_h2 = 1.6
 
         # MDN settings
         # Training parameters

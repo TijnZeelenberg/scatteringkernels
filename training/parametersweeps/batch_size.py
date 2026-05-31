@@ -18,7 +18,7 @@ ncoll = 1000000
 seed = 42
 dist_tag = "uniform_Erelmax10000"  # distribution tag
 
-bfac = config.bfac
+bfac = config.bfac_h2
 bfac_tag = str(bfac).replace(".", "_")
 dataset = (
     paths.DATA_DIR
