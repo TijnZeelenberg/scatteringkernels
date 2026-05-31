@@ -12,16 +12,8 @@ from physics.species import Species
 
 batch_sizes = [1000, 2000, 5000, 10000, 12500, 15625]
 
-params = SimulationParams(
-    nr_steps=250,
-    trans_temperature=300.0,
-    rot_temperature=100.0,
-    randomseed=42,
-    grid_cells=(5, 5, 5),
-    box_size=1.0e-7,
-    dt=1.0e-11,
-)
-species = replace(Species.H2(), diameter=10.1e-10, zrot_bl=5.0, zrot_mdn=5.0 / 2.5)
+params = SimulationParams()
+species = Species.H2()
 
 out_dir = paths.ensure_dir(paths.DATA_DIR / "ml-dsmc" / "mdn" / "h2" / "batch_size")
 

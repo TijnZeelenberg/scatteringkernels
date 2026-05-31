@@ -45,15 +45,15 @@ from physics.species import Species
 class SimulationParams:
     """Common DSMC simulation settings shared across experiments."""
 
-    box_size: float = 7.5e-6  # m
-    dt: float = 1.0e-5  # s
-    nr_steps: int = 100
+    box_size: float = 1.0e-7  # m
+    dt: float = 1.0e-11  # s
+    nr_steps: int = 250
     trans_temperature: float = 300.0  # K
     rot_temperature: float = 100.0  # K
     N_sim: int = 20000
     N_real: int = 20000
     grid_cells: tuple[int, int, int] = (5, 5, 5)
-    randomseed: int = 1
+    randomseed: int = 42
 
 
 @dataclass
@@ -288,7 +288,9 @@ def print_relaxation_table(
         t90 = _relaxation_time_90(lammps["t"], lammps["T_rot"], rot_temperature_initial)
         print(f"  LAMMPS: {t90:.4e} s")
     if bl is not None:
-        t90 = _relaxation_time_90(bl["timestep"], bl["T_rot_mean"], rot_temperature_initial)
+        t90 = _relaxation_time_90(
+            bl["timestep"], bl["T_rot_mean"], rot_temperature_initial
+        )
         print(f"  {bl_label}: {t90:.4e} s")
 
 

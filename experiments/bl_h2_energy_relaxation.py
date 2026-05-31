@@ -11,15 +11,15 @@ from experiments.energy_relaxation import SimulationParams, run_relaxation
 from physics.borgnakkelarssen_model import borgnakke_larssen_model
 from physics.species import Species
 
-OUTPUT_PATH = "data/ml-dsmc/BL/h2_energy_relaxation.dat"
+OUTPUT_PATH = "data/ml-dsmc/bl/h2_energy_relaxation.dat"
 
 
 def main(
     output_path: str = OUTPUT_PATH,
     nr_steps: int = 250,
     randomseed: int = 1,
-    d: float = 10.1e-10,
-    zrot_bl: float = 5.0,
+    d: float = 2.92e-10,
+    zrot_bl: float = 1.0,
 ):
     species = replace(
         Species.H2(),

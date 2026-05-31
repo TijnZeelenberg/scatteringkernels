@@ -20,20 +20,20 @@ from experiments.energy_relaxation import (
 from dataclasses import replace
 from physics.species import Species
 
-MDN_CONVERGENT = "results/h2/models/mdn/impactparam/Erelmax10000/mdn_H2_b1_5.pth"
+MDN_CONVERGENT = "results/h2/models/mdn/impactparam/Erelmax10000/mdn_H2_b1_6.pth"
 
 
 def main(
     mdn_model_path: str = MDN_CONVERGENT,
     sparta_path: str = "data/sparta/h2_energy_relaxation.dat",
     lammps_path: str = "data/lammps/h2_energy_relaxation.dat",
-    bl_path="data/ml-dsmc/BL/h2_energy_relaxation.dat",
+    bl_path="data/ml-dsmc/bl/h2_energy_relaxation.dat",
     output_path: str | None = None,
     nr_steps: int = 250,
     randomseed: int = 1,
     d=10.1e-10,
-    zrot_bl=5.0,
-    zrot_mdn=5.0 / 2.5,
+    zrot_bl=1.0,
+    zrot_mdn=1.0,
 ):
     species = replace(
         Species.H2(),
