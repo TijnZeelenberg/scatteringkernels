@@ -23,4 +23,4 @@ module load uv
 source .venv/bin/activate
 
 # Execute the script or command
-uv run python -m training.parametersweeps.impactparamsweep
+uv run python -m training.parametersweeps.impactparam
