@@ -209,6 +209,7 @@ class MixtureDensityNetwork(nn.Module):
         for epoch in tqdm(range(num_epochs), unit="epoch"):
             self.train()
             total_loss = 0.0
+            n_samples = 0
             for batch in train_loader:
                 optimizer.zero_grad()
                 if len(batch) == 3:
@@ -223,10 +224,11 @@ class MixtureDensityNetwork(nn.Module):
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
                 optimizer.step()
-                total_loss += loss.item()
+                batch_n = x_batch.size(0)
+                total_loss += loss.item() * batch_n
+                n_samples += batch_n
 
-            n_batches = len(train_loader)
-            self.train_loss_history.append(total_loss / n_batches)
+            self.train_loss_history.append(total_loss / n_samples)
 
             # Validation loop
             self.eval()
@@ -245,8 +247,8 @@ class MixtureDensityNetwork(nn.Module):
                     else:
                         x_val, y_val = (t.to(device) for t in batch)
                         pi_val, mu_val, sigma_val = self.forward(x_val)
-                        val_loss += mdn_loss(pi_val, mu_val, sigma_val, y_val).item()
-                        val_weight_total += 1
+                        val_loss += mdn_loss(pi_val, mu_val, sigma_val, y_val).item() * x_val.size(0)
+                        val_weight_total += x_val.size(0)
             avg_val_loss = val_loss / val_weight_total
             self.val_loss_history.append(avg_val_loss)
 
