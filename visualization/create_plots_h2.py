@@ -18,29 +18,38 @@ fig, axes = plt.subplots(
     1, 2, figsize=(2 * plotconfig.figsize[0], plotconfig.figsize[1])
 )
 
-sparta = np.loadtxt("data/sparta/h2_energy_relaxation.dat")
-lammps = np.loadtxt("data/lammps/h2_energy_relaxation.dat", skiprows=1)
-bl = np.loadtxt("data/ml-dsmc/bl/h2_energy_relaxation.dat", skiprows=1)
+sparta_h2 = np.loadtxt("data/sparta/h2_energy_relaxation.dat")
+lammps_h2 = np.loadtxt("data/lammps/h2_energy_relaxation.dat", skiprows=1)
+bl_h2 = np.loadtxt("data/ml-dsmc/bl/h2_energy_relaxation.dat", skiprows=1)
+
+sparta_o2 = np.loadtxt("data/sparta/o2_energy_relaxation.dat")
+lammps_o2 = np.loadtxt("data/lammps/o2_energy_relaxation.dat", skiprows=1)
+bl_o2 = np.loadtxt("data/ml-dsmc/bl/o2_energy_relaxation.dat", skiprows=1)
 
 # Convert time to nanoseconds
-sparta_t = sparta[:, 1] * 1e9
-lammps_t = lammps[:, 1] * 1e9
-bl_t = bl[:, 1] * 1e9
+lammps_t = lammps_h2[:, 1] * 1e9
+lammps = lammps_h2
 
-sources = [
-    (lammps_t, lammps[:, 2], lammps[:, 3], "MD (LAMMPS)"),
-    (sparta_t, sparta[:, 2], sparta[:, 3], "SPARTA (BL)"),
-    (bl_t, bl[:, 2], bl[:, 3], "ml-DSMC (BL)"),
+h2_sources = [
+    (lammps_h2[:, 1] * 1e9, lammps_h2[:, 3], "MD (LAMMPS)"),
+    (sparta_h2[:, 1] * 1e9, sparta_h2[:, 3], "SPARTA (BL)"),
+    (bl_h2[:, 1] * 1e9, bl_h2[:, 3], "ml-DSMC (BL)"),
 ]
 
-for t, T_trans, T_rot, label in sources:
-    axes[0].plot(t, T_trans, label=label)
+o2_sources = [
+    (lammps_o2[:, 1] * 1e9, lammps_o2[:, 3], "MD (LAMMPS)"),
+    (sparta_o2[:, 1] * 1e9, sparta_o2[:, 3], "SPARTA (BL)"),
+    (bl_o2[:, 1] * 1e9, bl_o2[:, 3], "ml-DSMC (BL)"),
+]
+
+for t, T_rot, label in h2_sources:
+    axes[0].plot(t, T_rot, label=label)
+
+for t, T_rot, label in o2_sources:
     axes[1].plot(t, T_rot, label=label)
 
-for ax, title, ylabel in zip(
-    axes,
-    ["Translational Temperature", "Rotational Temperature"],
-    ["$T_{trans}$ [K]", "$T_{rot}$ [K]"],
+for ax, title in zip(
+    axes, ["H$_2$ Rotational Temperature", "O$_2$ Rotational Temperature"]
 ):
     ax.set_xlabel(
         "Time [ns]",
@@ -48,14 +57,15 @@ for ax, title, ylabel in zip(
         fontweight=plotconfig.label_fontweight,
     )
     ax.set_ylabel(
-        ylabel,
+        "$T_{rot}$ [K]",
         fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
     ax.set_title(title, fontsize=plotconfig.label_fontsize)
     ax.legend(fontsize=plotconfig.legend_fontsize)
     ax.grid()
-    ax.set_xlim(0, 2.5)
+axes[0].set_xlim(0, 2.0)
+axes[1].set_xlim(0, 4.0)
 
 fig.tight_layout()
 fig.savefig(f"{plotpath}dsmc_validation_relaxation.png", dpi=300)

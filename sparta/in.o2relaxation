@@ -29,7 +29,7 @@ variable            T_trans equal c_2 # rename for clarity
 variable            T_rot equal c_3 # rename for clarity
 variable            sim_time equal time # turn simulation time into a variable for output
 
-fix                 1 ave/time 100 1 100 v_sim_time v_T_trans v_T_rot file ../data/sparta/o2_energy_relaxation.dat
+fix                 1 ave/time 1 1 1 v_sim_time v_T_trans v_T_rot file ../data/sparta/o2_energy_relaxation.dat
 
 ### Actions ###
 timestep           1.0e-11
