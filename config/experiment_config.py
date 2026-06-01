@@ -20,7 +20,7 @@ class ExperimentConfig:
         # Training parameters
         self.learning_rate = 1.00e-04
         self.batch_size = 2000
-        self.num_epochs = 200
+        self.num_epochs = 300
         self.trainval_split = 0.7
         self.shuffle = True
         self.random_seed = 42
