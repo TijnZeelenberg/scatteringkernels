@@ -3,11 +3,15 @@ import matplotlib.pyplot as plt
 import torch
 from config.plotting_config import PlottingConfig
 from config.experiment_config import ExperimentConfig
+from experiments.energy_relaxation import load_mdn
+from visualization.plot import plot_density_scatter
+from utils.helpers import load_dataset
 
 plotconfig = PlottingConfig()
 experimentconfig = ExperimentConfig()
 
-# best_model_path =
+best_model_path = "results/o2/models/mdn/batch_size/mdn_O2_bs1000.pth"
+plotpath = "../Master_Thesis_Tijn_Zeelenberg/figures/o2/"
 
 ## impact parameter sweep loss history ##
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
@@ -30,7 +34,7 @@ ax.set_ylabel(
 )
 ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.tight_layout()
-fig.savefig("results/o2/plots/report/mdn_impactparam_loss_history.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_impactparam_loss_history.png", dpi=300)
 
 ## impact parameter relaxation T_rot_mean ##
 fig, ax = plt.subplots(figsize=plotconfig.figsize)
@@ -45,7 +49,7 @@ ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize
 ax.legend(fontsize=plotconfig.legend_fontsize)
 ax.grid()
 fig.tight_layout()
-fig.savefig("results/o2/plots/report/mdn_impactparam_relaxation.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_impactparam_relaxation.png", dpi=300)
 
 
 ## impact parameter Delta_trans binned average ##
@@ -79,7 +83,7 @@ ax.set_ylabel(r"$\Delta\eta_{trans}$", fontsize=plotconfig.label_fontsize)
 ax.legend(fontsize=plotconfig.legend_fontsize)
 ax.grid()
 fig.tight_layout()
-fig.savefig("results/o2/plots/report/mdn_impactparam_delta_trans.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_impactparam_delta_trans.png", dpi=300)
 
 
 ## num Gaussians sweep loss history ##
@@ -105,7 +109,7 @@ ax.set_ylabel(
 )
 ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.tight_layout()
-fig.savefig("results/o2/plots/report/mdn_number_gaussians_loss_history.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_number_gaussians_loss_history.png", dpi=300)
 
 
 # ## batch size sweep loss history ##
@@ -128,7 +132,7 @@ ax.set_ylabel(
 )
 ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.tight_layout()
-fig.savefig("results/o2/plots/report/mdn_batch_size_loss_history.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_batch_size_loss_history.png", dpi=300)
 
 
 ## batch size relaxation T_rot_mean ##
@@ -143,35 +147,34 @@ ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize
 ax.legend(fontsize=plotconfig.legend_fontsize)
 ax.grid()
 fig.tight_layout()
-fig.savefig("results/o2/plots/report/mdn_batchsize_relaxation.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_batchsize_relaxation.png", dpi=300)
 
 
 ################ O2 scatterplot of CTC and MDN predictions ##
 # FIX: get the dataset in the right shape such that it can be passed to load_dataset().
-#
-# mdn_path = best_model_path
-# fig, ax = plt.subplots(
-#     2, 2, figsize=(2 * (plotconfig.figsize[0]), 2 * plotconfig.figsize[1])
-# )
-# datafile = "data/ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax1_5.npy"
-#
-# data = load_dataset(datafile, rows=experimentconfig.num_samples)
-#
-# # Sample MDN predictions
-# mdn = load_mdn(mdn_path, randomseed=experimentconfig.random_seed)
-# torch.manual_seed(experimentconfig.random_seed + 1)
-# mdn_samples = mdn.sample(x=data[0])
-#
-# datasets = {
-#     "inputs": data[0][:, 1:],  # Use only the energy fractions for plotting
-#     "CTC": data[1],
-#     "MDN": mdn_samples,
-# }
-# plot_density_scatter(ax, datasets=datasets)
-# fig.tight_layout()
-#
-# for row in ax:
-#     for a in row:
-#         a.set_xlim(0, 1)
-#         a.set_ylim(0, 1)
-# plt.show()
+
+mdn_path = best_model_path
+fig, ax = plt.subplots(
+    2, 2, figsize=(2 * (plotconfig.figsize[0]), 2 * plotconfig.figsize[1])
+)
+datafile = "data/ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax1_5.npy"
+
+data = load_dataset(datafile, rows=experimentconfig.num_samples)
+
+# Sample MDN predictions
+mdn = load_mdn(mdn_path, randomseed=experimentconfig.random_seed)
+torch.manual_seed(experimentconfig.random_seed + 1)
+mdn_samples = mdn.sample(x=data[0])
+
+datasets = {
+    "inputs": data[0][:, 1:],  # Use only the energy fractions for plotting
+    "CTC": data[1],
+    "MDN": mdn_samples,
+}
+plot_density_scatter(ax, datasets=datasets)
+fig.tight_layout()
+
+for row in ax:
+    for a in row:
+        a.set_xlim(0, 1)
+        a.set_ylim(0, 1)

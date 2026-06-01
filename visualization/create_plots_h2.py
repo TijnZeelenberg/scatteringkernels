@@ -10,7 +10,7 @@ from utils.helpers import load_dataset
 plotconfig = PlottingConfig()
 experimentconfig = ExperimentConfig()
 
-plotpath = "results/h2/plots/report/"
+plotpath = "../Master_Thesis_Tijn_Zeelenberg/figures/h2/"
 best_model_path = "results/h2/models/mdn/best_model_mdn_H2_bs2000_bmax1_6.pth"
 
 ## DSMC validation relaxation comparison ##
@@ -58,7 +58,7 @@ for ax, title, ylabel in zip(
     ax.set_xlim(0, 2.5)
 
 fig.tight_layout()
-fig.savefig("results/h2/plots/report/dsmc_validation_relaxation.png", dpi=300)
+fig.savefig(f"{plotpath}dsmc_validation_relaxation.png", dpi=300)
 
 
 ## impact parameter Delta_trans binned average ##
@@ -93,7 +93,7 @@ ax.set_ylabel(r"$\Delta\eta_{trans}$", fontsize=plotconfig.label_fontsize)
 ax.legend(fontsize=plotconfig.legend_fontsize)
 ax.grid()
 fig.tight_layout()
-fig.savefig("results/h2/plots/report/mdn_impactparam_delta_trans.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_impactparam_delta_trans.png", dpi=300)
 
 
 ## impact parameter sweep loss history ##
@@ -118,7 +118,7 @@ ax.set_ylabel(
 )
 ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.tight_layout()
-fig.savefig("results/h2/plots/report/mdn_impactparam_loss_history.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_impactparam_loss_history.png", dpi=300)
 
 
 ## impact parameter relaxation T_rot_mean ##
@@ -134,7 +134,7 @@ ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize
 ax.legend(fontsize=plotconfig.legend_fontsize)
 ax.grid()
 fig.tight_layout()
-fig.savefig("results/h2/plots/report/mdn_impactparam_relaxation.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_impactparam_relaxation.png", dpi=300)
 
 
 # num gaussians sweep loss history ##
@@ -160,7 +160,7 @@ ax.set_ylabel(
 )
 ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.tight_layout()
-fig.savefig("results/h2/plots/report/mdn_number_gaussians_loss_history.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_number_gaussians_loss_history.png", dpi=300)
 
 
 # ## batch size sweep loss history ##
@@ -185,7 +185,7 @@ ax.set_ylabel(
 )
 ax.legend(fontsize=plotconfig.legend_fontsize)
 fig.tight_layout()
-fig.savefig("results/h2/plots/report/mdn_batch_size_loss_history.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_batch_size_loss_history.png", dpi=300)
 
 
 ## batch size relaxation T_rot_mean ##
@@ -200,7 +200,7 @@ ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize
 ax.legend(fontsize=plotconfig.legend_fontsize)
 ax.grid()
 fig.tight_layout()
-fig.savefig("results/h2/plots/report/mdn_batchsize_relaxation.png", dpi=300)
+fig.savefig(f"{plotpath}mdn_batchsize_relaxation.png", dpi=300)
 
 
 ################ H2 scatterplot of CTC and MDN predictions ##
@@ -273,7 +273,4 @@ for ax, title, ylabel in zip(
     ax.grid()
 
 fig.tight_layout()
-fig.savefig("results/h2/plots/report/mdn_best_model_relaxation.png", dpi=300)
-
-
-plt.show()
+fig.savefig(f"{plotpath}mdn_best_model_relaxation.png", dpi=300)
