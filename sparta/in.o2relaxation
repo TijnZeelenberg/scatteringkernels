@@ -6,7 +6,8 @@ units               si
 ### Problem definition ###
 boundary            p p p # periodic boundaries in all directions
 variable            L equal 100e-9 # [m] box length
-create_box          -${L}/2 ${L}/2 -${L}/2 ${L}/2 -${L}/2 ${L}/2
+variable            Lh equal ${L}/2 # half box length
+create_box          -${Lh} ${Lh} -${Lh} ${Lh} -${Lh} ${Lh}
 create_grid         5 5 5
 species             o2.species O2
 global              fnum 1  # Use 1 molecule per particle
@@ -31,7 +32,7 @@ variable            sim_time equal time # turn simulation time into a variable f
 fix                 1 ave/time 100 1 100 v_sim_time v_T_trans v_T_rot file ../data/sparta/o2_energy_relaxation.dat
 
 ### Actions ###
-timestep           1.0e-12
-stats              10 
+timestep           1.0e-11
+stats              1
 stats_style        step ncoll time v_T_trans v_T_rot v_total_temp
-run                2500
+run                500
