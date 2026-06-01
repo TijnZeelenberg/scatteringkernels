@@ -58,7 +58,9 @@ bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
 
 for bfac in bfac_sweep:
     tag = str(bfac).replace(".", "_")
-    data = np.load(f"data/ctc/o2/impactparam/O2_collisions_uniform_bmax{tag}.npy")
+    data = np.load(
+        f"data/ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax{tag}.npy"
+    )
 
     E_c_pre = data[:, 0] + data[:, 1] + data[:, 2]
     E_c_post = data[:, 3] + data[:, 4] + data[:, 5]
@@ -144,12 +146,14 @@ fig.tight_layout()
 fig.savefig("results/o2/plots/report/mdn_batchsize_relaxation.png", dpi=300)
 
 
-################ H2 scatterplot of CTC and MDN predictions ##
+################ O2 scatterplot of CTC and MDN predictions ##
+# FIX: get the dataset in the right shape such that it can be passed to load_dataset().
+#
 # mdn_path = best_model_path
 # fig, ax = plt.subplots(
 #     2, 2, figsize=(2 * (plotconfig.figsize[0]), 2 * plotconfig.figsize[1])
 # )
-# datafile = "data/ctc/h2/impactparam/Erelmax10000/H2_collisions_b1_6_uniform_Erelmax10000_ncoll1000000_seed42.npy"
+# datafile = "data/ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax1_5.npy"
 #
 # data = load_dataset(datafile, rows=experimentconfig.num_samples)
 #

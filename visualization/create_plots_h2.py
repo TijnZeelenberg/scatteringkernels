@@ -10,6 +10,7 @@ from utils.helpers import load_dataset
 plotconfig = PlottingConfig()
 experimentconfig = ExperimentConfig()
 
+plotpath = "results/h2/plots/report/"
 best_model_path = "results/h2/models/mdn/best_model_mdn_H2_bs2000_bmax1_6.pth"
 
 ## DSMC validation relaxation comparison ##
@@ -54,6 +55,7 @@ for ax, title, ylabel in zip(
     ax.set_title(title, fontsize=plotconfig.label_fontsize)
     ax.legend(fontsize=plotconfig.legend_fontsize)
     ax.grid()
+    ax.set_xlim(0, 2.5)
 
 fig.tight_layout()
 fig.savefig("results/h2/plots/report/dsmc_validation_relaxation.png", dpi=300)
@@ -227,6 +229,51 @@ for row in ax:
     for a in row:
         a.set_xlim(0, 1)
         a.set_ylim(0, 1)
+
+
+## Best model relaxation comparison with MD ##
+fig, axes = plt.subplots(
+    1, 2, figsize=(2 * plotconfig.figsize[0], plotconfig.figsize[1])
+)
+
+best_model_arr = np.load("data/ml-dsmc/mdn/h2/best_model_relaxation.npy")
+best_model_t = best_model_arr["timestep"] * 1e9  # Convert to nanoseconds
+
+sources = [
+    (lammps_t, lammps[:, 2], lammps[:, 3], "MD (LAMMPS)"),
+    (
+        best_model_t,
+        best_model_arr["T_trans_mean"],
+        best_model_arr["T_rot_mean"],
+        "MDN (ML-DSMC)",
+    ),
+]
+
+for t, T_trans, T_rot, label in sources:
+    axes[0].plot(t, T_trans, label=label)
+    axes[1].plot(t, T_rot, label=label)
+
+for ax, title, ylabel in zip(
+    axes,
+    ["Translational Temperature", "Rotational Temperature"],
+    ["$T_{trans}$ [K]", "$T_{rot}$ [K]"],
+):
+    ax.set_xlabel(
+        "Time [ns]",
+        fontsize=plotconfig.label_fontsize,
+        fontweight=plotconfig.label_fontweight,
+    )
+    ax.set_ylabel(
+        ylabel,
+        fontsize=plotconfig.label_fontsize,
+        fontweight=plotconfig.label_fontweight,
+    )
+    ax.set_title(title, fontsize=plotconfig.label_fontsize)
+    ax.legend(fontsize=plotconfig.legend_fontsize)
+    ax.grid()
+
+fig.tight_layout()
+fig.savefig("results/h2/plots/report/mdn_best_model_relaxation.png", dpi=300)
 
 
 plt.show()
