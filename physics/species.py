@@ -13,8 +13,6 @@ the Borgnakke-Larssen reference. We expose two values:
                (set to zrot_bl / 3.5 to roughly match the CTC relaxation time)
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 _AVOGADRO = 6.022e23
@@ -32,7 +30,7 @@ class Species:
 
     @classmethod
     def H2(cls) -> "Species":
-        zrot_bl = 10
+        zrot_bl = 1
         return cls(
             name="H2",
             mass=2.016e-3 / _AVOGADRO,

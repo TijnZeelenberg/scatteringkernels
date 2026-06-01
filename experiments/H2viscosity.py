@@ -1,7 +1,5 @@
 """H2 viscosity via Green-Kubo, comparing an MDN model and Borgnakke-Larssen."""
 
-from __future__ import annotations
-
 from experiments.energy_relaxation import SimulationParams, load_mdn, run_relaxation
 from experiments.viscosity import green_kubo_viscosity
 from physics.borgnakkelarssen_model import borgnakke_larssen_model

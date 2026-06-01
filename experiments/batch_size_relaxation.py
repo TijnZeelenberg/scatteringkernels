@@ -1,7 +1,5 @@
 """H2 energy-relaxation sweep over MDN batch-size variants."""
 
-from __future__ import annotations
-
 from dataclasses import replace
 from pathlib import Path
 

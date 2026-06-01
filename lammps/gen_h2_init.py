@@ -10,8 +10,6 @@ Atom positions and velocities are then computed as
 so the rigid-body constraint is already satisfied at t = 0.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import numpy as np

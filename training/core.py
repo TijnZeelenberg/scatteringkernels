@@ -11,8 +11,6 @@ Trained model paths automatically get their parent directories created via
 deep and it will Just Work even on a fresh clone.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Literal
 

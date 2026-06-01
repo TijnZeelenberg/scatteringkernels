@@ -1,7 +1,5 @@
 """Plot binned-average Δη_trans vs η_trans for the H2 b1_5 CTC dataset."""
 
-from __future__ import annotations
-
 import numpy as np
 import matplotlib.pyplot as plt
 

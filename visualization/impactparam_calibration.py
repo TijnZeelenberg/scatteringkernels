@@ -5,8 +5,6 @@ energy; collisions with |Δη_tr| < 0.01 exchange less than 1% of their energy
 between translational and rotational modes.
 """
 
-from __future__ import annotations
-
 import numpy as np
 import matplotlib.pyplot as plt
 

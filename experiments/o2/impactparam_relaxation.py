@@ -1,7 +1,5 @@
 """Run energy-relaxation simulations for all impact-parameter MDN models and save results."""
 
-from __future__ import annotations
-
 import numpy as np
 
 import paths

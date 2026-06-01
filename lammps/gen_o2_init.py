@@ -10,8 +10,6 @@ Atom positions and velocities are then computed as
 so the rigid-body constraint is already satisfied at t = 0.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import numpy as np
@@ -19,16 +17,16 @@ import numpy as np
 # Physical constants (SI). Atom mass matches `mass 1 ...` in in.o2relaxation.
 # Parameters sourced from o2_ctc/Sources/Molprops.f90:
 #   amu = 1.660539e-27, molmass(2) = 2*15.9994*amu, d_intnuc(2) = 1.2075e-10
-KB = 1.380649e-23        # Boltzmann constant [J/K]
-AMU = 1.660539e-27       # atomic mass unit [kg]
+KB = 1.380649e-23  # Boltzmann constant [J/K]
+AMU = 1.660539e-27  # atomic mass unit [kg]
 M_ATOM = 15.9994 * AMU  # mass of a single O atom [kg]
-D_BOND = 1.2075e-10      # O2 bond length [m]
+D_BOND = 1.2075e-10  # O2 bond length [m]
 
 # --- Parameters ---
-N_MOL = 20000    # number of O2 molecules
-L = 1.0e-7       # cubic box edge [m]
+N_MOL = 20000  # number of O2 molecules
+L = 1.0e-7  # cubic box edge [m]
 T_TRANS = 300.0  # initial translational temperature [K]
-T_ROT = 100.0    # initial rotational temperature [K]
+T_ROT = 100.0  # initial rotational temperature [K]
 SEED = 42
 OUT = Path(__file__).parent / "o2_init.data"
 

@@ -20,8 +20,6 @@ Therefore
     1/Z_rot = tau_coll / tau_rot = (3 lambda) / (5 nu_coll)   for diatomics.
 """
 
-from __future__ import annotations
-
 import argparse
 from pathlib import Path
 
@@ -125,7 +123,9 @@ def main():
         help="Path to the LAMMPS energy-relaxation .dat file.",
     )
     p.add_argument("--species", type=str, default="H2", choices=["H2", "O2"])
-    p.add_argument("--N", type=int, default=20000, help="number of molecules in the LAMMPS run")
+    p.add_argument(
+        "--N", type=int, default=20000, help="number of molecules in the LAMMPS run"
+    )
     p.add_argument("--L", type=float, default=2.0e-8, help="cubic box edge [m]")
     p.add_argument(
         "--floor-frac",

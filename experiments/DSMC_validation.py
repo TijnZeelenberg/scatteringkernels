@@ -1,7 +1,5 @@
 """Validate the local DSMC implementation (BL model) against SPARTA's VHS/VSS data."""
 
-from __future__ import annotations
-
 import matplotlib.pyplot as plt
 
 import paths
@@ -55,17 +53,41 @@ def main(
     fig, ax = plt.subplots(figsize=pc.figsize)
     ax.plot(bl_stats["timestep"], bl_stats["T_trans_mean"], label=r"$T_{trans}$ BL VHS")
     ax.plot(bl_stats["timestep"], bl_stats["T_rot_mean"], label=r"$T_{rot}$ BL VHS")
-    ax.plot(sparta_vhs["t"], sparta_vhs["T_trans"], color="red", linestyle="--",
-            label=r"$T_{trans}$ BL VHS (SPARTA)")
-    ax.plot(sparta_vhs["t"], sparta_vhs["T_rot"], color="blue", linestyle="--",
-            label=r"$T_{rot}$ BL VHS (SPARTA)")
-    ax.plot(sparta_vss["t"], sparta_vss["T_trans"], color="green", linestyle="--",
-            label=r"$T_{trans}$ BL VSS (SPARTA)")
-    ax.plot(sparta_vss["t"], sparta_vss["T_rot"], color="orange", linestyle="--",
-            label=r"$T_{rot}$ BL VSS (SPARTA)")
+    ax.plot(
+        sparta_vhs["t"],
+        sparta_vhs["T_trans"],
+        color="red",
+        linestyle="--",
+        label=r"$T_{trans}$ BL VHS (SPARTA)",
+    )
+    ax.plot(
+        sparta_vhs["t"],
+        sparta_vhs["T_rot"],
+        color="blue",
+        linestyle="--",
+        label=r"$T_{rot}$ BL VHS (SPARTA)",
+    )
+    ax.plot(
+        sparta_vss["t"],
+        sparta_vss["T_trans"],
+        color="green",
+        linestyle="--",
+        label=r"$T_{trans}$ BL VSS (SPARTA)",
+    )
+    ax.plot(
+        sparta_vss["t"],
+        sparta_vss["T_rot"],
+        color="orange",
+        linestyle="--",
+        label=r"$T_{rot}$ BL VSS (SPARTA)",
+    )
 
-    ax.set_xlabel("Time [s]", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight)
-    ax.set_ylabel("Temperature [K]", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight)
+    ax.set_xlabel(
+        "Time [s]", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight
+    )
+    ax.set_ylabel(
+        "Temperature [K]", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight
+    )
     ax.ticklabel_format(style="sci", scilimits=(-2, 3))
     ax.set_ylim(20, 450)
     ax.grid()

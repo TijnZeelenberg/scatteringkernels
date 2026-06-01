@@ -18,8 +18,6 @@ and indexed via a `snapshot_offsets[K+1]` array — slice snapshot k with
 Output is written via `np.savez_compressed` to a `.npz` archive.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import numpy as np

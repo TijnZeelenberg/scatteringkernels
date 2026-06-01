@@ -1,6 +1,5 @@
 """Generate BL-DSMC energy-relaxation trace for H2 and save to disk."""
 
-from __future__ import annotations
 import numpy as np
 
 import paths
