@@ -112,7 +112,7 @@ fig, ax = plt.subplots(figsize=plotconfig.figsize)
 for bfac in bfac_sweep:
     bfac_tag = str(bfac).replace(".", "_")
     model_dict = torch.load(
-        f"results/h2/models/mdn/impactparam/Erelmax10000/mdn_H2_b{bfac_tag}.pth"
+        f"results/h2/models/mdn/impactparam/Erelmax10000/n_epochs300/mdn_H2_b{bfac_tag}.pth"
     )
     val_loss_history = model_dict["val_loss_history"]
     ax.plot(val_loss_history, label=f"$b_{{fac}}={bfac}$")
@@ -154,7 +154,7 @@ num_gaussians = [1, 3, 5, 8, 10, 12, 15, 18, 20]
 for num in num_gaussians:
     ng_tag = str(num)
     model_dict = torch.load(
-        f"results/h2/models/mdn/num_gaussians/b1_6/mdn_H2_ng{ng_tag}.pth"
+        f"results/h2/models/mdn/num_gaussians/b1_6/n_epochs300/mdn_H2_ng{ng_tag}.pth"
     )
     val_loss_history = model_dict["val_loss_history"]
     ax.plot(val_loss_history, label="n/o Gaussians = " + ng_tag)
@@ -179,7 +179,7 @@ batch_sizes = [1000, 2000, 5000, 10000, 12500, 15625]
 for bs in batch_sizes:
     bs_tag = str(bs)
     model_dict = torch.load(
-        f"results/h2/models/mdn/batch_size/Erelmax10000/b1_6/mdn_H2_bs{bs_tag}.pth"
+        f"results/h2/models/mdn/batch_size/Erelmax10000/b1_6/n_epochs300/mdn_H2_bs{bs_tag}.pth"
     )
     val_loss_history = model_dict["val_loss_history"]
     ax.plot(val_loss_history, label="batch size = " + bs_tag)
@@ -284,3 +284,5 @@ for ax, title, ylabel in zip(
 
 fig.tight_layout()
 fig.savefig(f"{plotpath}mdn_best_model_relaxation.png", dpi=300)
+
+plt.show()

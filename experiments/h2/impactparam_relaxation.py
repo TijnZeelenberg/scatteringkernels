@@ -19,9 +19,7 @@ dtype = np.dtype([("timestep", float), ("T_trans_mean", float), ("T_rot_mean", f
 
 for bfac in b_facs:
     bfac_tag = str(bfac).replace(".", "_")
-    model_path = (
-        f"results/h2/models/mdn/impactparam/Erelmax10000/mdn_H2_b{bfac_tag}.pth"
-    )
+    model_path = f"results/h2/models/mdn/impactparam/Erelmax10000/n_epochs300/mdn_H2_b{bfac_tag}.pth"
     model = load_mdn(model_path, randomseed=params.randomseed)
     stats = run_relaxation(species, model, params=params)
 

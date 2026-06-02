@@ -13,11 +13,12 @@ Layout:
     <project_root>/
         data/                      input collision datasets (.npy/.csv)
         results/
-            models/
-                h2/
+            h2/
+                models/
                     mdn/...        H2 Gaussian MDN weights
                     beta_mdn/...   H2 Beta MDN weights
-                o2/
+            o2/
+                models/
                     mdn/...        O2 Gaussian MDN weights
                     beta_mdn/...   O2 Beta MDN weights
             plots/                 figures from experiments
@@ -32,7 +33,7 @@ MODELS_DIR = RESULTS_DIR / "models"
 PLOTS_DIR = RESULTS_DIR / "plots"
 LOGS_DIR = RESULTS_DIR / "logs"
 
-H2_MODELS_DIR = MODELS_DIR / "h2"
+H2_MODELS_DIR = RESULTS_DIR / "h2" / "models"
 O2_MODELS_DIR = RESULTS_DIR / "o2" / "models"
 
 # Backward-compat aliases — point at H2 since all pre-existing models are H2.
@@ -71,7 +72,7 @@ def model_dir(kind: str, molecule: str | None = None) -> Path:
     """
     kind = kind.lower()
     if molecule is not None:
-        base = MODELS_DIR / molecule.lower()
+        base = RESULTS_DIR / molecule.lower() / "models"
         if kind == "mdn":
             return ensure_dir(base / "mdn")
         if kind in ("beta_mdn", "betamdn", "beta"):
