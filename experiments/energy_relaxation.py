@@ -235,10 +235,10 @@ def load_bl_reference(path: str | Path) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _relaxation_time_90(timesteps, trace, T_initial: float) -> float:
-    """Time at which `trace` first reaches 90% of (final - initial)."""
+def _relaxation_time_95(timesteps, trace, T_initial: float) -> float:
+    """Time at which `trace` first reaches 95% of (final - initial)."""
     final = trace[-20:-1].mean()
-    threshold = T_initial + 0.90 * (final - T_initial)
+    threshold = T_initial + 0.95 * (final - T_initial)
     indices = np.where(trace >= threshold)[0]
     if len(indices) == 0:
         return float("nan")
@@ -275,21 +275,21 @@ def print_relaxation_table(
 
     print("\nRelaxation times (T_rot reaches 90% of equilibrium):")
     for label, stats in results.items():
-        t90 = _relaxation_time_90(
+        t95 = _relaxation_time_95(
             stats["timestep"], stats["T_rot_mean"], rot_temperature_initial
         )
-        print(f"  {label}: {t90:.4e} s")
+        print(f"  {label}: {t95:.4e} s")
     if sparta is not None:
-        t90 = _relaxation_time_90(sparta["t"], sparta["T_rot"], rot_temperature_initial)
-        print(f"  SPARTA: {t90:.4e} s")
+        t95 = _relaxation_time_95(sparta["t"], sparta["T_rot"], rot_temperature_initial)
+        print(f"  SPARTA: {t95:.4e} s")
     if lammps is not None:
-        t90 = _relaxation_time_90(lammps["t"], lammps["T_rot"], rot_temperature_initial)
-        print(f"  LAMMPS: {t90:.4e} s")
+        t95 = _relaxation_time_95(lammps["t"], lammps["T_rot"], rot_temperature_initial)
+        print(f"  LAMMPS: {t95:.4e} s")
     if bl is not None:
-        t90 = _relaxation_time_90(
+        t95 = _relaxation_time_95(
             bl["timestep"], bl["T_rot_mean"], rot_temperature_initial
         )
-        print(f"  {bl_label}: {t90:.4e} s")
+        print(f"  {bl_label}: {t95:.4e} s")
 
 
 def plot_relaxation_comparison(

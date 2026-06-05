@@ -234,6 +234,7 @@ datasets = {
 }
 plot_density_scatter(ax, datasets=datasets)
 fig.tight_layout()
+fig.savefig(f"{plotpath}mdn_ctc_scatter.png", dpi=300)
 
 for row in ax:
     for a in row:
@@ -284,5 +285,3 @@ for ax, title, ylabel in zip(
 
 fig.tight_layout()
 fig.savefig(f"{plotpath}mdn_best_model_relaxation.png", dpi=300)
-
-plt.show()

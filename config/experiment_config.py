@@ -24,7 +24,7 @@ class ExperimentConfig:
         self.trainval_split = 0.7
         self.shuffle = True
         self.random_seed = 42
-        self.patience = 200
+        self.patience = 300
 
         # Model parameters
         self.input_dim = 3
@@ -34,7 +34,7 @@ class ExperimentConfig:
         self.dropout = 0.0
 
         # Dataset parameters
-        self.num_samples = 30000
+        self.num_samples = 100000
 
         # GMM settings
         self.gmm_n_components = 5

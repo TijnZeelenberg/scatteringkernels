@@ -30,7 +30,7 @@ def main(
     randomseed: int = 1,
 ):
     species = Species.O2()
-    params = SimulationParams(nr_steps=500)
+    params = SimulationParams(nr_steps=800)
 
     model_tag = Path(mdn_model_path).stem
 

@@ -12,7 +12,7 @@ from tqdm import tqdm
 # ---------------------------------------------------------------------------
 _m_H = 1.6738e-27  # H atom mass [kg]
 _m_H2 = _m_H * 2  # H2 mass [kg]
-_sigma = 3.06e-10  # LJ σ [m]
+_sigma = 2.827e-10  # LJ σ [m]
 _kB = 1.38064852e-23  # Boltzmann [J/K]
 _d_H2 = 0.741e-10  # bond length [m]
 _I = 0.5 * (_d_H2**2) * _m_H  # moment of inertia [kg·m²]

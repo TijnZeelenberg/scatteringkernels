@@ -173,6 +173,7 @@ datasets = {
 }
 plot_density_scatter(ax, datasets=datasets)
 fig.tight_layout()
+fig.savefig(f"{plotpath}mdn_ctc_scatter.png", dpi=300)
 
 for row in ax:
     for a in row:

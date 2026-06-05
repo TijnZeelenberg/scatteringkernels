@@ -18,11 +18,11 @@ from experiments.energy_relaxation import (
 )
 from physics.species import Species
 
-MDN_CONVERGENT = "results/h2/models/mdn/best_model_mdn_H2_bs2000_bmax1_6.pth"
+best_model_path = "results/h2/models/mdn/best_model.pth"
 
 
 def main(
-    mdn_model_path: str = MDN_CONVERGENT,
+    mdn_model_path: str = best_model_path,
     sparta_path: str = "data/sparta/h2_energy_relaxation.dat",
     lammps_path: str = "data/lammps/h2_energy_relaxation.dat",
     bl_path="data/ml-dsmc/bl/h2_energy_relaxation.dat",
@@ -30,7 +30,7 @@ def main(
     randomseed: int = 1,
 ):
     species = Species.H2()
-    params = SimulationParams(nr_steps=400)
+    params = SimulationParams(nr_steps=500)
 
     model_tag = Path(mdn_model_path).stem  # e.g. mdn_H2_wf7
 

@@ -11,7 +11,7 @@ OUTPUT_PATH = "data/ml-dsmc/bl/h2_energy_relaxation.dat"
 
 
 def main(
-    nr_steps: int = 400,
+    nr_steps: int = 500,
     output_path: str = OUTPUT_PATH,
 ):
     species = Species.H2()

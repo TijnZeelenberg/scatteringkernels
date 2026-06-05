@@ -10,4 +10,4 @@
 #prop8 = species weight (unitless)
 #prop9 = multiple of electon charge (1 for a proton)
 
-O2  31.998  5.314e-26  2  1.00  0  0.0  0.0  1.0  0.0
+O2  31.998  5.314e-26  2  0.2799552072  0  0.0  0.0  1.0  0.0

@@ -5,8 +5,10 @@ function for backwards compatibility and provides a runnable `__main__`.
 """
 
 from training.core import train_mdn
-
+from config.experiment_config import ExperimentConfig
 import paths
+
+config = ExperimentConfig()
 
 __all__ = ["train_mdn"]
 
@@ -14,21 +16,17 @@ __all__ = ["train_mdn"]
 if __name__ == "__main__":
     datapath = (
         paths.DATA_DIR
-        / "ctc/h2/impactparam/Erelmax10000/H2_collisions_b1_6_uniform_Erelmax10000_ncoll1000000_seed42.npy"
+        / "ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax1_5.npy"
     )
     outputpath = paths.ensure_parent(
-        paths.RESULTS_DIR
-        / "h2"
-        / "models"
-        / "mdn"
-        / "best_model_mdn_H2_bs2000_bmax1_6.pth"
+        paths.RESULTS_DIR / "o2" / "models" / "mdn" / "best_model.pth"
     )
     train_mdn(
         datapath=str(datapath),
         outputpath=str(outputpath),
-        epochs=200,
-        batch_size=2000,
-        lr=1.0e-4,
-        patience=200,
+        epochs=config.num_epochs,
+        batch_size=config.batch_size,
+        lr=config.learning_rate,
+        patience=config.patience,
         showplots=True,
     )
