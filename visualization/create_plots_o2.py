@@ -45,7 +45,7 @@ for bfac in bfac_sweep:
     ax.plot(arr["timestep"], arr["T_rot_mean"], label=f"$b_{{fac}}={bfac}$")
 
 ax.set_xlabel("Time [$s$]", fontsize=plotconfig.label_fontsize)
-ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize)
+ax.set_ylabel("$ [$K$]", fontsize=plotconfig.label_fontsize)
 ax.legend(fontsize=plotconfig.legend_fontsize)
 ax.grid()
 fig.tight_layout()
@@ -143,7 +143,7 @@ for bs in batch_sizes:
     ax.plot(arr["timestep"], arr["T_rot_mean"], label=f"batch size = {bs}")
 
 ax.set_xlabel("Time [$s$]", fontsize=plotconfig.label_fontsize)
-ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize)
+ax.set_ylabel("$ [$K$]", fontsize=plotconfig.label_fontsize)
 ax.legend(fontsize=plotconfig.legend_fontsize)
 ax.grid()
 fig.tight_layout()

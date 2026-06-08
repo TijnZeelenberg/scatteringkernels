@@ -10,7 +10,7 @@ read_data h2_init.data
 
 ### Force field ###
 pair_style lj/cut 1.0e-9
-pair_coeff 1 1 1.056e-21 2.827e-10
+pair_coeff 1 1 5.25e-22 2.827e-10
 special_bonds lj 0.0 0.0 0.0
 bond_style zero
 bond_coeff 1 7.4e-11

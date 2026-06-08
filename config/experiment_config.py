@@ -19,7 +19,7 @@ class ExperimentConfig:
         # MDN settings
         # Training parameters
         self.learning_rate = 1.00e-04
-        self.batch_size = 2000
+        self.batch_size = 1000
         self.num_epochs = 300
         self.trainval_split = 0.7
         self.shuffle = True
@@ -29,7 +29,7 @@ class ExperimentConfig:
         # Model parameters
         self.input_dim = 3
         self.output_dim = 2
-        self.num_mixtures = 20
+        self.num_mixtures = 18
         self.hidden_dim = 8
         self.dropout = 0.0
 

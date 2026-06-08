@@ -3,9 +3,6 @@ import matplotlib.pyplot as plt
 import torch
 from config.plotting_config import PlottingConfig
 from config.experiment_config import ExperimentConfig
-from experiments.energy_relaxation import load_mdn
-from visualization.plot import plot_density_scatter
-from utils.helpers import load_dataset
 
 plotconfig = PlottingConfig()
 experimentconfig = ExperimentConfig()
@@ -52,9 +49,7 @@ for t, T_rot, label in h2_sources:
 for t, T_rot, label in o2_sources:
     axes[1].plot(t, T_rot, label=label)
 
-for ax, title in zip(
-    axes, ["H$_2$ Rotational Temperature", "O$_2$ Rotational Temperature"]
-):
+for ax, title in zip(axes, ["H$_2$ $T_rot$", "O$_2$ $T_rot$"]):
     ax.set_xlabel(
         "Time [ns]",
         fontsize=plotconfig.label_fontsize,
@@ -173,7 +168,7 @@ for bfac in o2_bfac_sweep:
 
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
     ax.set_xlabel("Time [$s$]", fontsize=plotconfig.label_fontsize)
-    ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize)
+    ax.set_ylabel("$T_rot$ [$K$]", fontsize=plotconfig.label_fontsize)
     ax.set_title(title, fontsize=plotconfig.label_fontsize)
     ax.legend(fontsize=plotconfig.legend_fontsize)
     ax.grid()
@@ -267,7 +262,7 @@ for bs in batch_sizes:
 
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
     ax.set_xlabel("Time [$s$]", fontsize=plotconfig.label_fontsize)
-    ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize)
+    ax.set_ylabel("$T_rot$ [$K$]", fontsize=plotconfig.label_fontsize)
     ax.set_title(title, fontsize=plotconfig.label_fontsize)
     ax.legend(fontsize=plotconfig.legend_fontsize)
     ax.grid()
@@ -276,55 +271,55 @@ fig.tight_layout()
 fig.savefig(f"{plotpath}/batch_size_relaxation.png", dpi=300)
 
 
-## 8. H2 scatterplot of CTC and MDN predictions 2x2 ##
-fig, ax = plt.subplots(
-    2, 2, figsize=(2 * plotconfig.figsize[0], 2 * plotconfig.figsize[1])
-)
-datafile = "data/ctc/h2/impactparam/Erelmax10000/H2_collisions_b1_6_uniform_Erelmax10000_ncoll1000000_seed42.npy"
-data = load_dataset(datafile, rows=experimentconfig.num_samples)
-
-mdn = load_mdn(h2_best_model_path, randomseed=experimentconfig.random_seed)
-torch.manual_seed(experimentconfig.random_seed + 1)
-mdn_samples = mdn.sample(x=data[0])
-
-datasets = {
-    "inputs": data[0][:, 1:],
-    "CTC": data[1],
-    "MDN": mdn_samples,
-}
-plot_density_scatter(ax, datasets=datasets)
-for row in ax:
-    for a in row:
-        a.set_xlim(0, 1)
-        a.set_ylim(0, 1)
-fig.tight_layout()
-fig.savefig(f"{plotpath}/h2_mdn_ctc_scatter.png", dpi=300)
-
-
-# 9. O2 scatterplot of CTC and MDN predictions 2x2 ##
-fig, ax = plt.subplots(
-    2, 2, figsize=(2 * plotconfig.figsize[0], 2 * plotconfig.figsize[1])
-)
-datafile = "data/ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax1_5.npy"
-data = load_dataset(datafile, rows=experimentconfig.num_samples)
-
-mdn = load_mdn(o2_best_model_path, randomseed=experimentconfig.random_seed)
-torch.manual_seed(experimentconfig.random_seed + 1)
-mdn_samples = mdn.sample(x=data[0])
-
-datasets = {
-    "inputs": data[0][:, 1:],
-    "CTC": data[1],
-    "MDN": mdn_samples,
-}
-plot_density_scatter(ax, datasets=datasets)
-for row in ax:
-    for a in row:
-        a.set_xlim(0, 1)
-        a.set_ylim(0, 1)
-fig.tight_layout()
-fig.savefig(f"{plotpath}/o2_mdn_ctc_scatter.png", dpi=300)
-
+# ## 8. H2 scatterplot of CTC and MDN predictions 2x2 ##
+# fig, ax = plt.subplots(
+#     2, 2, figsize=(2 * plotconfig.figsize[0], 2 * plotconfig.figsize[1])
+# )
+# datafile = "data/ctc/h2/impactparam/Erelmax10000/H2_collisions_b1_6_uniform_Erelmax10000_ncoll1000000_seed42.npy"
+# data = load_dataset(datafile, rows=experimentconfig.num_samples)
+#
+# mdn = load_mdn(h2_best_model_path, randomseed=experimentconfig.random_seed)
+# torch.manual_seed(experimentconfig.random_seed + 1)
+# mdn_samples = mdn.sample(x=data[0])
+#
+# datasets = {
+#     "inputs": data[0][:, 1:],
+#     "CTC": data[1],
+#     "MDN": mdn_samples,
+# }
+# plot_density_scatter(ax, datasets=datasets)
+# for row in ax:
+#     for a in row:
+#         a.set_xlim(0, 1)
+#         a.set_ylim(0, 1)
+# fig.tight_layout()
+# fig.savefig(f"{plotpath}/h2_mdn_ctc_scatter.png", dpi=300)
+#
+#
+# # 9. O2 scatterplot of CTC and MDN predictions 2x2 ##
+# fig, ax = plt.subplots(
+#     2, 2, figsize=(2 * plotconfig.figsize[0], 2 * plotconfig.figsize[1])
+# )
+# datafile = "data/ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax1_5.npy"
+# data = load_dataset(datafile, rows=experimentconfig.num_samples)
+#
+# mdn = load_mdn(o2_best_model_path, randomseed=experimentconfig.random_seed)
+# torch.manual_seed(experimentconfig.random_seed + 1)
+# mdn_samples = mdn.sample(x=data[0])
+#
+# datasets = {
+#     "inputs": data[0][:, 1:],
+#     "CTC": data[1],
+#     "MDN": mdn_samples,
+# }
+# plot_density_scatter(ax, datasets=datasets)
+# for row in ax:
+#     for a in row:
+#         a.set_xlim(0, 1)
+#         a.set_ylim(0, 1)
+# fig.tight_layout()
+# fig.savefig(f"{plotpath}/o2_mdn_ctc_scatter.png", dpi=300)
+#
 
 ## 10. Best model relaxation comparison with MD 1x2 (H2 left, O2 right) ##
 fig, axes = plt.subplots(

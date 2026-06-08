@@ -49,7 +49,7 @@ for t, T_rot, label in o2_sources:
     axes[1].plot(t, T_rot, label=label)
 
 for ax, title in zip(
-    axes, ["H$_2$ Rotational Temperature", "O$_2$ Rotational Temperature"]
+    axes, ["H$_2$ $", "O$_2$ $"]
 ):
     ax.set_xlabel(
         "Time [ns]",
@@ -140,7 +140,7 @@ for bfac in bfac_sweep:
     ax.plot(arr["timestep"], arr["T_rot_mean"], label=f"$b_{{fac}}={bfac}$")
 
 ax.set_xlabel("Time [$s$]", fontsize=plotconfig.label_fontsize)
-ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize)
+ax.set_ylabel("$ [$K$]", fontsize=plotconfig.label_fontsize)
 ax.legend(fontsize=plotconfig.legend_fontsize)
 ax.grid()
 fig.tight_layout()
@@ -206,7 +206,7 @@ for bs in batch_sizes:
     ax.plot(arr["timestep"], arr["T_rot_mean"], label=f"batch size = {bs}")
 
 ax.set_xlabel("Time [$s$]", fontsize=plotconfig.label_fontsize)
-ax.set_ylabel("Rotational Temperature [$K$]", fontsize=plotconfig.label_fontsize)
+ax.set_ylabel("$ [$K$]", fontsize=plotconfig.label_fontsize)
 ax.legend(fontsize=plotconfig.legend_fontsize)
 ax.grid()
 fig.tight_layout()
@@ -266,7 +266,7 @@ for t, T_trans, T_rot, label in sources:
 
 for ax, title, ylabel in zip(
     axes,
-    ["Translational Temperature", "Rotational Temperature"],
+    ["Translational Temperature", "$"],
     ["$T_{trans}$ [K]", "$T_{rot}$ [K]"],
 ):
     ax.set_xlabel(

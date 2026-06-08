@@ -11,10 +11,8 @@ newton on
 read_data o2_init.data
 
 ### Force field ###
-# 2-center LJ O-O atom parameters from Vrabec, Stoll & Hasse, J. Phys. Chem. B 105, 12126 (2001):
-#   eps/k_B = 49.60 K -> eps = 6.85e-22 J,  sigma = 3.006e-10 m
 pair_style lj/cut 1.0e-9
-pair_coeff 1 1 6.85e-22 3.006e-10
+pair_coeff 1 1 1.56e-21 3.433e-10
 special_bonds lj 0.0 0.0 0.0
 bond_style zero
 bond_coeff 1 1.2075e-10
