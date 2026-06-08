@@ -19,7 +19,7 @@ batch_sizes = [1000, 2000, 5000, 10000, 12500, 15625]
 N_BINS = 100
 
 h2_best_model_path = "results/h2/models/mdn/best_model.pth"
-o2_best_model_path = "results/o2/models/mdn/batch_size/best_model.pth"
+o2_best_model_path = "results/o2/models/mdn/best_model.pth"
 
 # Load DSMC/MD relaxation data
 sparta_h2 = np.loadtxt("data/sparta/h2_energy_relaxation.dat")
