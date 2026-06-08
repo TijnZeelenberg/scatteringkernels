@@ -2,154 +2,155 @@ import numpy as np
 
 
 class borgnakke_larssen_model:
-    def __init__(self, randomseed: int = 42):
-        self.rng = np.random.default_rng(randomseed)
+    """Borgnakke-Larsen rotational relaxation, matching SPARTA's serial
+    per-molecule Larsen-Borgnakke scheme (``collide_vss.cpp``,
+    ``EEXCHANGE_NonReactingEDisposal``).
 
-    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot:float=1.0):
+    Per collision, *each* of the two molecules independently relaxes its
+    rotational energy with probability ``1/zrot``. When a molecule relaxes it
+    draws a new rotational energy equal to ``(1 - U**(1/(2.5 - omega)))`` times
+    the running collision energy ``E_c`` (relative translational energy plus
+    that molecule's rotational energy); the translational pool is then updated
+    and carried over to the second molecule. After both molecules are handled,
+    the post-collision relative velocity is scattered isotropically (VHS/VSS
+    with ``alpha = 1``).
+
+    ``omega`` is the VHS viscosity-temperature exponent. ``omega = 0.5`` reduces
+    to the hard-sphere model, which is what the H2/O2 ``*.vhs`` parameter files
+    use (so it is the default).
+    """
+
+    def __init__(self, randomseed: int = 42, omega: float = 0.5):
+        self.rng = np.random.default_rng(randomseed)
+        self.omega = omega
+
+    def _isotropic_directions(self, shape):
+        """Unit vectors drawn uniformly on the sphere, with a zero-norm guard.
+
+        ``shape`` is the full output shape, e.g. ``(3,)`` for a single pair or
+        ``(N, 3)`` for a batch; the last axis is normalized.
         """
-        Perform a collision between two particles using the Borgnakke-Larssen model.
+        raw = self.rng.normal(size=shape)
+        norms = np.linalg.norm(raw, axis=-1, keepdims=True)
+        norms = np.where(norms > 0, norms, 1.0)
+        return raw / norms
+
+    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot: float = 1.0):
+        """Perform one Borgnakke-Larsen collision (SPARTA serial scheme).
 
         Args:
             velocity_i: Velocity vector of particle i before collision.
             e_rot_i: Rotational energy of particle i before collision.
             velocity_j: Velocity vector of particle j before collision.
             e_rot_j: Rotational energy of particle j before collision.
-            velocity_j: Velocity vector of particle j before collision.
             m: Mass of the particles.
-            T: Temperature of the system.
+            zrot: Rotational collision number; the inelastic probability is
+                ``1/zrot`` tested independently for each molecule.
 
         Returns:
-            new_velocity_i: Velocity vector of particle i after collision.
-            new_e_rot_i: Rotational energy of particle i after collision.
-            new_velocity_j: Velocity vector of particle j after collision.
-            new_e_rot_j: Rotational energy of particle j after collision.
+            new_velocity_i, new_e_rot_i, new_velocity_j, new_e_rot_j
         """
-        # For transport properties (viscosity, etc.) each binary collision must conserve
-        # pair momentum and total energy (translational + internal).
-        # We enforce this by working in the center-of-mass (COM) frame.
-
-        inelastic_collision_probability = 1.0 / (zrot)  # (from Rabitz & Lam 1975)
-
-        # Center-of-mass velocity
+        # Work in the centre-of-mass frame: V is conserved (pair momentum) and
+        # the redistribution conserves relative translational + rotational
+        # energy.
         V = 0.5 * (velocity_i + velocity_j)
         g = velocity_i - velocity_j
 
         if (not np.isfinite(m)) or m <= 0.0:
             return velocity_i, float(e_rot_i), velocity_j, float(e_rot_j)
 
-        E_rel = float(0.25 * m * np.dot(g, g))
-        E_available = E_rel + float(e_rot_i) + float(e_rot_j)
-
-        if (not np.isfinite(E_available)) or E_available < 0.0:
+        # Relative translational energy = 1/2 * mu * g^2 with reduced mass m/2.
+        E_trans = float(0.25 * m * np.dot(g, g))
+        if (not np.isfinite(E_trans)) or E_trans < 0.0:
             return velocity_i, float(e_rot_i), velocity_j, float(e_rot_j)
 
-        if self.rng.random() <= inelastic_collision_probability:
-            # Inelastic collision: redistribute energy
-            # For diatomic molecules: 3 translational DOF, 2 rotational DOF per molecule
-            translational_fraction = self.rng.beta(1.5, 2.0)
-            E_rel_post = E_available * translational_fraction
-            E_rot_pool_post = E_available - E_rel_post
+        phi = 1.0 / zrot
+        exponent = 1.0 / (2.5 - self.omega)
 
-            # Split rotational energy between particles
-            # For equal molecules with 2 DOF each: Beta(1, 1) = Uniform
-            rot_fraction_i = float(self.rng.random())
-            new_e_rot_i = E_rot_pool_post * rot_fraction_i
-            new_e_rot_j = E_rot_pool_post - new_e_rot_i
+        E_dispose = E_trans
+        new_e_rot_i = float(e_rot_i)
+        new_e_rot_j = float(e_rot_j)
 
-            # Sample isotropic relative velocity
-            direction = self.rng.normal(size=velocity_i.shape)
-            norm = float(np.linalg.norm(direction))
-            if norm == 0.0 or (not np.isfinite(norm)):
-                direction = np.zeros_like(velocity_i)
-                direction[0] = 1.0
-                norm = 1.0
-            else:
-                direction = direction / norm
+        # Molecule i relaxes its rotation against the running translational pool.
+        if self.rng.random() < phi:
+            E_c = E_dispose + new_e_rot_i
+            fraction_rot = 1.0 - self.rng.random() ** exponent
+            new_e_rot_i = fraction_rot * E_c
+            E_dispose = E_c - new_e_rot_i
 
-            g_mag = float(np.sqrt(max(0.0, 4.0 * E_rel_post / m)))
-            g_post = direction * g_mag
+        # Molecule j relaxes against the pool already updated by molecule i.
+        if self.rng.random() < phi:
+            E_c = E_dispose + new_e_rot_j
+            fraction_rot = 1.0 - self.rng.random() ** exponent
+            new_e_rot_j = fraction_rot * E_c
+            E_dispose = E_c - new_e_rot_j
 
-            new_velocity_i = V + 0.5 * g_post
-            new_velocity_j = V - 0.5 * g_post
+        # Isotropic scatter using the post-relaxation relative translational
+        # energy (speed is preserved when neither molecule relaxed -> elastic).
+        direction = self._isotropic_directions(np.shape(velocity_i))
+        g_mag = float(np.sqrt(max(0.0, 4.0 * E_dispose / m)))
+        g_post = direction * g_mag
 
-            return (
-                new_velocity_i,
-                float(new_e_rot_i),
-                new_velocity_j,
-                float(new_e_rot_j),
-            )
-        else:
-            # Elastic collision: isotropic hard-sphere deflection
-            # Randomize relative velocity direction, preserve speed and COM velocity
-            V_com = 0.5 * (velocity_i + velocity_j)
-            g_mag = float(np.linalg.norm(g))
-            direction = self.rng.normal(size=velocity_i.shape)
-            direction /= np.linalg.norm(direction)
-            g_post = direction * g_mag
-            return (
-                V_com + 0.5 * g_post,
-                float(e_rot_i),
-                V_com - 0.5 * g_post,
-                float(e_rot_j),
-            )
+        return (
+            V + 0.5 * g_post,
+            float(new_e_rot_i),
+            V - 0.5 * g_post,
+            float(new_e_rot_j),
+        )
 
-    def batch_collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot:float=1.0):
-        """
-        Vectorized Borgnakke-Larssen collision for N pairs at once.
+    def batch_collide(
+        self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot: float = 1.0
+    ):
+        """Vectorized SPARTA serial Borgnakke-Larsen collision for N pairs.
 
         Args:
-            velocity_i, velocity_j: (N, 3) numpy arrays
-            e_rot_i, e_rot_j: (N,) numpy arrays
-            m: scalar mass
+            velocity_i, velocity_j: (N, 3) arrays of pre-collision velocities.
+            e_rot_i, e_rot_j: (N,) arrays of pre-collision rotational energies.
+            m: scalar particle mass.
+            zrot: rotational collision number; inelastic probability ``1/zrot``
+                is tested independently for each molecule of each pair.
+
         Returns:
             new_v_i, new_e_rot_i, new_v_j, new_e_rot_j
         """
         N = len(velocity_i)
-        inelastic_collision_probability = 1.0 / (zrot)  # (from Rabitz & Lam 1975)
 
-        # Center-of-mass frame
+        # Centre-of-mass frame.
         V = 0.5 * (velocity_i + velocity_j)  # (N, 3)
         g = velocity_i - velocity_j  # (N, 3)
         g_speed = np.linalg.norm(g, axis=1)  # (N,)
 
-        E_rel = 0.25 * m * g_speed**2  # (N,)
+        # Relative translational energy = 1/2 * mu * g^2 with reduced mass m/2.
+        E_trans = 0.25 * m * g_speed**2  # (N,)
 
-        # --- Isotropic random scattering direction for all pairs ---
-        raw = self.rng.normal(size=(N, 3))
-        norms = np.linalg.norm(raw, axis=1, keepdims=True)
-        norms = np.where(norms > 0, norms, 1.0)
-        directions = raw / norms  # (N, 3)
+        phi = 1.0 / zrot
+        exponent = 1.0 / (2.5 - self.omega)
 
-        # --- Default: elastic collision (just rotate g, keep rotational energies) ---
-        g_post = directions * g_speed[:, None]
-        new_v_i = V + 0.5 * g_post
-        new_v_j = V - 0.5 * g_post
+        E_dispose = E_trans.copy()
         new_e_rot_i = e_rot_i.copy()
         new_e_rot_j = e_rot_j.copy()
 
-        # --- Inelastic collisions: overwrite the selected subset ---
-        inelastic = self.rng.random(N) < inelastic_collision_probability
-        n_inel = int(np.sum(inelastic))
+        # Molecule i: own 1/zrot test, relax against the translational pool.
+        relax_i = self.rng.random(N) < phi
+        E_c_i = E_dispose + new_e_rot_i
+        e_i_relaxed = (1.0 - self.rng.random(N) ** exponent) * E_c_i
+        new_e_rot_i = np.where(relax_i, e_i_relaxed, new_e_rot_i)
+        E_dispose = np.where(relax_i, E_c_i - e_i_relaxed, E_dispose)
 
-        if n_inel > 0:
-            E_rel_inel = E_rel[inelastic]
-            E_available = E_rel_inel + e_rot_i[inelastic] + e_rot_j[inelastic]
+        # Molecule j: own 1/zrot test, sees E_dispose already updated by i.
+        relax_j = self.rng.random(N) < phi
+        E_c_j = E_dispose + new_e_rot_j
+        e_j_relaxed = (1.0 - self.rng.random(N) ** exponent) * E_c_j
+        new_e_rot_j = np.where(relax_j, e_j_relaxed, new_e_rot_j)
+        E_dispose = np.where(relax_j, E_c_j - e_j_relaxed, E_dispose)
 
-            # Energy redistribution
-            trans_fraction = self.rng.beta(2.0, 2.0, size=n_inel)
-            E_rel_post = E_available * trans_fraction
-            E_rot_pool = E_available - E_rel_post
+        # Isotropic scatter using the post-relaxation relative translational
+        # energy (speed preserved when neither molecule relaxed -> elastic).
+        directions = self._isotropic_directions((N, 3))
+        g_mag = np.sqrt(np.maximum(0.0, 4.0 * E_dispose / m))  # (N,)
+        g_post = directions * g_mag[:, None]
 
-            # Split rotational energy
-            rot_fraction = self.rng.random(n_inel)
-            new_e_rot_i[inelastic] = E_rot_pool * rot_fraction
-            new_e_rot_j[inelastic] = E_rot_pool * (1.0 - rot_fraction)
-
-            # New relative speed from redistributed energy
-            g_mag_inel = np.sqrt(np.maximum(0.0, 4.0 * E_rel_post / m))
-            g_post_inel = directions[inelastic] * g_mag_inel[:, None]
-
-            new_v_i[inelastic] = V[inelastic] + 0.5 * g_post_inel
-            new_v_j[inelastic] = V[inelastic] - 0.5 * g_post_inel
+        new_v_i = V + 0.5 * g_post
+        new_v_j = V - 0.5 * g_post
 
         return new_v_i, new_e_rot_i, new_v_j, new_e_rot_j
