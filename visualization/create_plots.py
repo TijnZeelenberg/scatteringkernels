@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 import torch
 from config.plotting_config import PlottingConfig
 from config.experiment_config import ExperimentConfig
+from experiments.energy_relaxation import load_mdn
+from utils.helpers import load_dataset
+from visualization.plot import plot_density_scatter
+from analysis.kl_divergence import kl_divergence
 
 plotconfig = PlottingConfig()
 experimentconfig = ExperimentConfig()
@@ -35,12 +39,12 @@ fig, axes = plt.subplots(
 
 h2_sources = [
     (lammps_h2[:, 1] * 1e9, lammps_h2[:, 3], "MD (LAMMPS)"),
-    (sparta_h2[:, 1] * 1e9, sparta_h2[:, 3], "SPARTA (BL)"),
+    (sparta_h2[:, 1] * 1e9, sparta_h2[:, 3], "BL (SPARTA)"),
     (bl_h2[:, 1] * 1e9, bl_h2[:, 3], "ml-DSMC (BL)"),
 ]
 o2_sources = [
     (lammps_o2[:, 1] * 1e9, lammps_o2[:, 3], "MD (LAMMPS)"),
-    (sparta_o2[:, 1] * 1e9, sparta_o2[:, 3], "SPARTA (BL)"),
+    (sparta_o2[:, 1] * 1e9, sparta_o2[:, 3], "BL (SPARTA)"),
     (bl_o2[:, 1] * 1e9, bl_o2[:, 3], "ml-DSMC (BL)"),
 ]
 
@@ -49,7 +53,7 @@ for t, T_rot, label in h2_sources:
 for t, T_rot, label in o2_sources:
     axes[1].plot(t, T_rot, label=label)
 
-for ax, title in zip(axes, ["H$_2$ $T_rot$", "O$_2$ $T_rot$"]):
+for ax, title in zip(axes, ["H$_2$ $T_{rot}$", "O$_2$ $T_{rot}$"]):
     ax.set_xlabel(
         "Time [ns]",
         fontsize=plotconfig.label_fontsize,
@@ -159,16 +163,16 @@ fig, axes = plt.subplots(
 for bfac in h2_bfac_sweep:
     bfac_tag = str(bfac).replace(".", "_")
     arr = np.load(f"data/ml-dsmc/mdn/h2/impactparam/relaxation_b{bfac_tag}.npy")
-    axes[0].plot(arr["timestep"], arr["T_rot_mean"], label=f"$b_{{fac}}={bfac}$")
+    axes[0].plot(arr["timestep"] * 1e9, arr["T_rot_mean"], label=f"$b_{{fac}}={bfac}$")
 
 for bfac in o2_bfac_sweep:
     bfac_tag = str(bfac).replace(".", "_")
     arr = np.load(f"data/ml-dsmc/mdn/o2/impactparam/relaxation_b{bfac_tag}.npy")
-    axes[1].plot(arr["timestep"], arr["T_rot_mean"], label=f"$b_{{fac}}={bfac}$")
+    axes[1].plot(arr["timestep"] * 1e9, arr["T_rot_mean"], label=f"$b_{{fac}}={bfac}$")
 
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
-    ax.set_xlabel("Time [$s$]", fontsize=plotconfig.label_fontsize)
-    ax.set_ylabel("$T_rot$ [$K$]", fontsize=plotconfig.label_fontsize)
+    ax.set_xlabel("Time [ns]", fontsize=plotconfig.label_fontsize)
+    ax.set_ylabel("$T_{rot}$ [K]", fontsize=plotconfig.label_fontsize)
     ax.set_title(title, fontsize=plotconfig.label_fontsize)
     ax.legend(fontsize=plotconfig.legend_fontsize)
     ax.grid()
@@ -254,15 +258,15 @@ fig, axes = plt.subplots(
 
 for bs in batch_sizes:
     arr = np.load(f"data/ml-dsmc/mdn/h2/batch_size/relaxation_bs{bs}.npy")
-    axes[0].plot(arr["timestep"], arr["T_rot_mean"], label=f"batch size = {bs}")
+    axes[0].plot(arr["timestep"] * 1e9, arr["T_rot_mean"], label=f"batch size = {bs}")
 
 for bs in batch_sizes:
     arr = np.load(f"data/ml-dsmc/mdn/o2/batch_size/relaxation_bs{bs}.npy")
-    axes[1].plot(arr["timestep"], arr["T_rot_mean"], label=f"batch size = {bs}")
+    axes[1].plot(arr["timestep"] * 1e9, arr["T_rot_mean"], label=f"batch size = {bs}")
 
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
-    ax.set_xlabel("Time [$s$]", fontsize=plotconfig.label_fontsize)
-    ax.set_ylabel("$T_rot$ [$K$]", fontsize=plotconfig.label_fontsize)
+    ax.set_xlabel("Time [ns]", fontsize=plotconfig.label_fontsize)
+    ax.set_ylabel("$T_{rot}$ [K]", fontsize=plotconfig.label_fontsize)
     ax.set_title(title, fontsize=plotconfig.label_fontsize)
     ax.legend(fontsize=plotconfig.legend_fontsize)
     ax.grid()
@@ -284,23 +288,26 @@ fig.savefig(f"{plotpath}/batch_size_relaxation.png", dpi=300)
 #
 # datasets = {
 #     "inputs": data[0][:, 1:],
-#     "CTC": data[1],
-#     "MDN": mdn_samples,
+#     "ctc": data[1],
+#     "mdn": mdn_samples,
 # }
 # plot_density_scatter(ax, datasets=datasets)
 # for row in ax:
 #     for a in row:
 #         a.set_xlim(0, 1)
 #         a.set_ylim(0, 1)
+# for i, name in enumerate([r"eta'_tr", r"eta'_rot"]):
+#     kl = kl_divergence(datasets["ctc"][:, i], datasets["mdn"][:, i])
+#     print(f"h2 d_kl(ctc || mdn) [{name}] = {kl:.4f}")
 # fig.tight_layout()
 # fig.savefig(f"{plotpath}/h2_mdn_ctc_scatter.png", dpi=300)
 #
 #
-# # 9. O2 scatterplot of CTC and MDN predictions 2x2 ##
+# # 9. o2 scatterplot of ctc and mdn predictions 2x2 ##
 # fig, ax = plt.subplots(
 #     2, 2, figsize=(2 * plotconfig.figsize[0], 2 * plotconfig.figsize[1])
 # )
-# datafile = "data/ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax1_5.npy"
+# datafile = "data/ctc/o2/impactparam/erelmax10000/o2_collisions_uniform_bmax1_5.npy"
 # data = load_dataset(datafile, rows=experimentconfig.num_samples)
 #
 # mdn = load_mdn(o2_best_model_path, randomseed=experimentconfig.random_seed)
@@ -309,17 +316,20 @@ fig.savefig(f"{plotpath}/batch_size_relaxation.png", dpi=300)
 #
 # datasets = {
 #     "inputs": data[0][:, 1:],
-#     "CTC": data[1],
-#     "MDN": mdn_samples,
+#     "ctc": data[1],
+#     "mdn": mdn_samples,
 # }
 # plot_density_scatter(ax, datasets=datasets)
 # for row in ax:
 #     for a in row:
 #         a.set_xlim(0, 1)
 #         a.set_ylim(0, 1)
+# for i, name in enumerate([r"eta'_tr", r"eta'_rot"]):
+#     kl = kl_divergence(datasets["ctc"][:, i], datasets["mdn"][:, i])
+#     print(f"o2 d_kl(ctc || mdn) [{name}] = {kl:.4f}")
 # fig.tight_layout()
 # fig.savefig(f"{plotpath}/o2_mdn_ctc_scatter.png", dpi=300)
-#
+
 
 ## 10. Best model relaxation comparison with MD 1x2 (H2 left, O2 right) ##
 fig, axes = plt.subplots(
@@ -375,6 +385,7 @@ for ax, t_lammps, t_mdn, lammps_data, mdn_data, title in zip(
         linestyle="--",
         label="$T_{rot}$ MDN (ml-DSMC)",
     )
+    ax.set_xlim(0, 5)
     ax.set_xlabel(
         "Time [ns]",
         fontsize=plotconfig.label_fontsize,
@@ -391,5 +402,3 @@ for ax, t_lammps, t_mdn, lammps_data, mdn_data, title in zip(
 
 fig.tight_layout()
 fig.savefig(f"{plotpath}/best_model_relaxation.png", dpi=300)
-
-plt.show()

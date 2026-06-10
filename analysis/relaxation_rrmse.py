@@ -49,10 +49,10 @@ print(f"{'Species':<8} {'Method':<16} {'t_95 [ns]':>10}")
 print("-" * 36)
 for species, method, arr in [
     ("H2", "MD (LAMMPS)",   lammps_h2),
-    ("H2", "SPARTA (BL)",   sparta_h2),
+    ("H2", "BL (SPARTA)",   sparta_h2),
     ("H2", "ml-DSMC (BL)",  bl_h2),
     ("O2", "MD (LAMMPS)",   lammps_o2),
-    ("O2", "SPARTA (BL)",   sparta_o2),
+    ("O2", "BL (SPARTA)",   sparta_o2),
     ("O2", "ml-DSMC (BL)",  bl_o2),
 ]:
     t = arr[:, 1] * 1e9
@@ -62,9 +62,9 @@ for species, method, arr in [
 print()
 
 vs_lammps = [
-    ("H2", "SPARTA (BL)",  lammps_h2, sparta_h2, H2_T_MAX),
+    ("H2", "BL (SPARTA)",  lammps_h2, sparta_h2, H2_T_MAX),
     ("H2", "ml-DSMC (BL)", lammps_h2, bl_h2,    H2_T_MAX),
-    ("O2", "SPARTA (BL)",  lammps_o2, sparta_o2, O2_T_MAX),
+    ("O2", "BL (SPARTA)",  lammps_o2, sparta_o2, O2_T_MAX),
     ("O2", "ml-DSMC (BL)", lammps_o2, bl_o2,    O2_T_MAX),
 ]
 

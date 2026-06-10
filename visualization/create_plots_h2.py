@@ -32,13 +32,13 @@ lammps = lammps_h2
 
 h2_sources = [
     (lammps_h2[:, 1] * 1e9, lammps_h2[:, 3], "MD (LAMMPS)"),
-    (sparta_h2[:, 1] * 1e9, sparta_h2[:, 3], "SPARTA (BL)"),
+    (sparta_h2[:, 1] * 1e9, sparta_h2[:, 3], "BL (SPARTA)"),
     (bl_h2[:, 1] * 1e9, bl_h2[:, 3], "ml-DSMC (BL)"),
 ]
 
 o2_sources = [
     (lammps_o2[:, 1] * 1e9, lammps_o2[:, 3], "MD (LAMMPS)"),
-    (sparta_o2[:, 1] * 1e9, sparta_o2[:, 3], "SPARTA (BL)"),
+    (sparta_o2[:, 1] * 1e9, sparta_o2[:, 3], "BL (SPARTA)"),
     (bl_o2[:, 1] * 1e9, bl_o2[:, 3], "ml-DSMC (BL)"),
 ]
 
