@@ -10,7 +10,6 @@ the Borgnakke-Larssen reference. We expose two values:
 
     zrot_bl  — value to pass when the collision model is BL
     zrot_mdn — value to pass when the collision model is an MDN/BetaMDN
-               (set to zrot_bl / 3.5 to roughly match the CTC relaxation time)
 """
 
 from dataclasses import dataclass

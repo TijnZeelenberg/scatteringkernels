@@ -11,14 +11,6 @@ computing the residuals. The evaluation window matches the plot xlims:
 
 import numpy as np
 
-lammps_h2 = np.loadtxt("data/lammps/h2_energy_relaxation.dat", skiprows=1)
-sparta_h2 = np.loadtxt("data/sparta/h2_energy_relaxation.dat")
-bl_h2 = np.loadtxt("data/ml-dsmc/bl/h2_energy_relaxation.dat", skiprows=1)
-
-lammps_o2 = np.loadtxt("data/lammps/o2_energy_relaxation.dat", skiprows=1)
-sparta_o2 = np.loadtxt("data/sparta/o2_energy_relaxation.dat")
-bl_o2 = np.loadtxt("data/ml-dsmc/bl/o2_energy_relaxation.dat", skiprows=1)
-
 
 def relative_rmse(t_ref, y_ref, t_other, y_other, t_max):
     """RMSE of y_other vs y_ref on the ref grid over [0, t_max], normalised by ΔT."""
@@ -45,49 +37,58 @@ def time_to_95(t, y):
     return float(np.interp(T_95, y[idx - 1 : idx + 1], t[idx - 1 : idx + 1]))
 
 
-print(f"{'Species':<8} {'Method':<16} {'t_95 [ns]':>10}")
-print("-" * 36)
-for species, method, arr in [
-    ("H2", "MD (LAMMPS)",   lammps_h2),
-    ("H2", "BL (SPARTA)",   sparta_h2),
-    ("H2", "ml-DSMC (BL)",  bl_h2),
-    ("O2", "MD (LAMMPS)",   lammps_o2),
-    ("O2", "BL (SPARTA)",   sparta_o2),
-    ("O2", "ml-DSMC (BL)",  bl_o2),
-]:
-    t = arr[:, 1] * 1e9
-    y = arr[:, 3]
-    print(f"{species:<8} {method:<16} {time_to_95(t, y):>10.3f}")
+if __name__ == "__main__":
+    lammps_h2 = np.loadtxt("data/lammps/h2_energy_relaxation.dat", skiprows=1)
+    sparta_h2 = np.loadtxt("data/sparta/h2_energy_relaxation.dat")
+    bl_h2 = np.loadtxt("data/ml-dsmc/bl/h2_energy_relaxation.dat", skiprows=1)
 
-print()
+    lammps_o2 = np.loadtxt("data/lammps/o2_energy_relaxation.dat", skiprows=1)
+    sparta_o2 = np.loadtxt("data/sparta/o2_energy_relaxation.dat")
+    bl_o2 = np.loadtxt("data/ml-dsmc/bl/o2_energy_relaxation.dat", skiprows=1)
 
-vs_lammps = [
-    ("H2", "BL (SPARTA)",  lammps_h2, sparta_h2, H2_T_MAX),
-    ("H2", "ml-DSMC (BL)", lammps_h2, bl_h2,    H2_T_MAX),
-    ("O2", "BL (SPARTA)",  lammps_o2, sparta_o2, O2_T_MAX),
-    ("O2", "ml-DSMC (BL)", lammps_o2, bl_o2,    O2_T_MAX),
-]
+    print(f"{'Species':<8} {'Method':<16} {'t_95 [ns]':>10}")
+    print("-" * 36)
+    for species, method, arr in [
+        ("H2", "MD (LAMMPS)",   lammps_h2),
+        ("H2", "BL (SPARTA)",   sparta_h2),
+        ("H2", "ml-DSMC (BL)",  bl_h2),
+        ("O2", "MD (LAMMPS)",   lammps_o2),
+        ("O2", "BL (SPARTA)",   sparta_o2),
+        ("O2", "ml-DSMC (BL)",  bl_o2),
+    ]:
+        t = arr[:, 1] * 1e9
+        y = arr[:, 3]
+        print(f"{species:<8} {method:<16} {time_to_95(t, y):>10.3f}")
 
-vs_sparta = [
-    ("H2", "ml-DSMC (BL)", sparta_h2, bl_h2,  H2_T_MAX),
-    ("O2", "ml-DSMC (BL)", sparta_o2, bl_o2,  O2_T_MAX),
-]
+    print()
 
-print(f"{'Species':<8} {'vs. ref':<8} {'Method':<16} {'RMSE [K]':>10} {'ΔT [K]':>8} {'rRMSE':>8}")
-print("-" * 62)
-for species, method, ref, other, t_max in vs_lammps:
-    t_ref   = ref[:, 1] * 1e9
-    y_ref   = ref[:, 3]
-    t_other = other[:, 1] * 1e9
-    y_other = other[:, 3]
-    rmse, delta_T, rrmse = relative_rmse(t_ref, y_ref, t_other, y_other, t_max)
-    print(f"{species:<8} {'LAMMPS':<8} {method:<16} {rmse:>10.2f} {delta_T:>8.1f} {rrmse:>8.1%}")
+    vs_lammps = [
+        ("H2", "BL (SPARTA)",  lammps_h2, sparta_h2, H2_T_MAX),
+        ("H2", "ml-DSMC (BL)", lammps_h2, bl_h2,    H2_T_MAX),
+        ("O2", "BL (SPARTA)",  lammps_o2, sparta_o2, O2_T_MAX),
+        ("O2", "ml-DSMC (BL)", lammps_o2, bl_o2,    O2_T_MAX),
+    ]
 
-print()
-for species, method, ref, other, t_max in vs_sparta:
-    t_ref   = ref[:, 1] * 1e9
-    y_ref   = ref[:, 3]
-    t_other = other[:, 1] * 1e9
-    y_other = other[:, 3]
-    rmse, delta_T, rrmse = relative_rmse(t_ref, y_ref, t_other, y_other, t_max)
-    print(f"{species:<8} {'SPARTA':<8} {method:<16} {rmse:>10.2f} {delta_T:>8.1f} {rrmse:>8.1%}")
+    vs_sparta = [
+        ("H2", "ml-DSMC (BL)", sparta_h2, bl_h2,  H2_T_MAX),
+        ("O2", "ml-DSMC (BL)", sparta_o2, bl_o2,  O2_T_MAX),
+    ]
+
+    print(f"{'Species':<8} {'vs. ref':<8} {'Method':<16} {'RMSE [K]':>10} {'ΔT [K]':>8} {'rRMSE':>8}")
+    print("-" * 62)
+    for species, method, ref, other, t_max in vs_lammps:
+        t_ref   = ref[:, 1] * 1e9
+        y_ref   = ref[:, 3]
+        t_other = other[:, 1] * 1e9
+        y_other = other[:, 3]
+        rmse, delta_T, rrmse = relative_rmse(t_ref, y_ref, t_other, y_other, t_max)
+        print(f"{species:<8} {'LAMMPS':<8} {method:<16} {rmse:>10.2f} {delta_T:>8.1f} {rrmse:>8.1%}")
+
+    print()
+    for species, method, ref, other, t_max in vs_sparta:
+        t_ref   = ref[:, 1] * 1e9
+        y_ref   = ref[:, 3]
+        t_other = other[:, 1] * 1e9
+        y_other = other[:, 3]
+        rmse, delta_T, rrmse = relative_rmse(t_ref, y_ref, t_other, y_other, t_max)
+        print(f"{species:<8} {'SPARTA':<8} {method:<16} {rmse:>10.2f} {delta_T:>8.1f} {rrmse:>8.1%}")

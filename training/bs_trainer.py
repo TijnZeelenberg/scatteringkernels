@@ -18,14 +18,10 @@ o2_datapath = "data/ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax1_
 _datapaths = {"h2": h2_datapath, "o2": o2_datapath}
 
 if __name__ == "__main__":
-    for gas in ["h2", "o2"]:
+    for gas in ["o2"]:
         datapath = _datapaths[gas]
-        outputpath = paths.ensure_parent(
-            paths.RESULTS_DIR
-            / gas
-            / "models"
-            / "mdn"
-            / f"best_model_bs{config.batch_size}.pth"
+        outputpath = (
+            f"results/o2/models/mdn/batch_size/mdn_O2_bs{config.batch_size}.pth"
         )
         train_mdn(
             datapath=str(datapath),
