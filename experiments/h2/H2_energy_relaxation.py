@@ -17,8 +17,11 @@ from experiments.energy_relaxation import (
     run_relaxation_comparison,
 )
 from physics.species import Species
+from config.experiment_config import ExperimentConfig
 
-best_model_path = "results/h2/models/mdn/best_model.pth"
+config = ExperimentConfig()
+
+best_model_path = f"results/h2/models/mdn/best_model_bs{config.batch_size}_ngauss{config.num_mixtures}.pth"
 
 
 def main(

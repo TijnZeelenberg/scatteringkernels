@@ -17,8 +17,11 @@ from experiments.energy_relaxation import (
     run_relaxation_comparison,
 )
 from physics.species import Species
+from config.experiment_config import ExperimentConfig
 
-MDN_CONVERGENT = "results/o2/models/mdn/batch_size/mdn_O2_bs2000.pth"
+config = ExperimentConfig()
+
+MDN_CONVERGENT = f"results/o2/models/mdn/best_model_bs{config.batch_size}_ngauss{config.num_mixtures}.pth"
 
 
 def main(

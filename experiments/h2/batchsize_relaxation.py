@@ -8,7 +8,7 @@ from physics.species import Species
 
 batch_sizes = [500, 1000, 2000, 5000, 10000, 12500, 15625]
 
-nr_steps = 500
+nr_steps = 800
 
 params = SimulationParams(nr_steps=nr_steps)
 species = Species.H2()

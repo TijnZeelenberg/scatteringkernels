@@ -8,7 +8,7 @@ class PlottingConfig:
         self.label_fontweight = "normal"
         self.legend_fontsize = 10
         self.title_fontsize = 18
-        self.title_fontweight = "bold"
+        self.title_fontweight = "normal"
 
         # scatter plot settings
         self.scatter_point_size = 1
