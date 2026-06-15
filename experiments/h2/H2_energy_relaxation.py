@@ -33,7 +33,7 @@ def main(
     randomseed: int = 1,
 ):
     species = Species.H2()
-    params = SimulationParams(nr_steps=500)
+    params = SimulationParams(nr_steps=2000)
 
     model_tag = Path(mdn_model_path).stem  # e.g. mdn_H2_wf7
 
@@ -77,7 +77,7 @@ def main(
     plot_relaxation_comparison(
         results, sparta, lammps=lammps, bl=bl, ylim=(100.0, 300.0), output_path=out_path
     )
-    plt.show()
+    # plt.show()
 
 
 if __name__ == "__main__":

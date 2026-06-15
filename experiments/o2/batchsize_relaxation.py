@@ -6,7 +6,7 @@ import paths
 from experiments.energy_relaxation import SimulationParams, load_mdn, run_relaxation
 from physics.species import Species
 
-batch_sizes = [500, 1000, 2000, 5000, 10000, 12500, 15625]
+batch_sizes = [750]
 
 nr_steps = 800
 

@@ -17,7 +17,7 @@ plotpath = "../Master_Thesis_Tijn_Zeelenberg/figures"
 h2_bfac_sweep = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
 o2_bfac_sweep = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
 num_gaussians = [1, 3, 5, 8, 10, 12, 15, 18, 20]
-batch_sizes = [500, 1000, 2000, 5000, 10000, 12500, 15625]
+batch_sizes = [500, 750, 1000, 2000, 5000, 10000, 12500, 15625]
 N_BINS = 100
 
 h2_best_model_path = "results/h2/models/mdn/best_model.pth"
@@ -502,7 +502,7 @@ for ax, t_lammps, t_mdn, lammps_data, mdn_data, title in zip(
         linestyle="--",
         label="$T_{rot}$ MDN (ml-DSMC)",
     )
-    ax.set_xlim(0, 5)
+    ax.set_xlim(0, 15)
     ax.set_xlabel(
         "Time [ns]",
         fontsize=plotconfig.label_fontsize,

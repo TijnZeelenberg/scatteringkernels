@@ -17,21 +17,36 @@ o2_datapath = "data/ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax1_
 
 _datapaths = {"h2": h2_datapath, "o2": o2_datapath}
 
+# One-time script: add a batch_size=750 model to the existing batch_size
+# sweep results of H2 and O2. Output paths match the locations that
+# visualization/create_plots.py reads for the sweep.
+_sweep_outputpaths = {
+    "h2": paths.RESULTS_DIR
+    / "h2"
+    / "models"
+    / "mdn"
+    / "batch_size"
+    / "Erelmax10000"
+    / "b1_6"
+    / "n_epochs300"
+    / "mdn_H2_bs750.pth",
+    "o2": paths.RESULTS_DIR
+    / "o2"
+    / "models"
+    / "mdn"
+    / "batch_size"
+    / "mdn_O2_bs750.pth",
+}
+
 if __name__ == "__main__":
-    for gas in ["o2"]:
+    for gas in ["h2", "o2"]:
         datapath = _datapaths[gas]
-        outputpath = paths.ensure_parent(
-            paths.RESULTS_DIR
-            / gas
-            / "models"
-            / "mdn"
-            / f"best_model_bs{config.batch_size}_ngauss{config.num_mixtures}.pth"
-        )
+        outputpath = paths.ensure_parent(_sweep_outputpaths[gas])
         train_mdn(
             datapath=str(datapath),
             outputpath=str(outputpath),
             epochs=config.num_epochs,
-            batch_size=config.batch_size,
+            batch_size=750,
             lr=config.learning_rate,
             patience=config.patience,
             showplots=True,
