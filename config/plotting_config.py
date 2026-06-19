@@ -4,7 +4,7 @@ class PlottingConfig:
         self.figsize = (6, 5)
 
         # label and legend settings
-        self.label_fontsize = 12
+        self.label_fontsize = 14
         self.label_fontweight = "normal"
         self.legend_fontsize = 10
         self.title_fontsize = 18

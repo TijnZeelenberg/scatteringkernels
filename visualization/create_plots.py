@@ -8,10 +8,27 @@ from utils.helpers import load_dataset
 from visualization.plot import plot_density_scatter
 from analysis.kl_divergence import kl_divergence
 from analysis.relaxation_rrmse import time_to_95
+from analysis.recursive_equilibrium import (
+    make_mdn_step,
+    iterate,
+    dsmc_converged_eta,
+    EQ_FRACTION,
+    N_COLLISIONS,
+)
 
 plotconfig = PlottingConfig()
 experimentconfig = ExperimentConfig()
 
+plt.rcParams.update(
+    {
+        "text.usetex": True,  # render text with LaTeX
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+        "font.size": 10,
+        "axes.titlesize": 12,  # IEEEtran body is 10pt
+        "axes.labelsize": 14,
+    }
+)
 plotpath = "../Master_Thesis_Tijn_Zeelenberg/figures"
 
 h2_bfac_sweep = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
@@ -20,8 +37,12 @@ num_gaussians = [1, 3, 5, 8, 10, 12, 15, 18, 20]
 batch_sizes = [500, 750, 1000, 2000, 5000, 10000, 12500, 15625]
 N_BINS = 100
 
-h2_best_model_path = "results/h2/models/mdn/best_model.pth"
-o2_best_model_path = "results/o2/models/mdn/best_model.pth"
+_best_model_name = (
+    f"best_model_bs{experimentconfig.batch_size}"
+    f"_ngauss{experimentconfig.num_mixtures}.pth"
+)
+h2_best_model_path = f"results/h2/models/mdn/{_best_model_name}"
+o2_best_model_path = f"results/o2/models/mdn/{_best_model_name}"
 
 # Load DSMC/MD relaxation data
 sparta_h2 = np.loadtxt("data/sparta/h2_energy_relaxation.dat")
@@ -76,19 +97,17 @@ for t, T_rot, label in h2_sources:
 for t, T_rot, label in o2_sources:
     axes[1].plot(t, T_rot, label=label)
 
-for ax, title in zip(axes, ["H$_2$ $T_{rot}$", "O$_2$ $T_{rot}$"]):
+for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
     ax.set_xlabel(
         "Time [ns]",
-        fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
     ax.set_ylabel(
         "$T_{rot}$ [K]",
-        fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
-    ax.set_title(title, fontsize=plotconfig.label_fontsize)
-    ax.legend(fontsize=plotconfig.legend_fontsize)
+    ax.set_title(title)
+    ax.legend()
     ax.grid()
 axes[0].set_xlim(0, 2.0)
 axes[1].set_xlim(0, 4.0)
@@ -134,12 +153,12 @@ for bfac in o2_bfac_sweep:
     bin_mean = np.array([delta_trans[bin_idx == i].mean() for i in range(N_BINS)])
     axes[1].plot(bin_centers, bin_mean, label=f"$b_{{max}}={bfac}$")
 
-axes[0].set_ylabel(r"$\Delta\eta_{trans}$", fontsize=plotconfig.label_fontsize)
+axes[0].set_ylabel(r"$\Delta\eta_{trans}$")
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
     ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
-    ax.set_xlabel(r"$\eta_{trans}$", fontsize=plotconfig.label_fontsize)
-    ax.set_title(title, fontsize=plotconfig.label_fontsize)
-    ax.legend(fontsize=plotconfig.legend_fontsize)
+    ax.set_xlabel(r"$\eta_{trans}$")
+    ax.set_title(title)
+    ax.legend()
     ax.grid()
 
 axes[0].set_ylim(-0.175, 0.052)
@@ -181,16 +200,15 @@ axes[1].plot(o2_bfac_sweep, o2_frac_near_elastic, marker="o")
 
 axes[0].set_ylabel(
     r"fraction with $|\Delta \eta_{tr}| < 0.01$",
-    fontsize=plotconfig.label_fontsize,
 )
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
-    ax.set_title(title, fontsize=plotconfig.label_fontsize)
+    ax.set_title(title)
     ax.grid()
 
 axes[0].set_xlabel(
-    r"$b_{fac}$ ($b_{max} / \sigma$)", fontsize=plotconfig.label_fontsize
+    r"$b_{fac}$ ($b_{max} / \sigma$)",
 )
-axes[1].set_xlabel(r"$b_{max}$", fontsize=plotconfig.label_fontsize)
+axes[1].set_xlabel(r"$b_{max}$")
 axes[0].set_ylim(0.0, 1.0)
 axes[1].set_ylim(0.0, 1.0)
 
@@ -218,16 +236,16 @@ for bfac in o2_bfac_sweep:
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
     ax.set_xlabel(
         "Epoch",
-        fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
     ax.set_ylabel(
         "Loss",
-        fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
-    ax.set_title(title, fontsize=plotconfig.label_fontsize)
-    ax.legend(fontsize=plotconfig.legend_fontsize)
+    ax.set_title(
+        title,
+    )
+    ax.legend()
 
 fig.tight_layout()
 fig.savefig(f"{plotpath}/impactparam_loss_history.png", dpi=300)
@@ -249,10 +267,12 @@ for bfac in o2_bfac_sweep:
     axes[1].plot(arr["timestep"] * 1e9, arr["T_rot_mean"], label=f"$b_{{max}}={bfac}$")
 
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
-    ax.set_xlabel("Time [ns]", fontsize=plotconfig.label_fontsize)
-    ax.set_ylabel("$T_{rot}$ [K]", fontsize=plotconfig.label_fontsize)
-    ax.set_title(title, fontsize=plotconfig.label_fontsize)
-    ax.legend(fontsize=plotconfig.legend_fontsize)
+    ax.set_xlabel(
+        "Time [ns]",
+    )
+    ax.set_ylabel("$T_{rot}$ [K]")
+    ax.set_title(title)
+    ax.legend()
     ax.grid()
 
 axes[0].set_ylim(100, 300)
@@ -284,16 +304,16 @@ for num in num_gaussians:
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
     ax.set_xlabel(
         "Epoch",
-        fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
     ax.set_ylabel(
         "Loss",
-        fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
-    ax.set_title(title, fontsize=plotconfig.label_fontsize)
-    ax.legend(fontsize=plotconfig.legend_fontsize)
+    ax.set_title(
+        title,
+    )
+    ax.legend()
 
 axes[0].set_ylim(-4, 3.2)
 axes[1].set_ylim(-4, 3.2)
@@ -346,16 +366,16 @@ for bs in batch_sizes:
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
     ax.set_xlabel(
         "Epoch",
-        fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
     ax.set_ylabel(
         "Loss",
-        fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
-    ax.set_title(title, fontsize=plotconfig.label_fontsize)
-    ax.legend(fontsize=plotconfig.legend_fontsize)
+    ax.set_title(
+        title,
+    )
+    ax.legend()
 
     ax.set_ylim(-4, 3.2)
 axes[0].set_xlim(0, 200)
@@ -379,10 +399,14 @@ for bs in batch_sizes:
     axes[1].plot(arr["timestep"] * 1e9, arr["T_rot_mean"], label=f"batch size = {bs}")
 
 for ax, title in zip(axes, ["H$_2$", "O$_2$"]):
-    ax.set_xlabel("Time [ns]", fontsize=plotconfig.label_fontsize)
-    ax.set_ylabel("$T_{rot}$ [K]", fontsize=plotconfig.label_fontsize)
-    ax.set_title(title, fontsize=plotconfig.label_fontsize)
-    ax.legend(fontsize=plotconfig.legend_fontsize)
+    ax.set_xlabel(
+        "Time [ns]",
+    )
+    ax.set_ylabel("$T_{rot}$ [K]")
+    ax.set_title(
+        title,
+    )
+    ax.legend()
     ax.grid()
 
 axes[0].set_ylim(100, 240)
@@ -408,7 +432,7 @@ datasets = {
     "CTC": data[1],
     "MDN": mdn_samples,
 }
-# plot_density_scatter(ax, datasets=datasets)
+plot_density_scatter(ax, datasets=datasets)
 for row in ax:
     for a in row:
         a.set_xlim(0, 1)
@@ -417,7 +441,7 @@ for i, name in enumerate([r"eta'_tr", r"eta'_rot"]):
     kl = kl_divergence(datasets["CTC"][:, i], datasets["MDN"][:, i])
     print(f"h2 d_kl(ctc || mdn) [{name}] = {kl:.4f}")
 fig.tight_layout()
-# fig.savefig(f"{plotpath}/h2_mdn_ctc_scatter.png", dpi=300)
+fig.savefig(f"{plotpath}/h2_mdn_ctc_scatter.png", dpi=300)
 
 
 # 10. o2 scatterplot of ctc and mdn predictions 2x2 ##
@@ -436,7 +460,7 @@ datasets = {
     "CTC": data[1],
     "MDN": mdn_samples,
 }
-# plot_density_scatter(ax, datasets=datasets)
+plot_density_scatter(ax, datasets=datasets)
 for row in ax:
     for a in row:
         a.set_xlim(0, 1)
@@ -445,7 +469,7 @@ for i, name in enumerate([r"eta'_tr", r"eta'_rot"]):
     kl = kl_divergence(datasets["CTC"][:, i], datasets["MDN"][:, i])
     print(f"o2 d_kl(ctc || mdn) [{name}] = {kl:.4f}")
 fig.tight_layout()
-# fig.savefig(f"{plotpath}/o2_mdn_ctc_scatter.png", dpi=300)
+fig.savefig(f"{plotpath}/o2_mdn_ctc_scatter.png", dpi=300)
 
 
 ## 11. Best model relaxation comparison with MD 1x2 (H2 left, O2 right) ##
@@ -505,16 +529,16 @@ for ax, t_lammps, t_mdn, lammps_data, mdn_data, title in zip(
     ax.set_xlim(0, 15)
     ax.set_xlabel(
         "Time [ns]",
-        fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
     ax.set_ylabel(
         "Temperature [K]",
-        fontsize=plotconfig.label_fontsize,
         fontweight=plotconfig.label_fontweight,
     )
-    ax.set_title(title, fontsize=plotconfig.label_fontsize)
-    ax.legend(fontsize=plotconfig.legend_fontsize)
+    ax.set_title(
+        title,
+    )
+    ax.legend()
     ax.grid()
 
 axes[0].set_ylim(100, 310)
@@ -536,3 +560,65 @@ for species, t_lammps, t_mdn, lammps_data, mdn_data in [
     print(
         f"{species:<8} {'MDN (ml-DSMC)':<16} {time_to_95(t_mdn, mdn_data['T_rot_mean']):>10.3f}"
     )
+
+
+## 12. Recursive equilibrium of the MDN kernel 1x2 (H2 left, O2 right) ##
+# The MDN is trained on a one-shot map; DSMC applies it recursively under NTC
+# acceptance weighting (a pair collides with probability ~ g ~ sqrt(eta)). A
+# reversible kernel relaxes every start to equipartition 3/7; the trained MDN
+# settles at a biased fixed point eta*_MDN != 3/7. The iteration helpers live in
+# analysis/recursive_equilibrium.py and are reused here.
+RECURSIVE_SEED = 0
+
+fig, axes = plt.subplots(
+    1, 2, figsize=(2 * plotconfig.figsize[0], plotconfig.figsize[1])
+)
+
+rng = np.random.default_rng(RECURSIVE_SEED)
+torch.manual_seed(RECURSIVE_SEED)  # the MDN samples through torch; seed it too
+
+recursive_cases = [
+    ("H$_2$", h2_best_model_path, "data/ml-dsmc/mdn/h2/best_model_relaxation.npy"),
+    ("O$_2$", o2_best_model_path, "data/ml-dsmc/mdn/o2/best_model_relaxation.npy"),
+]
+
+for ax, (title, model_path, dsmc_npy) in zip(axes, recursive_cases):
+    print(f"\n=== {title} recursive equilibrium ===")
+    model = load_mdn(model_path)
+
+    xs_all, traj_all, eta_star = iterate(make_mdn_step(model), rng)
+    for j, (xs, traj) in enumerate(zip(xs_all, traj_all)):
+        ax.plot(
+            xs,
+            traj,
+            color="tab:red",
+            lw=1.3,
+            alpha=0.75,
+            label="MDN" if j == 0 else None,
+        )
+    print(f"  MDN recursive fixed point eta* = {eta_star:.3f}")
+    print(
+        f"  DSMC converged eta_tr          = {dsmc_converged_eta(dsmc_npy):.3f}"
+        f"  (3/7 = {EQ_FRACTION:.3f})"
+    )
+
+    ax.axhline(
+        EQ_FRACTION, color="black", lw=1.4, ls="--", label=r"equipartition $3/7$"
+    )
+    ax.set_xlabel(
+        "mean collisions per molecule",
+    )
+    ax.set_title(
+        title,
+    )
+    ax.set_xlim(0.0, N_COLLISIONS)
+    ax.set_ylim(0.0, 1.0)
+    ax.grid()
+    ax.legend()
+
+axes[0].set_ylabel(
+    r"$\langle\eta_{trans}\rangle$",
+)
+
+fig.tight_layout()
+fig.savefig(f"{plotpath}/recursive_equilibrium.png", dpi=300)

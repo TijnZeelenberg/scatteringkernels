@@ -1,4 +1,4 @@
-"""Recursive equilibrium of the trained MDN kernel vs. the CTC ground truth.
+"""Recursive equilibrium of the trained MDN kernel at the DSMC operating point.
 
 The MDN is trained on a *one-shot* map: minimise the NLL of the post-collision
 fractions (eta_tr', eta_rot') given the pre-collision state, averaged over the
@@ -9,14 +9,16 @@ one-shot loss never sees.  Nothing in training penalises the model for failing
 detailed balance or for drifting at the operating point DSMC actually visits.
 
 This script makes that gap visible.  On a fixed collision-energy shell we iterate
-each kernel the way DSMC does (a pair collides with probability proportional to
+the MDN kernel the way DSMC does (a pair collides with probability proportional to
 its relative speed g ~ sqrt(eta), the NTC acceptance weighting) starting from
-several eta_0, and watch where the mean translational fraction <eta_tr> settles:
+several eta_0, and watch where the mean translational fraction <eta_tr> settles.
+A reversible (detailed-balance) kernel would relax every start to equipartition
+3/7; the trained MDN instead settles at a biased fixed point eta*_MDN != 3/7.
 
-  * CTC (ground truth) relaxes every initial state to equipartition 3/7.
-  * The trained MDN relaxes to a *different* fixed point eta*_MDN != 3/7,
-    even though its one-shot conditional-mean map sits almost on top of the CTC
-    map.  The one-shot fit is good; the recursive fixed point is biased.
+The shell is fixed at E_c ~ 5000 K, inside the dense CTC training region where the
+one-shot fit is well constrained, so the biased recursive fixed point cannot be
+blamed on a poor fit.  The fixed point is reported against the actual <eta_tr> the
+full DSMC run converges to (which operates at a lower, energy-averaged shell).
 
 Run:  python -m analysis.recursive_equilibrium
 """
@@ -36,68 +38,35 @@ cfg = ExperimentConfig()
 
 EQ_FRACTION = 3.0 / 7.0  # equipartition: 3 trans DOF / (3 + 2 + 2)
 
-# Fixed collision-energy shell (E/kB, in K).  CTC chains stay on the energy
-# shell; the MDN is queried at the shell centre E_C_MDN.
-E_C_LO, E_C_HI = 4500.0, 5500.0
+# Collision-energy shell (E/kB, in K) the MDN is queried at -- the dense CTC
+# training region, where the one-shot fit is well constrained.
 E_C_MDN = 5000.0
 
-N_BINS = 50
-N_PARTICLES = 12_000
-N_COLLISIONS = 200  # mean collisions per molecule to iterate each chain to
+N_PARTICLES = 10_000
+N_COLLISIONS = 150  # mean collisions per molecule to iterate each chain to
 N_STEPS = 350  # iteration steps (acceptance < 1, so > N_COLLISIONS steps needed)
 ETA0_LIST = [0.15, 0.30, 0.45, 0.60, 0.75, 0.90]
 SEED = 0
 
-# (label, CTC dataset, trained best-model path, DSMC relaxation npy)
+# (label, trained best-model path, DSMC relaxation npy)
 CASES = [
     (
         "H$_2$",
-        "data/ctc/h2/impactparam/Erelmax10000/"
-        "H2_collisions_b1_6_uniform_Erelmax10000_ncoll1000000_seed42.npy",
         f"results/h2/models/mdn/best_model_bs{cfg.batch_size}_ngauss{cfg.num_mixtures}.pth",
         "data/ml-dsmc/mdn/h2/best_model_relaxation.npy",
     ),
     (
         "O$_2$",
-        "data/ctc/o2/impactparam/Erelmax10000/O2_collisions_uniform_bmax1_5.npy",
         f"results/o2/models/mdn/best_model_bs{cfg.batch_size}_ngauss{cfg.num_mixtures}.pth",
         "data/ml-dsmc/mdn/o2/best_model_relaxation.npy",
     ),
 ]
 
-edges = np.linspace(0.0, 1.0, N_BINS + 1)
-ctr = 0.5 * (edges[:-1] + edges[1:])
-
 
 # --------------------------------------------------------------------------- #
-# Kernels: each `step(vals, idx, rng)` returns a full eta vector with the
-# NTC-accepted particles `idx` updated by one collision.
+# MDN kernel: `step(vals, idx, rng)` returns a full eta vector with the
+# NTC-accepted particles `idx` updated by one collision at the fixed shell E_C_MDN.
 # --------------------------------------------------------------------------- #
-def build_ctc_library(eta, etap):
-    """Empirical K(eta'|eta) on the shell: per pre-eta bin, the pool of post-eta'.
-    Sparse (edge) bins borrow neighbours so none is absorbing."""
-    bi = np.clip(np.digitize(eta, edges) - 1, 0, N_BINS - 1)
-    lib = [etap[bi == i] for i in range(N_BINS)]
-    for i in range(N_BINS):
-        if len(lib[i]) < 50:
-            lo, hi = max(0, i - 2), min(N_BINS, i + 3)
-            lib[i] = np.concatenate([etap[bi == j] for j in range(lo, hi)])
-    return lib
-
-
-def make_ctc_step(lib):
-    def step(vals, idx, rng):
-        out = vals.copy()
-        b = np.clip(np.digitize(vals[idx], edges) - 1, 0, N_BINS - 1)
-        for i in range(N_BINS):
-            sel = idx[b == i]
-            if len(sel):
-                out[sel] = rng.choice(lib[i], size=len(sel))
-        return out
-
-    return step
-
-
 def make_mdn_step(model):
     def step(vals, idx, rng):
         out = vals.copy()
@@ -150,48 +119,42 @@ def dsmc_converged_eta(npy_path):
 
 
 # --------------------------------------------------------------------------- #
-# Figure: two panels (H2 | O2), recursive trajectories from several eta_0
+# Figure: two panels (H2 | O2), recursive MDN trajectories from several eta_0
 # --------------------------------------------------------------------------- #
 def main(output_path: str | None = None):
     rng = np.random.default_rng(SEED)
-    torch.manual_seed(SEED)  # the MDN samples through torch; seed it for reproducibility
+    torch.manual_seed(
+        SEED
+    )  # the MDN samples through torch; seed it for reproducibility
     fig, axes = plt.subplots(1, 2, figsize=(2 * pc.figsize[0], pc.figsize[1]))
 
-    kernel_colors = {"CTC": "tab:blue", "MDN": "tab:red"}
+    print(f"\nMDN queried at the collision shell E_c = {E_C_MDN:.0f} K")
 
-    for ax, (title, ctc_file, model_path, dsmc_npy) in zip(axes, CASES):
+    for ax, (title, model_path, dsmc_npy) in zip(axes, CASES):
         print(f"\n=== {title} ===")
-        d = np.load(ctc_file)
-        Etr, Er1, Er2, Etrp, Er1p, Er2p = d.T
-        Epre = Etr + Er1 + Er2
-        Epost = Etrp + Er1p + Er2p
-        eta = Etr / Epre
-        etap = Etrp / Epost
-        shell = (Epre >= E_C_LO) & (Epre < E_C_HI)
-        eta_s, etap_s = eta[shell], etap[shell]
-
-        ctc_step = make_ctc_step(build_ctc_library(eta_s, etap_s))
         model = load_mdn(model_path)
         mdn_step = make_mdn_step(model)
 
-        steps = {"CTC": ctc_step, "MDN": mdn_step}
-
-        for name, step in steps.items():
-            xs_all, traj_all, eta_star = iterate(step, rng)
-            for j, (xs, traj) in enumerate(zip(xs_all, traj_all)):
-                ax.plot(
-                    xs,
-                    traj,
-                    color=kernel_colors[name],
-                    lw=1.3,
-                    alpha=0.75,
-                    label=name if j == 0 else None,
-                )
-            print(f"  {name:3s} recursive fixed point eta* = {eta_star:.3f}")
+        xs_all, traj_all, eta_star = iterate(mdn_step, rng)
+        for j, (xs, traj) in enumerate(zip(xs_all, traj_all)):
+            ax.plot(
+                xs,
+                traj,
+                color="tab:red",
+                lw=1.3,
+                alpha=0.75,
+                label="MDN" if j == 0 else None,
+            )
+        print(f"  MDN recursive fixed point eta* = {eta_star:.3f}")
 
         dsmc_eta = dsmc_converged_eta(dsmc_npy)
-        print(f"  DSMC converged eta_tr           = {dsmc_eta:.3f}  (3/7 = {EQ_FRACTION:.3f})")
+        print(
+            f"  DSMC converged eta_tr          = {dsmc_eta:.3f}  (3/7 = {EQ_FRACTION:.3f})"
+        )
 
+        ax.axhline(
+            EQ_FRACTION, color="black", lw=1.4, ls="--", label=r"equipartition $3/7$"
+        )
         ax.set_title(title, fontsize=pc.label_fontsize)
         ax.set_xlabel("mean collisions per molecule", fontsize=pc.label_fontsize)
         ax.set_xlim(0.0, N_COLLISIONS)
@@ -201,7 +164,7 @@ def main(output_path: str | None = None):
 
     axes[0].set_ylabel(r"$\langle\eta_{trans}\rangle$", fontsize=pc.label_fontsize)
     fig.suptitle(
-        "One-shot training fits the kernel but its recursive fixed point is biased",
+        "The MDN's recursive fixed point is biased away from equipartition",
         fontsize=pc.label_fontsize + 1,
     )
     fig.tight_layout()

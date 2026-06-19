@@ -88,18 +88,12 @@ def plot_density_scatter(ax, datasets: dict):
             )
             ax[0, j].set_title(
                 f"{dataset_name}",
-                fontsize=config.title_fontsize,
-                fontweight=config.title_fontweight,
             )
             ax[i, j].set_xlabel(
                 r"$\eta_{tr}$" if i == 0 else r"$\eta_{rot,A}$",
-                fontsize=config.label_fontsize,
-                fontweight=config.label_fontweight,
             )
             ax[i, 0].set_ylabel(
                 r"$\eta'_{tr}$" if i == 0 else r"$\eta'_{rot,A}$",
-                fontsize=config.label_fontsize,
-                fontweight=config.label_fontweight,
             )
 
 
@@ -171,4 +165,3 @@ def plot_histogram(datasets: dict):
         ax[1].legend(fontsize=config.legend_fontsize)
     plt.tight_layout()
     plt.show()
-
