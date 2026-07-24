@@ -98,6 +98,59 @@ def load_beta_mdn(
     return model
 
 
+def _attach_clamp_counter(model) -> dict:
+    """Wrap ``model.sample`` to tally how often the raw eta_tr'/eta_rot' samples
+    land outside [0, 1] and get clamped downstream by ``batch_collide`` (mdn.py).
+
+    ``model.sample`` returns the raw, pre-clip values (it only clamps inputs and
+    mixture weights, never the outputs), so counting outputs outside [0, 1] here
+    reproduces exactly the clamp the collision step applies. Returns a counts
+    dict that fills in as the simulation runs; report it with
+    ``_print_clamp_rates``.
+    """
+    counts = {
+        "tr_below": 0,
+        "tr_above": 0,
+        "rot_below": 0,
+        "rot_above": 0,
+        "total": 0,
+    }
+    orig_sample = model.sample
+
+    def counting_sample(x):
+        out = orig_sample(x)
+        arr = out.detach().cpu().numpy()
+        counts["tr_below"] += int((arr[:, 0] < 0.0).sum())
+        counts["tr_above"] += int((arr[:, 0] > 1.0).sum())
+        counts["rot_below"] += int((arr[:, 1] < 0.0).sum())
+        counts["rot_above"] += int((arr[:, 1] > 1.0).sum())
+        counts["total"] += arr.shape[0]
+        return out
+
+    model.sample = counting_sample  # instance attribute shadows the bound method
+    return counts
+
+
+def _print_clamp_rates(counts: dict) -> None:
+    """Print the MDN output clamp rates accumulated during a relaxation run."""
+    total = counts["total"]
+    print("\nMDN output clamp rates (raw samples clipped to [0, 1] by batch_collide)")
+    if total == 0:
+        print("  no MDN samples were drawn (no inelastic collisions?)")
+        return
+    print(f"  inelastic MDN samples drawn      = {total:,}")
+    for frac, lo, hi in [
+        ("eta_tr'", "tr_below", "tr_above"),
+        ("eta_rot'", "rot_below", "rot_above"),
+    ]:
+        n_lo, n_hi = counts[lo], counts[hi]
+        print(
+            f"  {frac:<9} clamp @ 0 = {n_lo / total:.3%} ({n_lo:,})"
+            f"   clamp @ 1 = {n_hi / total:.3%} ({n_hi:,})"
+            f"   total = {(n_lo + n_hi) / total:.3%}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Core run + reference loading
 # ---------------------------------------------------------------------------

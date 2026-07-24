@@ -15,6 +15,8 @@ from experiments.energy_relaxation import (
     plot_relaxation_comparison,
     print_relaxation_table,
     run_relaxation_comparison,
+    _attach_clamp_counter,
+    _print_clamp_rates,
 )
 from physics.species import Species
 from config.experiment_config import ExperimentConfig
@@ -33,19 +35,28 @@ def main(
     randomseed: int = 1,
 ):
     species = Species.H2()
-    params = SimulationParams(nr_steps=2000)
+    params = SimulationParams(nr_steps=1500)
 
     model_tag = Path(mdn_model_path).stem  # e.g. mdn_H2_wf7
 
+    mdn_model = load_mdn(mdn_model_path, randomseed=randomseed)
     models: dict[str, object] = {
-        "MDN (ML-DSMC)": load_mdn(mdn_model_path, randomseed=randomseed),
+        "MDN (ML-DSMC)": mdn_model,
     }
+
+    # Tally how often the MDN's raw eta_tr'/eta_rot' samples land outside [0, 1]
+    # and get clamped by batch_collide (mdn.py). model.sample returns the raw,
+    # pre-clip values, so wrapping it captures every clamp without touching the
+    # engine or the model definition.
+    clamp_counts = _attach_clamp_counter(mdn_model)
 
     results = run_relaxation_comparison(
         species,
         models,
         params=params,
     )
+
+    _print_clamp_rates(clamp_counts)
 
     mdn_stats = results["MDN (ML-DSMC)"]
     dtype = np.dtype(
@@ -55,7 +66,9 @@ def main(
     arr["timestep"] = mdn_stats["timestep"]
     arr["T_trans_mean"] = mdn_stats["T_trans_mean"]
     arr["T_rot_mean"] = mdn_stats["T_rot_mean"]
-    npy_out = paths.ensure_parent("data/ml-dsmc/mdn/h2/best_model_relaxation.npy")
+    npy_out = paths.ensure_parent(
+        "data/ml-dsmc/mdn/h2/best_model_relaxation_clamptest.npy"
+    )
     np.save(npy_out, arr)
     print(f"Saved MDN relaxation data to {npy_out}")
 

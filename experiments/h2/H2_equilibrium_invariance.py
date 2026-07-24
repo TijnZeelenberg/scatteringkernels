@@ -1,4 +1,12 @@
-"""O2 energy-relaxation experiment: MDN vs Borgnakke-Larssen vs SPARTA."""
+"""H2 equilibrium-invariance experiment: start both T_trans and T_rot at the
+equilibrium temperature (220 K) and check the MDN kernel leaves them there.
+
+This is the equilibrium counterpart to ``H2_energy_relaxation.py``: instead of
+relaxing from a non-equilibrium split (T_trans=300, T_rot=100) toward 220 K, the
+gas starts *already* equilibrated. A reversible kernel should be invariant here
+(both temperatures stay flat at 220 K); any systematic drift exposes a bias in
+the learned one-shot map under recursive NTC-weighted application.
+"""
 
 from pathlib import Path
 
@@ -9,9 +17,6 @@ import paths
 from experiments.energy_relaxation import (
     SimulationParams,
     load_mdn,
-    load_lammps_reference,
-    load_sparta_reference,
-    load_bl_reference,
     plot_relaxation_comparison,
     print_relaxation_table,
     run_relaxation_comparison,
@@ -23,19 +28,24 @@ from config.experiment_config import ExperimentConfig
 
 config = ExperimentConfig()
 
-MDN_CONVERGENT = f"results/o2/models/mdn/best_model_bs{config.batch_size}_ngauss{config.num_mixtures}.pth"
+best_model_path = f"results/h2/models/mdn/best_model_bs{config.batch_size}_ngauss{config.num_mixtures}.pth"
+
+# DOF-weighted equilibrium of the relaxation experiment (3 trans + 2 rot DOF):
+# (3 * 300 + 2 * 100) / 5 = 220 K.
+EQUILIBRIUM_TEMPERATURE = 220.0
 
 
 def main(
-    mdn_model_path: str = MDN_CONVERGENT,
-    sparta_path: str = "data/sparta/o2_energy_relaxation.dat",
-    lammps_path: str = "data/lammps/o2_energy_relaxation.dat",
-    bl_path="data/ml-dsmc/bl/o2_energy_relaxation.dat",
+    mdn_model_path: str = best_model_path,
     output_path: str | None = None,
     randomseed: int = 1,
 ):
-    species = Species.O2()
-    params = SimulationParams(nr_steps=1500)
+    species = Species.H2()
+    params = SimulationParams(
+        nr_steps=1000,
+        trans_temperature=EQUILIBRIUM_TEMPERATURE,
+        rot_temperature=EQUILIBRIUM_TEMPERATURE,
+    )
 
     model_tag = Path(mdn_model_path).stem
 
@@ -45,9 +55,7 @@ def main(
     }
 
     # Tally how often the MDN's raw eta_tr'/eta_rot' samples land outside [0, 1]
-    # and get clamped by batch_collide (mdn.py). model.sample returns the raw,
-    # pre-clip values, so wrapping it captures every clamp without touching the
-    # engine or the model definition.
+    # and get clamped by batch_collide (mdn.py); see H2_energy_relaxation.py.
     clamp_counts = _attach_clamp_counter(mdn_model)
 
     results = run_relaxation_comparison(
@@ -67,28 +75,22 @@ def main(
     arr["T_trans_mean"] = mdn_stats["T_trans_mean"]
     arr["T_rot_mean"] = mdn_stats["T_rot_mean"]
     npy_out = paths.ensure_parent(
-        "data/ml-dsmc/mdn/o2/best_model_relaxation_clamptest.npy"
+        "data/ml-dsmc/mdn/h2/best_model_equilibrium_invariance.npy"
     )
     np.save(npy_out, arr)
-    print(f"Saved MDN relaxation data to {npy_out}")
-
-    sparta = load_sparta_reference(sparta_path)
-    lammps = load_lammps_reference(lammps_path)
-    bl = load_bl_reference(bl_path)
+    print(f"Saved MDN equilibrium-invariance data to {npy_out}")
 
     print_relaxation_table(
         results,
-        sparta,
+        sparta=None,
         rot_temperature_initial=params.rot_temperature,
-        lammps=lammps,
-        bl=bl,
     )
 
     out_path: str | paths.Path = output_path or paths.plot_path(
-        f"O2_energy_relaxation_{model_tag}.png"
+        f"H2_equilibrium_invariance_{model_tag}.png"
     )
     plot_relaxation_comparison(
-        results, sparta, lammps=lammps, bl=bl, ylim=(100.0, 300.0), output_path=out_path
+        results, sparta=None, ylim=(100.0, 300.0), output_path=out_path
     )
     # plt.show()
 

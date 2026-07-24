@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -6,14 +8,14 @@ from config.experiment_config import ExperimentConfig
 from experiments.energy_relaxation import load_mdn
 from utils.helpers import load_dataset
 from visualization.plot import plot_density_scatter
-from analysis.kl_divergence import kl_divergence
+from analysis.kl_divergence import kl_divergence, kl_divergence_2d
 from analysis.relaxation_rrmse import time_to_95
 from analysis.recursive_equilibrium import (
-    make_mdn_step,
     iterate,
     dsmc_converged_eta,
     EQ_FRACTION,
     N_COLLISIONS,
+    E_C_MDN,
 )
 
 plotconfig = PlottingConfig()
@@ -84,12 +86,12 @@ fig, axes = plt.subplots(
 h2_sources = [
     (lammps_h2[:, 1] * 1e9, lammps_h2[:, 3], "MD (LAMMPS)"),
     (sparta_h2[:, 1] * 1e9, sparta_h2[:, 3], "BL (SPARTA)"),
-    (bl_h2[:, 1] * 1e9, bl_h2[:, 3], "ml-DSMC (BL)"),
+    (bl_h2[:, 1] * 1e9, bl_h2[:, 3], "ML-DSMC (BL)"),
 ]
 o2_sources = [
     (lammps_o2[:, 1] * 1e9, lammps_o2[:, 3], "MD (LAMMPS)"),
     (sparta_o2[:, 1] * 1e9, sparta_o2[:, 3], "BL (SPARTA)"),
-    (bl_o2[:, 1] * 1e9, bl_o2[:, 3], "ml-DSMC (BL)"),
+    (bl_o2[:, 1] * 1e9, bl_o2[:, 3], "ML-DSMC (BL)"),
 ]
 
 for t, T_rot, label in h2_sources:
@@ -440,6 +442,10 @@ for row in ax:
 for i, name in enumerate([r"eta'_tr", r"eta'_rot"]):
     kl = kl_divergence(datasets["CTC"][:, i], datasets["MDN"][:, i])
     print(f"h2 d_kl(ctc || mdn) [{name}] = {kl:.4f}")
+t0 = time.perf_counter()
+kl_joint = kl_divergence_2d(datasets["CTC"][:, :2], datasets["MDN"][:, :2], n_grid=100)
+dt = time.perf_counter() - t0
+print(f"h2 d_kl(ctc || mdn) [joint eta'_tr, eta'_rot] = {kl_joint:.4f}  ({dt:.1f} s)")
 fig.tight_layout()
 fig.savefig(f"{plotpath}/h2_mdn_ctc_scatter.png", dpi=300)
 
@@ -468,6 +474,10 @@ for row in ax:
 for i, name in enumerate([r"eta'_tr", r"eta'_rot"]):
     kl = kl_divergence(datasets["CTC"][:, i], datasets["MDN"][:, i])
     print(f"o2 d_kl(ctc || mdn) [{name}] = {kl:.4f}")
+t0 = time.perf_counter()
+kl_joint = kl_divergence_2d(datasets["CTC"][:, :2], datasets["MDN"][:, :2], n_grid=100)
+dt = time.perf_counter() - t0
+print(f"o2 d_kl(ctc || mdn) [joint eta'_tr, eta'_rot] = {kl_joint:.4f}  ({dt:.1f} s)")
 fig.tight_layout()
 fig.savefig(f"{plotpath}/o2_mdn_ctc_scatter.png", dpi=300)
 
@@ -477,8 +487,8 @@ fig, axes = plt.subplots(
     1, 2, figsize=(2 * plotconfig.figsize[0], plotconfig.figsize[1])
 )
 
-best_model_h2 = np.load("data/ml-dsmc/mdn/h2/best_model_relaxation.npy")
-best_model_o2 = np.load("data/ml-dsmc/mdn/o2/best_model_relaxation.npy")
+best_model_h2 = np.load("data/ml-dsmc/mdn/h2/best_model_relaxation_clamptest.npy")
+best_model_o2 = np.load("data/ml-dsmc/mdn/o2/best_model_relaxation_clamptest.npy")
 
 h2_t_lammps = lammps_h2[:, 1] * 1e9
 h2_t_mdn = best_model_h2["timestep"] * 1e9
@@ -517,14 +527,14 @@ for ax, t_lammps, t_mdn, lammps_data, mdn_data, title in zip(
         mdn_data["T_trans_mean"],
         color=mdn_color,
         linestyle="-",
-        label="$T_{trans}$ MDN (ml-DSMC)",
+        label="$T_{trans}$ MDN (ML-DSMC)",
     )
     ax.plot(
         t_mdn,
         mdn_data["T_rot_mean"],
         color=mdn_color,
         linestyle="--",
-        label="$T_{rot}$ MDN (ml-DSMC)",
+        label="$T_{rot}$ MDN (ML-DSMC)",
     )
     ax.set_xlim(0, 15)
     ax.set_xlabel(
@@ -558,7 +568,7 @@ for species, t_lammps, t_mdn, lammps_data, mdn_data in [
         f"{species:<8} {'MD (LAMMPS)':<16} {time_to_95(t_lammps, lammps_data[:, 3]):>10.3f}"
     )
     print(
-        f"{species:<8} {'MDN (ml-DSMC)':<16} {time_to_95(t_mdn, mdn_data['T_rot_mean']):>10.3f}"
+        f"{species:<8} {'MDN (ML-DSMC)':<16} {time_to_95(t_mdn, mdn_data['T_rot_mean']):>10.3f}"
     )
 
 
@@ -578,15 +588,59 @@ rng = np.random.default_rng(RECURSIVE_SEED)
 torch.manual_seed(RECURSIVE_SEED)  # the MDN samples through torch; seed it too
 
 recursive_cases = [
-    ("H$_2$", h2_best_model_path, "data/ml-dsmc/mdn/h2/best_model_relaxation.npy"),
-    ("O$_2$", o2_best_model_path, "data/ml-dsmc/mdn/o2/best_model_relaxation.npy"),
+    (
+        "H$_2$",
+        h2_best_model_path,
+        "data/ml-dsmc/mdn/h2/best_model_relaxation_clamptest.npy",
+    ),
+    (
+        "O$_2$",
+        o2_best_model_path,
+        "data/ml-dsmc/mdn/o2/best_model_relaxation_clamptest.npy",
+    ),
 ]
+
+
+def make_counting_mdn_step(model, counts):
+    """MDN step that mirrors make_mdn_step but tallies how often the raw,
+    pre-clip eta_tr' samples land outside [0, 1] (the physical-constraint clamp
+    applied in machinelearning/mdn.py). Output is identical to make_mdn_step, so
+    the trajectories and fixed point are unchanged."""
+
+    def step(vals, idx, rng):
+        out = vals.copy()
+        n = len(idx)
+        if n == 0:
+            return out
+        eta_rot_A = rng.uniform(0.0, 1.0, size=n)
+        E_total = np.full(n, E_C_MDN)
+        device = next(model.parameters()).device
+        dtype = next(model.parameters()).dtype
+        inputs = torch.tensor(
+            np.stack([E_total, vals[idx], eta_rot_A], axis=1),
+            device=device,
+            dtype=dtype,
+        )
+        model.eval()
+        with torch.no_grad():
+            raw = model.sample(inputs).cpu().numpy()[:, 0]  # unclamped eta_tr'
+        counts["below"] += int((raw < 0.0).sum())
+        counts["above"] += int((raw > 1.0).sum())
+        counts["total"] += raw.size
+        out[idx] = np.clip(raw, 0.0, 1.0)
+        return out
+
+    return step
+
 
 for ax, (title, model_path, dsmc_npy) in zip(axes, recursive_cases):
     print(f"\n=== {title} recursive equilibrium ===")
     model = load_mdn(model_path)
 
-    xs_all, traj_all, eta_star = iterate(make_mdn_step(model), rng)
+    clamp_counts = {"below": 0, "above": 0, "total": 0}
+    xs_all, traj_all, eta_star = iterate(
+        make_counting_mdn_step(model, clamp_counts), rng
+    )
     for j, (xs, traj) in enumerate(zip(xs_all, traj_all)):
         ax.plot(
             xs,
@@ -600,6 +654,20 @@ for ax, (title, model_path, dsmc_npy) in zip(axes, recursive_cases):
     print(
         f"  DSMC converged eta_tr          = {dsmc_converged_eta(dsmc_npy):.3f}"
         f"  (3/7 = {EQ_FRACTION:.3f})"
+    )
+    n_clamped = clamp_counts["below"] + clamp_counts["above"]
+    print(
+        f"  eta_tr' clamp rate @ 0 boundary = "
+        f"{clamp_counts['below'] / clamp_counts['total']:.3%}  "
+        f"({clamp_counts['below']:,} / {clamp_counts['total']:,})"
+    )
+    print(
+        f"  eta_tr' clamp rate @ 1 boundary = "
+        f"{clamp_counts['above'] / clamp_counts['total']:.3%}  "
+        f"({clamp_counts['above']:,} / {clamp_counts['total']:,})"
+    )
+    print(
+        f"  eta_tr' total clamp rate        = {n_clamped / clamp_counts['total']:.3%}"
     )
 
     ax.axhline(
@@ -622,3 +690,51 @@ axes[0].set_ylabel(
 
 fig.tight_layout()
 fig.savefig(f"{plotpath}/recursive_equilibrium.png", dpi=300)
+
+
+## 13. Equilibrium invariance of the best MDN kernel 1x2 (H2 left, O2 right) ##
+# Companion to the relaxation figure: both T_trans and T_rot start at the
+# DOF-weighted equilibrium temperature (220 K). A reversible kernel leaves them
+# flat; any drift is the recursive bias of the learned one-shot map. Data come
+# from experiments/{h2,o2}/{H2,O2}_equilibrium_invariance.py.
+fig, axes = plt.subplots(
+    1, 2, figsize=(2 * plotconfig.figsize[0], plotconfig.figsize[1])
+)
+
+eq_h2 = np.load("data/ml-dsmc/mdn/h2/best_model_equilibrium_invariance.npy")
+eq_o2 = np.load("data/ml-dsmc/mdn/o2/best_model_equilibrium_invariance.npy")
+
+for ax, eq_data, title in zip(axes, [eq_h2, eq_o2], ["H$_2$", "O$_2$"]):
+    t = eq_data["timestep"] * 1e9
+    ax.plot(
+        t,
+        eq_data["T_trans_mean"],
+        color=mdn_color,
+        linestyle="-",
+        label="$T_{trans}$ MDN (ML-DSMC)",
+    )
+    ax.plot(
+        t,
+        eq_data["T_rot_mean"],
+        color=mdn_color,
+        linestyle="--",
+        label="$T_{rot}$ MDN (ML-DSMC)",
+    )
+    ax.axhline(220.0, color="black", lw=1.2, ls=":", label="equilibrium 220 K")
+    ax.set_xlabel(
+        "Time [ns]",
+        fontweight=plotconfig.label_fontweight,
+    )
+    ax.set_ylabel(
+        "Temperature [K]",
+        fontweight=plotconfig.label_fontweight,
+    )
+    ax.set_title(title)
+    ax.legend()
+    ax.grid()
+
+axes[0].set_ylim(180, 260)
+axes[1].set_ylim(180, 260)
+
+fig.tight_layout()
+fig.savefig(f"{plotpath}/equilibrium_invariance.png", dpi=300)

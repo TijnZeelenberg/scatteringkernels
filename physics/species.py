@@ -40,7 +40,7 @@ class Species:
 
     @classmethod
     def O2(cls) -> "Species":
-        zrot_bl = 3.572
+        zrot_bl = 4.3
         return cls(
             name="O2",
             mass=32.0e-3 / _AVOGADRO,
