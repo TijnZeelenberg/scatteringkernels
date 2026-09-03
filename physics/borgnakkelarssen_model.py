@@ -3,7 +3,6 @@ import numpy as np
 
 class borgnakke_larssen_model:
     # Beta exponents for the post-collision translational energy fraction.
-    # Defined once so the scalar and vectorized paths cannot drift apart.
     TRANS_FRACTION_BETA = (2.0, 2.0)
 
     def __init__(self, randomseed: int = 42):

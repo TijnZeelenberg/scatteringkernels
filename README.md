@@ -26,6 +26,9 @@ experiments/H2viscosity.py             Green-Kubo shear viscosity
 analysis/kernel_stationarity.py        equilibrium/detailed-balance diagnostics
     │
     ▼
+visualization/                   figures for the thesis report
+    │
+    ▼
 results/plots/                   figures
 ```
 
@@ -55,7 +58,7 @@ Tracked: all source code, the SPARTA and LAMMPS input decks and their reference 
 (`sparta/`, `lammps/`), and the Slurm job scripts (`hpc/`).
 
 **Not tracked** (see `.gitignore`): `data/` and `results/`. Collision datasets are
-hundreds of MB and trained weights are regenerable, so a fresh clone has neither. The
+hundreds of MB and trained weights are regenerable (since fixed seeds are used throughout the training loops), so a fresh clone has neither. The
 experiment scripts default to dataset and model paths under those directories — expect
 a `FileNotFoundError` until you generate or copy them in. Regenerate with the data
 generation and training steps below.
@@ -65,7 +68,7 @@ generation and training steps below.
 There is no central CLI. Each script is run directly and is configured by editing the
 constants at the top of its `__main__` block or the keyword defaults of its `main()`.
 This is deliberate for a research codebase where the parameters being swept change
-weekly, and it is the first thing that would change if the project were productionised.
+weekly.
 
 ### Generate collision data
 
@@ -91,7 +94,7 @@ uv run python training/betamdn_trainer.py   # Beta MDN
 Both are thin wrappers over `training.core.train_collision_model`, which takes
 `kind`, `datapath`, `outputpath`, `epochs`, `batch_size`, `lr`, `wf`, `patience`.
 Dataset and output paths are set in each wrapper's `__main__`. CUDA is used
-automatically when available. GPU job script: `hpc/run_training.sh`.
+automatically when available. GPU job script for use on the TU/e High Performance Cluster: `hpc/run_training.sh`.
 
 `wf` applies polynomial importance weighting `w ∝ E_trans^wf`; leave it at `None` for
 an unweighted NLL.
@@ -180,7 +183,13 @@ sparta/                         SPARTA input decks and reference output (DSMC gr
 lammps/                         LAMMPS input decks and reference output (MD ground truth)
 hpc/                            Slurm job scripts (TU/e cluster)
 config/                         model hyperparameters and figure styling
-visualization/                  plotting helpers
+
+visualization/                  all plotting code for the thesis report — every figure
+                                in the written report is produced here
+    plot.py                     energy relaxation, loss history, density scatter,
+                                histogram comparisons (CTC vs MDN vs GMM)
+    create_plots.py             impact-parameter sweep loss curves
+
 tests/                          conservation invariants
 paths.py                        central output-path helpers; creates results/ on demand
 ```
@@ -227,13 +236,8 @@ logging layer (`physics/collision_logger.py`).
 
 ## Known limitations and TODOs
 
-- `float32` throughout the DSMC and the models; the impact on relaxation results has not
-  been measured.
-- The collision-model interface is duck-typed; it should be an explicit `Protocol`.
-- Detailed balance is encouraged by time-reversal augmentation and a penalty term rather
-  than enforced by the architecture.
-- Experiment configuration lives in Python constants rather than config files, and the
-  link between a figure and the dataset that produced it lives in filenames.
+- Many interfaces are duck-typed rather than formalized; the collision model interface is one example.
 - The DSMC cannot read SPARTA configuration files directly, so settings are maintained
   in two places.
+- An abstraction has not been made for the experiment scripts; the H2 and O2 experiments are copy-paste variants of the same harness.
 - Bulk viscosity (via compression waves) is not implemented.
