@@ -2,10 +2,14 @@ import numpy as np
 
 
 class borgnakke_larssen_model:
+    # Beta exponents for the post-collision translational energy fraction.
+    # Defined once so the scalar and vectorized paths cannot drift apart.
+    TRANS_FRACTION_BETA = (2.0, 2.0)
+
     def __init__(self, randomseed: int = 42):
         self.rng = np.random.default_rng(randomseed)
 
-    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot:float=1.0):
+    def collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot: float = 1.0):
         """
         Perform a collision between two particles using the Borgnakke-Larssen model.
 
@@ -14,9 +18,8 @@ class borgnakke_larssen_model:
             e_rot_i: Rotational energy of particle i before collision.
             velocity_j: Velocity vector of particle j before collision.
             e_rot_j: Rotational energy of particle j before collision.
-            velocity_j: Velocity vector of particle j before collision.
-            m: Mass of the particles.
-            T: Temperature of the system.
+            m: Reduced-mass parameter of the pair.
+            zrot: Rotational collision number; 1/zrot is the inelastic fraction.
 
         Returns:
             new_velocity_i: Velocity vector of particle i after collision.
@@ -45,8 +48,7 @@ class borgnakke_larssen_model:
 
         if self.rng.random() <= inelastic_collision_probability:
             # Inelastic collision: redistribute energy
-            # For diatomic molecules: 3 translational DOF, 2 rotational DOF per molecule
-            translational_fraction = self.rng.beta(1.5, 2.0)
+            translational_fraction = self.rng.beta(*self.TRANS_FRACTION_BETA)
             E_rel_post = E_available * translational_fraction
             E_rot_pool_post = E_available - E_rel_post
 
@@ -93,7 +95,9 @@ class borgnakke_larssen_model:
                 float(e_rot_j),
             )
 
-    def batch_collide(self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot:float=1.0):
+    def batch_collide(
+        self, velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot: float = 1.0
+    ):
         """
         Vectorized Borgnakke-Larssen collision for N pairs at once.
 
@@ -136,7 +140,7 @@ class borgnakke_larssen_model:
             E_available = E_rel_inel + e_rot_i[inelastic] + e_rot_j[inelastic]
 
             # Energy redistribution
-            trans_fraction = self.rng.beta(2.0, 2.0, size=n_inel)
+            trans_fraction = self.rng.beta(*self.TRANS_FRACTION_BETA, size=n_inel)
             E_rel_post = E_available * trans_fraction
             E_rot_pool = E_available - E_rel_post
 
