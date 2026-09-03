@@ -194,29 +194,51 @@ def main(
 
     ax = axes[1, 0]
     ax.hist(
-        qb["eta_trans_pre"], bins=40, range=(0, 1), density=True,
-        histtype="step", lw=1.4, label=f"BL  (n={len(qb['eta_trans_pre'])})",
+        qb["eta_trans_pre"],
+        bins=40,
+        range=(0, 1),
+        density=True,
+        histtype="step",
+        lw=1.4,
+        label=f"BL  (n={len(qb['eta_trans_pre'])})",
     )
     ax.hist(
-        qm["eta_trans_pre"], bins=40, range=(0, 1), density=True,
-        histtype="step", lw=1.4, label=f"MDN (n={len(qm['eta_trans_pre'])})",
+        qm["eta_trans_pre"],
+        bins=40,
+        range=(0, 1),
+        density=True,
+        histtype="step",
+        lw=1.4,
+        label=f"MDN (n={len(qm['eta_trans_pre'])})",
     )
     ax.plot(eta_grid, beta.pdf(eta_grid), "k--", lw=1, label="Beta(3/2,2)")
     ax.axvline(ETA_EQ, color="k", ls=":", lw=0.7)
-    ax.set_title(f"η_trans_pre  (BL snap step {int(bl['snapshot_steps'][k_bl])}, "
-                 f"MDN step {int(mdn['snapshot_steps'][k_mdn])})")
+    ax.set_title(
+        f"η_trans_pre  (BL snap step {int(bl['snapshot_steps'][k_bl])}, "
+        f"MDN step {int(mdn['snapshot_steps'][k_mdn])})"
+    )
     ax.set_xlabel("η_trans_pre")
     ax.legend()
     ax.grid(alpha=0.3)
 
     ax = axes[1, 1]
     ax.hist(
-        qb["eta_trans_post"], bins=40, range=(0, 1), density=True,
-        histtype="step", lw=1.4, label="BL",
+        qb["eta_trans_post"],
+        bins=40,
+        range=(0, 1),
+        density=True,
+        histtype="step",
+        lw=1.4,
+        label="BL",
     )
     ax.hist(
-        qm["eta_trans_post"], bins=40, range=(0, 1), density=True,
-        histtype="step", lw=1.4, label="MDN",
+        qm["eta_trans_post"],
+        bins=40,
+        range=(0, 1),
+        density=True,
+        histtype="step",
+        lw=1.4,
+        label="MDN",
     )
     ax.plot(eta_grid, beta.pdf(eta_grid), "k--", lw=1, label="Beta(3/2,2)")
     ax.axvline(ETA_EQ, color="k", ls=":", lw=0.7)
@@ -242,12 +264,8 @@ def main(
     ax.grid(alpha=0.3)
 
     ax = axes[1, 3]
-    xb, yb, _ = conditional_mean(
-        qb["eta_trans_pre"], qb["delta_E_trans"] / KB, bins=20
-    )
-    xm, ym, _ = conditional_mean(
-        qm["eta_trans_pre"], qm["delta_E_trans"] / KB, bins=20
-    )
+    xb, yb, _ = conditional_mean(qb["eta_trans_pre"], qb["delta_E_trans"] / KB, bins=20)
+    xm, ym, _ = conditional_mean(qm["eta_trans_pre"], qm["delta_E_trans"] / KB, bins=20)
     ax.axhline(0, color="k", lw=0.5)
     ax.axvline(ETA_EQ, color="k", ls=":", lw=0.7)
     ax.plot(xb, yb, "o-", label="BL", ms=4)
@@ -281,8 +299,10 @@ def main(
     print(f"  BL  ⟨η_trans_pre⟩  = {qb['eta_trans_pre'].mean():.4f}")
     print(f"  MDN ⟨η_trans_pre⟩  = {qm['eta_trans_pre'].mean():.4f}")
     print(f"  BL  ⟨η_trans_post⟩ = {qb['eta_trans_post'].mean():.4f}")
-    print(f"  MDN ⟨η_trans_post⟩ = {qm['eta_trans_post'].mean():.4f}    "
-          f"(target {ETA_EQ:.4f})")
+    print(
+        f"  MDN ⟨η_trans_post⟩ = {qm['eta_trans_post'].mean():.4f}    "
+        f"(target {ETA_EQ:.4f})"
+    )
     print(
         f"  BL  ⟨ΔE_trans⟩ last step = {_last_nonzero(bl['delta_E_trans_mean']) / KB:+.2f} K"
     )

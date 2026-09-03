@@ -45,13 +45,13 @@ def get_m(F13tr, F14tr, F23tr, F24tr, R1, R2, dH2):
     # Torque components (x = index 0, y = index 1, z = index 2)
     # Note: MATLAB uses 1-based indexing, so MATLAB (1) → Python [0], (2) → [1]
     M1 = np.zeros(3)
-    M1[0] = -dH2/2 * (F13_r[1] + F14_r[1]) + dH2/2 * (F23_r[1] + F24_r[1])
-    M1[1] =  dH2/2 * (F13_r[0] + F14_r[0]) - dH2/2 * (F23_r[0] + F24_r[0])
+    M1[0] = -dH2 / 2 * (F13_r[1] + F14_r[1]) + dH2 / 2 * (F23_r[1] + F24_r[1])
+    M1[1] = dH2 / 2 * (F13_r[0] + F14_r[0]) - dH2 / 2 * (F23_r[0] + F24_r[0])
     M1[2] = 0.0
 
     M2 = np.zeros(3)
-    M2[0] = -dH2/2 * (F31_r[1] + F32_r[1]) + dH2/2 * (F41_r[1] + F42_r[1])
-    M2[1] =  dH2/2 * (F31_r[0] + F32_r[0]) - dH2/2 * (F41_r[0] + F42_r[0])
+    M2[0] = -dH2 / 2 * (F31_r[1] + F32_r[1]) + dH2 / 2 * (F41_r[1] + F42_r[1])
+    M2[1] = dH2 / 2 * (F31_r[0] + F32_r[0]) - dH2 / 2 * (F41_r[0] + F42_r[0])
     M2[2] = 0.0
 
     return M1, M2

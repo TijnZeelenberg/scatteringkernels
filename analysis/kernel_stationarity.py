@@ -17,8 +17,8 @@ Two panels:
 
 from __future__ import annotations
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from scipy import stats
 
@@ -33,8 +33,8 @@ SEED = 42
 
 # Models to probe: label -> path (without .pth suffix — paths.model_path adds it)
 MDN_MODELS: dict[str, str] = {
-    "MDN λ=10":  str(paths.model_path("mdn", "mdn_H2_Etr20k_Erot15k_Teq2200_db10")),
-    "MDN λ=50":  str(paths.model_path("mdn", "mdn_H2_Etr20k_Erot15k_Teq2200_db50")),
+    "MDN λ=10": str(paths.model_path("mdn", "mdn_H2_Etr20k_Erot15k_Teq2200_db10")),
+    "MDN λ=50": str(paths.model_path("mdn", "mdn_H2_Etr20k_Erot15k_Teq2200_db50")),
     "MDN λ=100": str(paths.model_path("mdn", "mdn_H2_Etr20k_Erot15k_Teq2200_db100")),
 }
 
@@ -45,15 +45,17 @@ _EQ_BETA = 2.0
 _EQ_MEAN = _EQ_ALPHA / (_EQ_ALPHA + _EQ_BETA)  # = 3/7 ≈ 0.4286
 
 
-def _sample_equilibrium(n: int, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _sample_equilibrium(
+    n: int, rng: np.random.Generator
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Draw n states from the T_eq=2200K equilibrium distribution.
 
     E_total is returned in K (E/kB) to match how training data is built — the
     model's input_mean/std are K-scale; feeding Joules saturates the feature.
     """
-    E_total = rng.gamma(3.5, T_EQ, size=n)           # Gamma(7/2, T), in K
+    E_total = rng.gamma(3.5, T_EQ, size=n)  # Gamma(7/2, T), in K
     eta_tr = rng.beta(_EQ_ALPHA, _EQ_BETA, size=n)  # Beta(3/2, 2)
-    eta_rot_A = rng.uniform(0.0, 1.0, size=n)        # Uniform — symmetric between particles
+    eta_rot_A = rng.uniform(0.0, 1.0, size=n)  # Uniform — symmetric between particles
     return E_total, eta_tr, eta_rot_A
 
 
@@ -125,15 +127,48 @@ def main(output_path: str | None = None):
     # Panel 1: output marginal distributions
     # ------------------------------------------------------------------
     ax = axes[0]
-    ax.plot(x_grid, eq_pdf, "k-", lw=2.0, label=r"Equilibrium target: Beta(3/2, 2)", zorder=6)
-    ax.hist(eta_tr, bins=bins, density=True, alpha=0.25, color="gray", label=r"Input $\eta_{tr}$ (equilibrium draw)")
-    ax.hist(eta_tr_bl, bins=bins, density=True, alpha=0.55, color="green", label=r"BL output $\eta_{tr}'$")
+    ax.plot(
+        x_grid,
+        eq_pdf,
+        "k-",
+        lw=2.0,
+        label=r"Equilibrium target: Beta(3/2, 2)",
+        zorder=6,
+    )
+    ax.hist(
+        eta_tr,
+        bins=bins,
+        density=True,
+        alpha=0.25,
+        color="gray",
+        label=r"Input $\eta_{tr}$ (equilibrium draw)",
+    )
+    ax.hist(
+        eta_tr_bl,
+        bins=bins,
+        density=True,
+        alpha=0.55,
+        color="green",
+        label=r"BL output $\eta_{tr}'$",
+    )
     for (label, eta_tr_post), color in zip(mdn_outputs.items(), mdn_colors):
-        ax.hist(eta_tr_post, bins=bins, density=True, alpha=0.45, color=color, label=rf"{label} output $\eta_{{tr}}'$")
+        ax.hist(
+            eta_tr_post,
+            bins=bins,
+            density=True,
+            alpha=0.45,
+            color=color,
+            label=rf"{label} output $\eta_{{tr}}'$",
+        )
 
-    ax.set_xlabel(r"$\eta_{tr}$", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight)
+    ax.set_xlabel(
+        r"$\eta_{tr}$", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight
+    )
     ax.set_ylabel("Density", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight)
-    ax.set_title(r"Output marginal $p(\eta_{tr}')$ at equilibrium inputs", fontsize=pc.label_fontsize)
+    ax.set_title(
+        r"Output marginal $p(\eta_{tr}')$ at equilibrium inputs",
+        fontsize=pc.label_fontsize,
+    )
     ax.legend(fontsize=pc.legend_fontsize)
     ax.grid(True, alpha=0.3)
 
@@ -142,7 +177,14 @@ def main(output_path: str | None = None):
     # ------------------------------------------------------------------
     ax = axes[1]
     ax.axhline(0.0, color="k", lw=1.0, ls="--", label="Zero drift (stationary)")
-    ax.axvline(_EQ_MEAN, color="k", lw=1.0, ls=":", alpha=0.5, label=r"Equipartition $\eta_{tr}^* = 3/7$")
+    ax.axvline(
+        _EQ_MEAN,
+        color="k",
+        lw=1.0,
+        ls=":",
+        alpha=0.5,
+        label=r"Equipartition $\eta_{tr}^* = 3/7$",
+    )
 
     centers_bl, drift_bl = _binned_conditional_mean(eta_tr, eta_tr_bl - eta_tr, bins)
     ax.plot(centers_bl, drift_bl, "g-", lw=2.0, label="BL")
@@ -151,13 +193,18 @@ def main(output_path: str | None = None):
         centers, drift = _binned_conditional_mean(eta_tr, eta_tr_post - eta_tr, bins)
         ax.plot(centers, drift, "-", color=color, lw=2.0, label=label)
 
-    ax.set_xlabel(r"Input $\eta_{tr}$", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight)
+    ax.set_xlabel(
+        r"Input $\eta_{tr}$", fontsize=pc.label_fontsize, fontweight=pc.label_fontweight
+    )
     ax.set_ylabel(
         r"$\mathbb{E}[\eta_{tr}' - \eta_{tr} \mid \eta_{tr}]$",
         fontsize=pc.label_fontsize,
         fontweight=pc.label_fontweight,
     )
-    ax.set_title("Conditional mean energy drift at equilibrium inputs", fontsize=pc.label_fontsize)
+    ax.set_title(
+        "Conditional mean energy drift at equilibrium inputs",
+        fontsize=pc.label_fontsize,
+    )
     ax.legend(fontsize=pc.legend_fontsize)
     ax.grid(True, alpha=0.3)
 

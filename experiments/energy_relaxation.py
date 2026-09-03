@@ -18,9 +18,9 @@ Public functions:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,7 +34,6 @@ from physics.borgnakkelarssen_model import borgnakke_larssen_model
 from physics.collision_logger import CollisionLogger
 from physics.dsmc import DSMC_Simulation
 from physics.species import Species
-
 
 # ---------------------------------------------------------------------------
 # Configuration objects

@@ -1,5 +1,5 @@
-from scipy.stats import gaussian_kde, entropy
 import numpy as np
+from scipy.stats import entropy, gaussian_kde
 
 
 def kl_divergence(p_samples, q_samples, n_grid=1000):

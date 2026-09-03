@@ -36,7 +36,9 @@ def main(
     results = run_relaxation_comparison(species, models, params=params)
     sparta = load_sparta_reference(sparta_path)
 
-    print_relaxation_table(results, sparta, rot_temperature_initial=params.rot_temperature)
+    print_relaxation_table(
+        results, sparta, rot_temperature_initial=params.rot_temperature
+    )
 
     output_path = output_path or paths.plot_path("O2_energy_relaxation.png")
     plot_relaxation_comparison(

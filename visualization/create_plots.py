@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import torch
+
 from config.plotting_config import PlottingConfig
 
 config = PlottingConfig()

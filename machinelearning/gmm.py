@@ -1,7 +1,7 @@
-from sklearn.mixture import GaussianMixture
 from typing import Literal
 
 import torch
+from sklearn.mixture import GaussianMixture
 
 CovarianceType = Literal["full", "tied", "diag", "spherical"]
 

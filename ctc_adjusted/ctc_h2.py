@@ -145,8 +145,7 @@ def _run_one(seed, dist_id, T_eq, E_rel_max):
         E_rel = np.random.gamma(1.5, T_eq)
     else:  # NTC-matched: p(E) ∝ E · exp(-E/T) = Gamma(2, T)
         E_rel = np.random.gamma(2.0, T_eq)
-    if E_rel < 1.0:
-        E_rel = 1.0
+    E_rel = max(E_rel, 1.0)
     # v_COM = 0 → equal and opposite speeds; E_rel = m_H2 * v²  (μ = m/2, v_rel = 2v)
     v = np.sqrt(E_rel * _kB / _m_H2)
 

@@ -1,14 +1,13 @@
+import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 from torch.utils.data import (
     DataLoader,
     TensorDataset,
     random_split,
 )
-import numpy as np
 from tqdm import tqdm
-
 
 # CTC datasets store energies as E/kB (Kelvin). DSMC passes energies in Joules
 # at inference time, so we divide by kB before feeding the model.
@@ -128,9 +127,13 @@ class MixtureDensityNetwork(nn.Module):
         if weights is not None:
             w = (weights / weights.sum()).unsqueeze(1)
             self.input_mean = (X * w).sum(dim=0)
-            self.input_std = torch.sqrt(((X - self.input_mean) ** 2 * w).sum(dim=0)) + 1e-6
+            self.input_std = (
+                torch.sqrt(((X - self.input_mean) ** 2 * w).sum(dim=0)) + 1e-6
+            )
             self.output_mean = (y * w).sum(dim=0)
-            self.output_std = torch.sqrt(((y - self.output_mean) ** 2 * w).sum(dim=0)) + 1e-6
+            self.output_std = (
+                torch.sqrt(((y - self.output_mean) ** 2 * w).sum(dim=0)) + 1e-6
+            )
         else:
             self.input_mean = X.mean(dim=0)
             self.input_std = X.std(dim=0) + 1e-6
@@ -268,9 +271,7 @@ class MixtureDensityNetwork(nn.Module):
             self.load_state_dict(best_weights)
 
         print(
-            "Training complete. Best validation loss: {:.4f} at epoch {}".format(
-                best_val_loss, best_epoch + 1
-            )
+            f"Training complete. Best validation loss: {best_val_loss:.4f} at epoch {best_epoch + 1}"
         )
         return self.train_loss_history, self.val_loss_history
 
@@ -603,5 +604,3 @@ def mdn_loss_weighted(pi, mu, sigma, y, w):
     """
     log_p = _mdn_log_prob(pi, mu, sigma, y)
     return -(w * log_p).sum(), w.sum()
-
-

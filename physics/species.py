@@ -25,13 +25,13 @@ class Species:
     """Physical parameters for a diatomic molecule used by DSMC experiments."""
 
     name: str
-    mass: float        # kg / molecule
-    diameter: float    # m
-    zrot_bl: float     # Z_rot for the Borgnakke-Larssen collision model
-    zrot_mdn: float    # Z_rot for ML collision models
+    mass: float  # kg / molecule
+    diameter: float  # m
+    zrot_bl: float  # Z_rot for the Borgnakke-Larssen collision model
+    zrot_mdn: float  # Z_rot for ML collision models
 
     @classmethod
-    def H2(cls) -> "Species":
+    def H2(cls) -> Species:
         zrot_bl = 1.0 / 0.151
         return cls(
             name="H2",
@@ -42,7 +42,7 @@ class Species:
         )
 
     @classmethod
-    def O2(cls) -> "Species":
+    def O2(cls) -> Species:
         zrot_bl = 1.0 / 0.17
         return cls(
             name="O2",

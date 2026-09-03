@@ -9,14 +9,14 @@ P-spline smoother along each axis, then color each scatter point by its
 smoothed density value.
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.linalg import solve
-
 
 # ---------------------------------------------------------------------------
 # Internal smoother (direct translation of MATLAB smooth1D)
 # ---------------------------------------------------------------------------
+
 
 def _smooth1D(Y, lam):
     """Whittaker P-spline smoother applied column-wise.
@@ -36,11 +36,11 @@ def _smooth1D(Y, lam):
     Z : np.ndarray, shape (m, n)
     """
     m = Y.shape[0]
-    E  = np.eye(m)
-    D1 = np.diff(E, n=1, axis=0)   # (m-1, m)
+    E = np.eye(m)
+    D1 = np.diff(E, n=1, axis=0)  # (m-1, m)
     D2 = np.diff(D1, n=1, axis=0)  # (m-2, m)
-    P  = lam**2 * (D2.T @ D2) + 2.0 * lam * (D1.T @ D1)
-    Z  = solve(E + P, Y)
+    P = lam**2 * (D2.T @ D2) + 2.0 * lam * (D1.T @ D1)
+    Z = solve(E + P, Y)
     return Z
 
 
@@ -94,7 +94,7 @@ def dscatter(X, Y, msize=10, smoothing=20, bins=None, ax=None):
 
     # --- Smooth (replicating MATLAB: G = smooth1D(H, nbins(2)/lambda);
     #                                  F = smooth1D(G', nbins(1)/lambda)' )
-    G = _smooth1D(H,   nbins[1] / smoothing)
+    G = _smooth1D(H, nbins[1] / smoothing)
     F = _smooth1D(G.T, nbins[0] / smoothing).T
 
     Fmax = F.max()

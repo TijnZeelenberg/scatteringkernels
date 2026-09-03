@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
-from config.plotting_config import PlottingConfig
 from scipy.stats import gaussian_kde
+
+from config.plotting_config import PlottingConfig
 
 datasetnames = ["CTC", "MDN", "GMM"]
 config = PlottingConfig()
@@ -105,7 +106,7 @@ def plot_density_scatter(ax, datasets: dict):
 
 def plot_histogram(datasets: dict):
     """Plots histograms of the CTC, MDN and GMM datasets for both output variables."""
-    fig, ax = plt.subplots(1, 2, figsize=(config.figsize[0] * 2, config.figsize[1]))
+    _, ax = plt.subplots(1, 2, figsize=(config.figsize[0] * 2, config.figsize[1]))
     for i, dataset_name in enumerate(datasetnames):
         ax[0].hist(
             datasets[dataset_name][:, 0],
@@ -171,4 +172,3 @@ def plot_histogram(datasets: dict):
         ax[1].legend(fontsize=config.legend_fontsize)
     plt.tight_layout()
     plt.show()
-

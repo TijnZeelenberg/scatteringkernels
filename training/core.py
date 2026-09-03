@@ -19,13 +19,12 @@ from typing import Literal
 import matplotlib.pyplot as plt
 import torch
 
+import paths
 from config.experiment_config import ExperimentConfig
 from config.plotting_config import PlottingConfig
 from machinelearning.beta_mdn import BetaMixtureDensityNetwork
 from machinelearning.mdn import MixtureDensityNetwork
-import paths
 from training.data_prep import load_and_prepare
-
 
 ModelKind = Literal["mdn", "beta_mdn"]
 

@@ -37,14 +37,20 @@ def main(
     mdn_stats = run_relaxation(species, mdn, params=params)
     bl_stats = run_relaxation(species, bl, params=params_bl)
 
-    volume = params.box_size ** 3
+    volume = params.box_size**3
     mdn_visc = green_kubo_viscosity(
-        mdn_stats, dt=params.dt, volume=volume,
-        equilibration_steps=equilibration_steps, max_lag=max_lag,
+        mdn_stats,
+        dt=params.dt,
+        volume=volume,
+        equilibration_steps=equilibration_steps,
+        max_lag=max_lag,
     )
     bl_visc = green_kubo_viscosity(
-        bl_stats, dt=params.dt, volume=volume,
-        equilibration_steps=equilibration_steps, max_lag=max_lag,
+        bl_stats,
+        dt=params.dt,
+        volume=volume,
+        equilibration_steps=equilibration_steps,
+        max_lag=max_lag,
     )
 
     print(f"Equilibrium temperature MDN: {mdn_visc.T_eq:.2f} K")

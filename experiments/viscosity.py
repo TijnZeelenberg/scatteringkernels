@@ -15,7 +15,6 @@ import numpy as np
 
 import paths
 
-
 _KB = 1.380649e-23  # J/K
 
 
@@ -23,8 +22,8 @@ _KB = 1.380649e-23  # J/K
 class ViscosityResult:
     """Green-Kubo viscosity decomposition for later plotting/analysis."""
 
-    viscosity: float          # Pa·s
-    T_eq: float               # equilibrium translational temperature, K
+    viscosity: float  # Pa·s
+    T_eq: float  # equilibrium translational temperature, K
     acf_xy: np.ndarray
     acf_xz: np.ndarray
     acf_yz: np.ndarray
@@ -102,7 +101,9 @@ def plot_acf(
     ax1.plot(lags * 1e6, result.acf_xy / result.acf_avg[0], alpha=0.4, label="Pxy")
     ax1.plot(lags * 1e6, result.acf_xz / result.acf_avg[0], alpha=0.4, label="Pxz")
     ax1.plot(lags * 1e6, result.acf_yz / result.acf_avg[0], alpha=0.4, label="Pyz")
-    ax1.plot(lags * 1e6, result.acf_avg / result.acf_avg[0], "k-", lw=2, label="Average")
+    ax1.plot(
+        lags * 1e6, result.acf_avg / result.acf_avg[0], "k-", lw=2, label="Average"
+    )
     ax1.axhline(0, color="gray", ls="--", lw=0.8)
     ax1.set_ylabel("Normalized ACF")
     ax1.set_title(f"Stress Autocorrelation (T_eq = {result.T_eq:.1f} K)")
@@ -111,11 +112,21 @@ def plot_acf(
     prefactor = result.volume / (_KB * result.T_eq)
     running = prefactor * np.cumsum(result.acf_avg) * result.dt
     ax2.plot(lags * 1e6, running * 1e6, "k-", lw=2)
-    ax2.axhline(result.viscosity * 1e6, color="r", ls="--", lw=1,
-                label=f"Final: {result.viscosity:.2e} Pa·s")
+    ax2.axhline(
+        result.viscosity * 1e6,
+        color="r",
+        ls="--",
+        lw=1,
+        label=f"Final: {result.viscosity:.2e} Pa·s",
+    )
     if reference_viscosity_micro is not None:
-        ax2.axhline(reference_viscosity_micro, color="g", ls="--", lw=1,
-                    label=reference_label or "Reference")
+        ax2.axhline(
+            reference_viscosity_micro,
+            color="g",
+            ls="--",
+            lw=1,
+            label=reference_label or "Reference",
+        )
     ax2.set_xlabel("Lag time (μs)")
     ax2.set_ylabel("η (μPa·s)")
     ax2.set_title("Cumulative Green-Kubo Viscosity")
