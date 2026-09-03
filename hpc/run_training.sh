@@ -26,12 +26,12 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 DATASET="data/H2H2_collisions_numba_b1_0_Etr20k_Erot15k_1000000_seed42.npy"
 KIND="mdn"                          # mdn | beta_mdn
-T_EQ=2200                           # equilibrium temperature [K] for NTC weighting
 EPOCHS=100
 BATCH_SIZE=512                      # larger batches exploit GPU parallelism
 LR=2e-4
 PATIENCE=30
-OUTPUT="results/models/mdn/mdn_H2_Etr20k_Erot15k_Teq${T_EQ}.pth"
+WF="None"                           # polynomial weight exponent, or None for unweighted
+OUTPUT="results/models/mdn/mdn_H2_Etr20k_Erot15k.pth"
 # ---------------------------------------------------------------------------
 
 module purge
@@ -44,12 +44,16 @@ echo "Dataset:   $DATASET"
 echo "Output:    $OUTPUT"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null || echo "No GPU detected — running on CPU"
 
-python scripts/run_pipeline.py train \
-    --kind "$KIND" \
-    --dataset "$DATASET" \
-    --output "$OUTPUT" \
-    --epochs "$EPOCHS" \
-    --batch-size "$BATCH_SIZE" \
-    --lr "$LR" \
-    --T-eq "$T_EQ" \
-    --patience "$PATIENCE"
+python -c "
+from training.core import train_collision_model
+train_collision_model(
+    kind='$KIND',
+    datapath='$DATASET',
+    outputpath='$OUTPUT',
+    epochs=$EPOCHS,
+    batch_size=$BATCH_SIZE,
+    lr=$LR,
+    wf=$WF,
+    patience=$PATIENCE,
+)
+"
