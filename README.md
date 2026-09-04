@@ -24,7 +24,7 @@ top-level imports (`paths`, `physics`, `machinelearning`) then fail.
 
 ## Run it
 
-A small CTC dataset and an MDN trained on it are committed under `examples/`, so a fresh
+A small CTC dataset and an MDN trained on that dataset are committed under `examples/`, so a fresh
 clone can run the pipeline without generating any data first. Train a model on that
 dataset and drop it straight into a DSMC simulation:
 
@@ -32,7 +32,7 @@ dataset and drop it straight into a DSMC simulation:
 uv run python -m scripts.run_example
 ```
 
-Takes about 30 seconds on a laptop CPU and prints:
+Takes about 30 seconds on an intel i7 CPU and prints:
 
 ```
 === Training an MDN on examples/ ===
@@ -50,7 +50,7 @@ Training complete. Best validation loss: 1.5071 at epoch 199
   equipartition temperature for 3+2 DOF: 220.0 K
 ```
 
-Both collision models relax the translational and rotational temperatures towards the
+Both the Borgnakke-Larssen and MDN model relax the translational and rotational temperatures towards the
 same equipartition value while conserving total energy exactly — the MDN faster, which
 is what the trajectory data says should happen.
 
@@ -59,16 +59,6 @@ is what the trajectory data says should happen.
 ```bash
 uv run python -m scripts.run_example --dsmc-only
 ```
-
-Run the tests with:
-
-```bash
-uv run pytest
-```
-
-`tests/test_conservation.py` asserts that every collision model conserves pair momentum
-and total redistributable energy, and pins the scalar and vectorized Borgnakke-Larssen
-paths to the same redistribution law.
 
 ### About the example data
 
@@ -79,12 +69,10 @@ examples/mdn_H2_ncoll5000.pth    Gaussian MDN trained on it
 
 The dataset is produced by `ctc_adjusted/ctc_h2.py` itself, using the settings that
 module ships with, at 5000 collisions instead of 10⁶. Regenerate both with
-`uv run python -m scripts.make_example_data` (~90 s on 12 cores).
+`uv run python -m scripts.make_example_data` (~90 s on intel i7 cores).
 
 These exist to make the code runnable, not to reproduce a result. 5000 collisions is
-three orders of magnitude below the thesis datasets, and the simulation runs at 300 K
-while the dataset is sampled up to `E_rel/k_B = 10⁴ K`, so the example model is
-extrapolating throughout.
+three orders of magnitude smaller than the thesis datasets.
 
 ## The full pipeline
 
@@ -183,10 +171,7 @@ collide(velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot=1.0)
 batch_collide(velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot=1.0)
 ```
 
-`physics/dsmc.py` dispatches on `hasattr(collision_model, "batch_collide")` and otherwise
-falls back to the scalar path, so the engine never depends on which model it is holding,
-and swapping models is a one-line change in an experiment script. The engine has no
-imports from `machinelearning/`.
+Swapping models is a one-line change in an experiment script.
 
 ## Physics conventions
 
@@ -201,17 +186,14 @@ imports from `machinelearning/`.
 - Total energy and pair momentum are conserved by construction in every `collide()` and
   `batch_collide()` implementation, and asserted in `tests/`.
 - `zrot` (rotational collision number) sets the fraction of collisions that exchange
-  rotational energy, via an inelastic probability `1/zrot`.
+  rotational energy, via an inelastic probability `1/zrot`. Each collision model has its own value of zrot.
 - CTC datasets store energies as `E / k_B` in Kelvin. The DSMC works in Joules and the
   models convert at their boundary.
 
 ## Provenance
 
-`ctc_adjusted/` is a previous master's student's classical trajectory integrator, adapted
-for this project (hence "adjusted"). Everything else is written for this thesis. Parts of
-the codebase were written with AI assistance — principally the path handling (`paths.py`),
-dataset preparation (`training/data_prep.py`, `training/core.py`) and the logging layer
-(`physics/collision_logger.py`).
+`ctc_adjusted/` is based on a CTC integrator by Benjamin Vollebregt, adapted from its original matlab implementation to Python and Numba.
+Parts of the codebase were written with AI assistance: principally the path handling (`paths.py`), the plotting (`visualization/`) and the logging layer (`physics/collision_logger.py`).
 
 ## Possible improvements
 
@@ -219,10 +201,6 @@ dataset preparation (`training/data_prep.py`, `training/core.py`) and the loggin
   what let the two Borgnakke-Larssen code paths silently diverge on their Beta exponents;
   a `Protocol` would have caught that at type-check time rather than in a conservation
   test written afterwards.
-- **Split `MixtureDensityNetwork`.** It does five jobs in one class — network definition,
-  dataloaders and normalization, training loop, DSMC collision adapter, checkpoint I/O.
-  The adapter belongs on the model because it needs the normalization statistics; the
-  training loop and checkpoint I/O do not.
 - **Vectorize `calculate_no_collisions`.** Finding `vrmax` is an O(N²) Python loop within
   each cell, and the one hot path in the engine that is not vectorized. Bird's method —
   carrying a running `vrmax` per cell across timesteps — is the standard fix.
@@ -233,9 +211,7 @@ dataset preparation (`training/data_prep.py`, `training/core.py`) and the loggin
   of the same harness.
 - **Read SPARTA configuration directly.** Simulation settings are currently maintained in
   two places, in the SPARTA input decks and in the Python experiment scripts.
-- **Audit float32.** The DSMC stores positions, velocities and rotational energies as
-  float32; the impact on the transport coefficients has not been measured.
-- **Enforce detailed balance structurally.** It is currently encouraged by time-reversal
+- **Enforce detailed balance structurally in the MDN kernels.** It is currently encouraged by time-reversal
   augmentation of the training set and a loss penalty, rather than guaranteed by the
   model's form.
-- **Implement bulk viscosity** via compression waves.
+- **Implement bulk viscosity computation** via compression waves.
