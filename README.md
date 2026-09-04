@@ -1,129 +1,66 @@
 # ML Scattering Kernels
 
-Master's thesis project on replacing physics-based molecular collision models with
-machine-learned scattering kernels inside a DSMC (Direct Simulation Monte Carlo)
-simulation. The target application is rarefied gas dynamics — specifically H₂ and O₂
-at low pressure.
-
-The central question: can a neural network learn the conditional energy redistribution
-of a molecular collision from trajectory data, act as a drop-in replacement for the
-Borgnakke-Larssen phenomenological model, and still produce correct macroscopic
-transport properties (viscosity, energy relaxation)?
-
-## Pipeline
-
-```
-ctc_adjusted/ctc_h2.py           classical trajectory simulation (Numba, parallel)
-    │                            → data/ctc/**/*.npy  columns:
-    │                              (Etr, Er1, Er2, Etr', Er1', Er2')  [K]
-    ▼
-training/trainer.py              train the Gaussian MDN
-training/betamdn_trainer.py      train the Beta MDN
-    │                            → results/models/**/*.pth
-    ▼
-experiments/H2_energy_relaxation.py    validate inside a full DSMC against SPARTA/LAMMPS
-experiments/H2viscosity.py             Green-Kubo shear viscosity
-analysis/kernel_stationarity.py        equilibrium/detailed-balance diagnostics
-    │
-    ▼
-visualization/                   figures for the thesis report
-    │
-    ▼
-results/plots/                   figures
-```
+Master's thesis project on replacing the phenomenological Borgnakke-Larssen collision
+model inside a DSMC (Direct Simulation Monte Carlo) rarefied-gas simulation with a
+mixture density network trained on classical trajectory data. The pipeline is three
+stages: generate molecular collision data with a classical trajectory simulation, fit a
+neural network to it, then run the DSMC with that network as its collision model.
 
 ## Setup
 
 ```bash
-uv venv
-uv pip install -r requirements.txt      # or: uv sync
+uv sync
 ```
 
-For a CUDA build of PyTorch, install it from the matching wheel index:
+For a CUDA build of PyTorch:
 
 ```bash
 uv pip install torch --index-url https://download.pytorch.org/whl/cu126
 ```
 
-Run everything from the project root, so that top-level modules (`paths`, `physics`,
-`machinelearning`, …) resolve:
+Run everything from the project root and **as a module** (`-m`). Running a script by its
+path puts the script's own directory on `sys.path` instead of the project root, and the
+top-level imports (`paths`, `physics`, `machinelearning`) then fail.
+
+## Run it
+
+A small CTC dataset and an MDN trained on it are committed under `examples/`, so a fresh
+clone can run the pipeline without generating any data first. Train a model on that
+dataset and drop it straight into a DSMC simulation:
 
 ```bash
-uv run python experiments/H2_energy_relaxation.py
+uv run python -m scripts.run_example
 ```
 
-## What is and is not in the repository
+Takes about 30 seconds on a laptop CPU and prints:
 
-Tracked: all source code, the SPARTA and LAMMPS input decks and their reference output
-(`sparta/`, `lammps/`), and the Slurm job scripts (`hpc/`).
+```
+=== Training an MDN on examples/ ===
+Time-reversal augmentation: 5000 -> 10000 rows
+Training device: cpu
+Training complete. Best validation loss: 1.5071 at epoch 199
+  train NLL: 3.128 -> 1.421
+    val NLL: 3.148 -> 1.508
 
-**Not tracked** (see `.gitignore`): `data/` and `results/`. Collision datasets are
-hundreds of MB and trained weights are regenerable (since fixed seeds are used throughout the training loops), so a fresh clone has neither. The
-experiment scripts default to dataset and model paths under those directories — expect
-a `FileNotFoundError` until you generate or copy them in. Regenerate with the data
-generation and training steps below.
+=== DSMC energy relaxation ===
+  2000 particles, 50 steps, T_trans 300 K / T_rot 100 K at t=0
+  Borgnakke-Larssen    T_trans  293.7 ->  226.9 K   T_rot   95.8 ->  196.1 K   energy drift 0.0e+00
+  MDN                  T_trans  293.7 ->  208.2 K   T_rot   95.8 ->  224.0 K   energy drift 0.0e+00
 
-## Entry points
+  equipartition temperature for 3+2 DOF: 220.0 K
+```
 
-There is no central CLI. Each script is run directly and is configured by editing the
-constants at the top of its `__main__` block or the keyword defaults of its `main()`.
-This is deliberate for a research codebase where the parameters being swept change
-weekly.
+Both collision models relax the translational and rotational temperatures towards the
+same equipartition value while conserving total energy exactly — the MDN faster, which
+is what the trajectory data says should happen.
 
-### Generate collision data
+`--dsmc-only` skips training and uses the committed model instead:
 
 ```bash
-uv run python ctc_adjusted/ctc_h2.py
+uv run python -m scripts.run_example --dsmc-only
 ```
 
-Configuration lives in the settings block at the top of the file: `ncoll`, `seed`,
-`dist` (`uniform` | `mb` | `ntc`), `T_eq`, `E_rel_max`, `bfac`. Writes to
-`data/ctc/H2/impactparam/`. On 16 cores, roughly 3 h for 10⁶ collisions — see
-`hpc/run_data_generation.sh`.
-
-`ctc_adjusted/ctc_h2_impactparamsweep.py` is the same simulation swept over impact
-parameter.
-
-### Train a model
-
-```bash
-uv run python training/trainer.py           # Gaussian MDN
-uv run python training/betamdn_trainer.py   # Beta MDN
-```
-
-Both are thin wrappers over `training.core.train_collision_model`, which takes
-`kind`, `datapath`, `outputpath`, `epochs`, `batch_size`, `lr`, `wf`, `patience`.
-Dataset and output paths are set in each wrapper's `__main__`. CUDA is used
-automatically when available. GPU job script for use on the TU/e High Performance Cluster: `hpc/run_training.sh`.
-
-`wf` applies polynomial importance weighting `w ∝ E_trans^wf`; leave it at `None` for
-an unweighted NLL.
-
-### Validate inside DSMC
-
-```bash
-uv run python experiments/H2_energy_relaxation.py   # H2 relaxation vs BL, SPARTA, LAMMPS
-uv run python experiments/O2_energy_relaxation.py   # same for O2
-uv run python experiments/H2viscosity.py            # Green-Kubo shear viscosity
-uv run python experiments/DSMC_validation.py        # DSMC engine sanity checks
-```
-
-`main()` in each takes the model path, reference data paths, step count, seed, and
-species parameters as keyword arguments.
-
-### Analysis
-
-```bash
-uv run python analysis/kernel_stationarity.py     # is the kernel stationary at equilibrium?
-uv run python analysis/compare_collision_logs.py  # compare per-collision DSMC logs
-uv run python analysis/lammps_zrot.py             # fit 1/Z_rot from LAMMPS output
-uv run python analysis/ctc_equilibrium.py         # CTC dataset equilibrium check
-```
-
-`kernel_stationarity.py` hardcodes the model paths and `T_EQ` it probes; edit the
-`MDN_MODELS` dict at the top.
-
-## Tests
+Run the tests with:
 
 ```bash
 uv run pytest
@@ -132,6 +69,50 @@ uv run pytest
 `tests/test_conservation.py` asserts that every collision model conserves pair momentum
 and total redistributable energy, and pins the scalar and vectorized Borgnakke-Larssen
 paths to the same redistribution law.
+
+### About the example data
+
+```
+examples/ctc_H2_ncoll5000.npy    5000-collision CTC dataset
+examples/mdn_H2_ncoll5000.pth    Gaussian MDN trained on it
+```
+
+The dataset is produced by `ctc_adjusted/ctc_h2.py` itself, using the settings that
+module ships with, at 5000 collisions instead of 10⁶. Regenerate both with
+`uv run python -m scripts.make_example_data` (~90 s on 12 cores).
+
+These exist to make the code runnable, not to reproduce a result. 5000 collisions is
+three orders of magnitude below the thesis datasets, and the simulation runs at 300 K
+while the dataset is sampled up to `E_rel/k_B = 10⁴ K`, so the example model is
+extrapolating throughout.
+
+## The full pipeline
+
+`data/` and `results/` are untracked — collision datasets run to hundreds of MB and
+trained weights are regenerable from fixed seeds. There is no central CLI: each script
+is run directly and configured by editing the constants at the top of its `__main__`
+block, which suits a research codebase where the parameters being swept change weekly.
+
+```bash
+# 1. generate collision data  (~3 h for 10⁶ collisions on 16 cores)
+uv run python -m ctc_adjusted.ctc_h2
+
+# 2. train a kernel
+uv run python -m training.trainer           # Gaussian MDN
+uv run python -m training.betamdn_trainer   # Beta MDN
+
+# 3. validate it inside a full DSMC against SPARTA and LAMMPS references
+uv run python -m experiments.H2_energy_relaxation
+uv run python -m experiments.O2_energy_relaxation
+uv run python -m experiments.H2viscosity            # Green-Kubo shear viscosity
+uv run python -m experiments.DSMC_validation        # engine sanity checks
+
+# diagnostics
+uv run python -m analysis.kernel_stationarity       # is the kernel stationary at equilibrium?
+uv run python -m analysis.compare_collision_logs
+uv run python -m analysis.lammps_zrot               # fit 1/Z_rot from LAMMPS output
+uv run python -m analysis.ctc_equilibrium
+```
 
 ## Repository layout
 
@@ -171,44 +152,26 @@ analysis/
     kl_divergence.py            KDE-based KL divergence
     lammps_zrot.py              fit 1/Z_rot from LAMMPS relaxation output
 
-ctc_adjusted/                   Classical Trajectory Code — collision data generation.
-                                Adapted from a previous master's student's code; see
-                                "Provenance" below.
-    ctc_h2.py                   main simulation
+ctc_adjusted/                   Classical Trajectory Code — collision data generation
+    ctc_h2.py                   main simulation (Numba, parallel)
     ctc_h2_impactparamsweep.py  impact-parameter sweep
     lj.py get_fij.py get_rdot.py get_wdot.py get_vdot.py get_m.py
                                 force, torque and geometry helpers
 
-sparta/                         SPARTA input decks and reference output (DSMC ground truth)
-lammps/                         LAMMPS input decks and reference output (MD ground truth)
-hpc/                            Slurm job scripts (TU/e cluster)
-config/                         model hyperparameters and figure styling
-
 visualization/                  all plotting code for the thesis report — every figure
                                 in the written report is produced here
-    plot.py                     energy relaxation, loss history, density scatter,
-                                histogram comparisons (CTC vs MDN vs GMM)
-    create_plots.py             impact-parameter sweep loss curves
 
+scripts/
+    run_example.py              train + simulate on the committed example data
+    make_example_data.py        regenerate the artifacts in examples/
+
+examples/                       committed dataset and model, so a fresh clone runs
+sparta/  lammps/                input decks and reference output (ground truth)
+hpc/                            Slurm job scripts (TU/e cluster)
+config/                         model hyperparameters and figure styling
 tests/                          conservation invariants
 paths.py                        central output-path helpers; creates results/ on demand
 ```
-
-## Physics conventions
-
-- All collision models operate in the **center-of-mass frame**.
-- Model inputs are normalized energy fractions:
-  - `η_trans = E_trans / E_total`
-  - `η_rot_A = E_rot_A / (E_rot_A + E_rot_B)`
-  where `E_total` is the redistributable energy (relative kinetic + rotational); the
-  center-of-mass kinetic energy never enters the pool.
-- Outputs are post-collision fractions of the same conserved `E_total`, in [0, 1].
-- Total energy and pair momentum are conserved by construction in every `collide()` and
-  `batch_collide()` implementation, and asserted in `tests/`.
-- `zrot` (rotational collision number) sets the fraction of collisions that exchange
-  rotational energy, via an inelastic probability `1/zrot`.
-- CTC datasets store energies as `E / k_B` in Kelvin. The DSMC works in Joules and the
-  models convert at their boundary.
 
 ## The collision-model interface
 
@@ -220,24 +183,59 @@ collide(velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot=1.0)
 batch_collide(velocity_i, e_rot_i, velocity_j, e_rot_j, m, zrot=1.0)
 ```
 
-`physics/dsmc.py` dispatches on `hasattr(collision_model, "batch_collide")` and
-otherwise falls back to the scalar path, so the engine never depends on which model it
-is holding and swapping models is a one-line change in an experiment script. The
-interface is duck-typed rather than a formal `Protocol`; making it explicit is on the
-list below.
+`physics/dsmc.py` dispatches on `hasattr(collision_model, "batch_collide")` and otherwise
+falls back to the scalar path, so the engine never depends on which model it is holding,
+and swapping models is a one-line change in an experiment script. The engine has no
+imports from `machinelearning/`.
+
+## Physics conventions
+
+- All collision models operate in the **center-of-mass frame**.
+- Model inputs are normalized energy fractions:
+  - `η_trans = E_trans / E_total`
+  - `η_rot_A = E_rot_A / (E_rot_A + E_rot_B)`
+
+  where `E_total` is the redistributable energy (relative kinetic + rotational); the
+  center-of-mass kinetic energy never enters the pool.
+- Outputs are post-collision fractions of the same conserved `E_total`, in [0, 1].
+- Total energy and pair momentum are conserved by construction in every `collide()` and
+  `batch_collide()` implementation, and asserted in `tests/`.
+- `zrot` (rotational collision number) sets the fraction of collisions that exchange
+  rotational energy, via an inelastic probability `1/zrot`.
+- CTC datasets store energies as `E / k_B` in Kelvin. The DSMC works in Joules and the
+  models convert at their boundary.
 
 ## Provenance
 
-`ctc_adjusted/` is a previous master's student's classical trajectory integrator,
-adapted for this project (hence "adjusted"). Everything else is written for this thesis.
-Parts of the codebase were written with AI assistance — principally the path handling
-(`paths.py`), dataset preparation (`training/data_prep.py`, `training/core.py`) and the
-logging layer (`physics/collision_logger.py`).
+`ctc_adjusted/` is a previous master's student's classical trajectory integrator, adapted
+for this project (hence "adjusted"). Everything else is written for this thesis. Parts of
+the codebase were written with AI assistance — principally the path handling (`paths.py`),
+dataset preparation (`training/data_prep.py`, `training/core.py`) and the logging layer
+(`physics/collision_logger.py`).
 
-## Known limitations and TODOs
+## Possible improvements
 
-- Many interfaces are duck-typed rather than formalized; the collision model interface is one example.
-- The DSMC cannot read SPARTA configuration files directly, so settings are maintained
-  in two places.
-- An abstraction has not been made for the experiment scripts; the H2 and O2 experiments are copy-paste variants of the same harness.
-- Bulk viscosity (via compression waves) is not implemented.
+- **Formalize the collision-model interface.** It is duck-typed via `hasattr`, which is
+  what let the two Borgnakke-Larssen code paths silently diverge on their Beta exponents;
+  a `Protocol` would have caught that at type-check time rather than in a conservation
+  test written afterwards.
+- **Split `MixtureDensityNetwork`.** It does five jobs in one class — network definition,
+  dataloaders and normalization, training loop, DSMC collision adapter, checkpoint I/O.
+  The adapter belongs on the model because it needs the normalization statistics; the
+  training loop and checkpoint I/O do not.
+- **Vectorize `calculate_no_collisions`.** Finding `vrmax` is an O(N²) Python loop within
+  each cell, and the one hot path in the engine that is not vectorized. Bird's method —
+  carrying a running `vrmax` per cell across timesteps — is the standard fix.
+- **Take configuration out of Python constants.** Each script is configured by editing its
+  `__main__` block; `SimulationParams` shows what a config object looks like, but the DSMC
+  engine's staged builder (`create_box` → `create_grid` → `create_particles`) predates it.
+- **Abstract the experiment scripts.** The H2 and O2 experiments are copy-paste variants
+  of the same harness.
+- **Read SPARTA configuration directly.** Simulation settings are currently maintained in
+  two places, in the SPARTA input decks and in the Python experiment scripts.
+- **Audit float32.** The DSMC stores positions, velocities and rotational energies as
+  float32; the impact on the transport coefficients has not been measured.
+- **Enforce detailed balance structurally.** It is currently encouraged by time-reversal
+  augmentation of the training set and a loss penalty, rather than guaranteed by the
+  model's form.
+- **Implement bulk viscosity** via compression waves.
