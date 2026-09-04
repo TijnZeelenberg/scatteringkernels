@@ -26,7 +26,6 @@ from pathlib import Path
 import numpy as np
 import torch
 
-
 EXPECTED_COLS = 6
 
 
@@ -91,8 +90,8 @@ def prepare_training_tensors(
     """
     n = data.shape[0]
     X = np.zeros((n, 3))
-    X[:, 0] = np.sum(data[:, 0:3], axis=1)              # E_total
-    X[:, 1] = data[:, 0] / X[:, 0]                       # eta_tr
+    X[:, 0] = np.sum(data[:, 0:3], axis=1)  # E_total
+    X[:, 1] = data[:, 0] / X[:, 0]  # eta_tr
     X[:, 2] = data[:, 1] / np.sum(data[:, 1:3], axis=1)  # eta_rot_A
 
     y = np.zeros((n, 2))

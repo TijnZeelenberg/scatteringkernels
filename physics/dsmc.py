@@ -1,10 +1,9 @@
 # DSMC implementation by Tijn Zeelenberg (2026)
 from time import time
 from typing import Literal
-from tqdm import tqdm
 
 import numpy as np
-
+from tqdm import tqdm
 
 ParticleDistribution = Literal[
     "uniform", "central", "gaussian", "left_biased_gaussian", "left_wall"
@@ -157,8 +156,7 @@ class DSMC_Simulation:
                 dv = self.velocities[cell_particles] - v_particle
                 magdv = np.sqrt(np.sum(dv**2, axis=1))
                 max_magdv = np.max(magdv)
-                if max_magdv > vrmax[cell]:
-                    vrmax[cell] = max_magdv
+                vrmax[cell] = max(vrmax[cell], max_magdv)
         # Calculate the number of collision pairs to sample in each cell
         collisions = np.zeros(self.nr_cells, dtype=int)
         collisions = np.round(
@@ -238,10 +236,18 @@ class DSMC_Simulation:
                 empty_v = np.empty((0, 3), dtype=np.float32)
                 empty_e = np.empty(0, dtype=np.float32)
                 collision_logger.log_step(
-                    step, self.mass,
-                    empty_idx, empty_idx,
-                    empty_v, empty_v, empty_e, empty_e,
-                    empty_v, empty_v, empty_e, empty_e,
+                    step,
+                    self.mass,
+                    empty_idx,
+                    empty_idx,
+                    empty_v,
+                    empty_v,
+                    empty_e,
+                    empty_e,
+                    empty_v,
+                    empty_v,
+                    empty_e,
+                    empty_e,
                 )
             return Pxy_col, Pxz_col, Pyz_col
 
@@ -320,10 +326,18 @@ class DSMC_Simulation:
 
         if collision_logger is not None:
             collision_logger.log_step(
-                step, self.mass,
-                idx_i, idx_j,
-                v_i, v_j, e_rot_i, e_rot_j,
-                new_v_i, new_v_j, new_e_rot_i, new_e_rot_j,
+                step,
+                self.mass,
+                idx_i,
+                idx_j,
+                v_i,
+                v_j,
+                e_rot_i,
+                e_rot_j,
+                new_v_i,
+                new_v_j,
+                new_e_rot_i,
+                new_e_rot_j,
             )
 
         return Pxy_col, Pxz_col, Pyz_col

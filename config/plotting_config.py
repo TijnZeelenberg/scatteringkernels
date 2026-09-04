@@ -19,4 +19,3 @@ class PlottingConfig:
         self.bin_count = 50
         self.hist_density = True
         self.hist_alpha = 0.3
-

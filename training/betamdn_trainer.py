@@ -4,9 +4,8 @@ Real implementation lives in `training.core`; this module re-exports the
 function for backwards compatibility and provides a runnable `__main__`.
 """
 
-from training.core import train_beta_mdn
-
 import paths
+from training.core import train_beta_mdn
 
 __all__ = ["train_beta_mdn"]
 

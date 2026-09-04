@@ -92,7 +92,7 @@ def compute_inverse_zrot(
         "Z_rot": float(Z_rot),
         "inv_Z_rot": float(inv_Z_rot),
         "n_fit_points": int(mask.sum()),
-        "n_total_points": int(len(t)),
+        "n_total_points": len(t),
     }
 
 
@@ -125,7 +125,9 @@ def main():
         help="Path to the LAMMPS energy-relaxation .dat file.",
     )
     p.add_argument("--species", type=str, default="H2", choices=["H2", "O2"])
-    p.add_argument("--N", type=int, default=20000, help="number of molecules in the LAMMPS run")
+    p.add_argument(
+        "--N", type=int, default=20000, help="number of molecules in the LAMMPS run"
+    )
     p.add_argument("--L", type=float, default=2.0e-8, help="cubic box edge [m]")
     p.add_argument(
         "--floor-frac",

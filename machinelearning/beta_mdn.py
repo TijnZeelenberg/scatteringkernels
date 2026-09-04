@@ -1,15 +1,14 @@
+import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 from torch.utils.data import (
     DataLoader,
     TensorDataset,
     WeightedRandomSampler,
     random_split,
 )
-import numpy as np
 from tqdm import tqdm
-
 
 # CTC datasets store energies as E/kB (Kelvin). DSMC passes energies in Joules
 # at inference time, so we divide by kB before feeding the model.
@@ -235,9 +234,7 @@ class BetaMixtureDensityNetwork(nn.Module):
             self.load_state_dict(best_weights)
 
         print(
-            "Training complete. Best validation loss: {:.4f} at epoch {}".format(
-                best_val_loss, best_epoch + 1
-            )
+            f"Training complete. Best validation loss: {best_val_loss:.4f} at epoch {best_epoch + 1}"
         )
         return self.train_loss_history, self.val_loss_history
 
@@ -288,7 +285,9 @@ class BetaMixtureDensityNetwork(nn.Module):
             pi = torch.where(pi_sum > 0, pi / pi_sum, uniform)
 
             # Select one component per sample
-            component = torch.multinomial(pi, num_samples=1, replacement=True).squeeze(1)
+            component = torch.multinomial(pi, num_samples=1, replacement=True).squeeze(
+                1
+            )
 
             alpha_sel = alpha[torch.arange(alpha.size(0)), component]
             beta_sel = beta[torch.arange(beta.size(0)), component]

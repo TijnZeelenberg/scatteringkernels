@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -16,8 +17,6 @@ from experiments.energy_relaxation import (
     print_relaxation_table,
     run_relaxation_comparison,
 )
-from dataclasses import replace
-
 from physics.borgnakkelarssen_model import borgnakke_larssen_model
 from physics.collision_logger import CollisionLogger
 from physics.species import Species

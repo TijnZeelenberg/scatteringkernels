@@ -25,10 +25,6 @@ def get_rdot(w, R):
     """
     w = np.asarray(w, dtype=float)
 
-    wtilde = np.array([
-        [ 0.0,  -w[2],  w[1]],
-        [ w[2],  0.0,  -w[0]],
-        [-w[1],  w[0],  0.0 ]
-    ])
+    wtilde = np.array([[0.0, -w[2], w[1]], [w[2], 0.0, -w[0]], [-w[1], w[0], 0.0]])
 
     return R @ wtilde

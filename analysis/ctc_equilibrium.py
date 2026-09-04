@@ -8,8 +8,12 @@ CTC model crossover (mean delta = 0): eta_tr ~ 0.68-0.70
 This is consistent with quantum mechanical suppression of rotational DOF
 in O2 at low temperatures (rotational constant B ~ 1.44 cm^-1).
 """
-import numpy as np
+
+from itertools import pairwise
+
 import matplotlib.pyplot as plt
+import numpy as np
+
 from config.plotting_config import PlottingConfig
 
 DATASET = "data/H2H2_collisions.csv"
@@ -31,7 +35,7 @@ bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
 bin_mean = np.full(len(bin_centers), np.nan)
 bin_sem = np.full(len(bin_centers), np.nan)
 
-for i, (lo, hi) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
+for i, (lo, hi) in enumerate(pairwise(bin_edges)):
     mask = (eta_tr_in >= lo) & (eta_tr_in < hi)
     if mask.sum() > 10:
         bin_mean[i] = np.mean(delta[mask])
@@ -50,7 +54,7 @@ else:
 
 # --- Bin mean of eta_tr_out per bin of eta_tr_in ---
 bin_mean_out = np.full(len(bin_centers), np.nan)
-for i, (lo, hi) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
+for i, (lo, hi) in enumerate(pairwise(bin_edges)):
     mask = (eta_tr_in >= lo) & (eta_tr_in < hi)
     if mask.sum() > 10:
         bin_mean_out[i] = np.mean(eta_tr_out[mask])
@@ -61,34 +65,71 @@ fig, ax = plt.subplots(figsize=cfg.figsize)
 # Scatter of raw data (subsample for readability)
 rng = np.random.default_rng(0)
 sub = rng.choice(len(eta_tr_in), size=min(5000, len(eta_tr_in)), replace=False)
-ax.scatter(eta_tr_in[sub], eta_tr_out[sub],
-           s=2, alpha=0.15, color="steelblue", linewidths=0, rasterized=True)
+ax.scatter(
+    eta_tr_in[sub],
+    eta_tr_out[sub],
+    s=2,
+    alpha=0.15,
+    color="steelblue",
+    linewidths=0,
+    rasterized=True,
+)
 
 # Mean eta_tr_out per bin
-ax.plot(bin_centers, bin_mean_out, color="steelblue", linewidth=2,
-        label=r"Mean $\eta_{tr,out}$")
+ax.plot(
+    bin_centers,
+    bin_mean_out,
+    color="steelblue",
+    linewidth=2,
+    label=r"Mean $\eta_{tr,out}$",
+)
 
 # Identity line: no change
-ax.plot([0, 1], [0, 1], color="black", linewidth=1.0, linestyle="-",
-        label=r"No change ($\eta_{tr,out} = \eta_{tr,in}$)")
+ax.plot(
+    [0, 1],
+    [0, 1],
+    color="black",
+    linewidth=1.0,
+    linestyle="-",
+    label=r"No change ($\eta_{tr,out} = \eta_{tr,in}$)",
+)
 
 # Classical equilibrium
-ax.axvline(0.60, color="red", linestyle="--", linewidth=1.5,
-           label=r"Classical equipartition $\eta_{tr}^{eq}=0.60$")
+ax.axvline(
+    0.60,
+    color="red",
+    linestyle="--",
+    linewidth=1.5,
+    label=r"Classical equipartition $\eta_{tr}^{eq}=0.60$",
+)
 ax.axhline(0.60, color="red", linestyle="--", linewidth=1.5)
 
 # CTC crossover (where mean out = mean in, i.e. mean_out crosses identity)
 if not np.isnan(crossover):
-    ax.axvline(crossover, color="darkorange", linestyle="--", linewidth=1.5,
-               label=rf"CTC crossover $\eta_{{tr}}\approx{crossover:.2f}$")
+    ax.axvline(
+        crossover,
+        color="darkorange",
+        linestyle="--",
+        linewidth=1.5,
+        label=rf"CTC crossover $\eta_{{tr}}\approx{crossover:.2f}$",
+    )
     ax.axhline(crossover, color="darkorange", linestyle="--", linewidth=1.5)
 
-ax.set_xlabel(r"Pre-collision $\eta_{tr,in}$",
-              fontsize=cfg.label_fontsize, fontweight=cfg.label_fontweight)
-ax.set_ylabel(r"Post-collision $\eta_{tr,out}$",
-              fontsize=cfg.label_fontsize, fontweight=cfg.label_fontweight)
-ax.set_title("CTC vs Classical Rotational Equilibrium (O$_2$-O$_2$)",
-             fontsize=cfg.title_fontsize, fontweight=cfg.title_fontweight)
+ax.set_xlabel(
+    r"Pre-collision $\eta_{tr,in}$",
+    fontsize=cfg.label_fontsize,
+    fontweight=cfg.label_fontweight,
+)
+ax.set_ylabel(
+    r"Post-collision $\eta_{tr,out}$",
+    fontsize=cfg.label_fontsize,
+    fontweight=cfg.label_fontweight,
+)
+ax.set_title(
+    "CTC vs Classical Rotational Equilibrium (O$_2$-O$_2$)",
+    fontsize=cfg.title_fontsize,
+    fontweight=cfg.title_fontweight,
+)
 ax.legend(fontsize=cfg.legend_fontsize)
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
@@ -98,5 +139,5 @@ plt.tight_layout()
 plt.show()
 
 print(f"CTC crossover at eta_tr = {crossover:.3f}")
-print(f"Classical prediction:    eta_tr = 0.600")
+print("Classical prediction:    eta_tr = 0.600")
 print(f"Difference: {crossover - 0.60:+.3f}")

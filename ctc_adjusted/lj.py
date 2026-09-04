@@ -3,12 +3,10 @@
 Python translation of LJ.m and LJ_e.m.
 """
 
-import numpy as np
-
-_K_TO_EV = 0.00008617328149741   # Kelvin to eV conversion
-_EV_TO_J = 1.60217662e-19        # eV to Joule conversion
-_SIGMA   = 3.06e-10              # LJ zero-crossing distance [m]
-_EPS_J   = 34.00 * _K_TO_EV * _EV_TO_J  # Well-depth [J]
+_K_TO_EV = 0.00008617328149741  # Kelvin to eV conversion
+_EV_TO_J = 1.60217662e-19  # eV to Joule conversion
+_SIGMA = 3.06e-10  # LJ zero-crossing distance [m]
+_EPS_J = 34.00 * _K_TO_EV * _EV_TO_J  # Well-depth [J]
 
 
 def LJ(r):
@@ -40,4 +38,4 @@ def LJ_e(r):
     float
         Potential energy [J].
     """
-    return 4.0 * _EPS_J * (((_SIGMA / r)**12) - ((_SIGMA / r)**6))
+    return 4.0 * _EPS_J * (((_SIGMA / r) ** 12) - ((_SIGMA / r) ** 6))

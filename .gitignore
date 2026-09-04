@@ -15,8 +15,9 @@ results/
 data/
 output/
 
-# Ignore hpc job scripts
-hpc/
+# Slurm job scripts are tracked; their job output is not
+hpc/logs/*
+!hpc/logs/.gitkeep
 
 # Ignore projectplanning
 projectplanning.md

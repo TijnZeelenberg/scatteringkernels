@@ -13,9 +13,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import paths
 from config.experiment_config import ExperimentConfig
 from training.core import train_collision_model
-import paths
 
 # ---------------------------------------------------------------------------
 # Sweep settings — must match ctc_adjusted/ctc_h2_impactparamsweep.py

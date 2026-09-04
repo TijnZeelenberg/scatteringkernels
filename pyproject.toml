@@ -1,0 +1,27 @@
+[project]
+name = "scatteringkernels"
+version = "0.1.0"
+description = "Machine-learned scattering kernels as drop-in collision models for DSMC"
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.10",
+    "numba>=0.61",
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "scipy>=1.14",
+    "torch>=2.4",
+    "tqdm>=4.66",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -28,17 +28,17 @@ def get_fij(Xi, Xj):
     Xi = np.asarray(Xi, dtype=float)
     Xj = np.asarray(Xj, dtype=float)
 
-    drij  = np.linalg.norm(Xi - Xj)
+    drij = np.linalg.norm(Xi - Xj)
     drijxy = np.linalg.norm(Xi[:2] - Xj[:2])
 
-    thetaij = np.arctan2(Xj[2] - Xi[2], drijxy)   # polar angle from XY-plane
-    phiij   = np.arctan2(Xj[1] - Xi[1], Xj[0] - Xi[0])  # azimuthal angle in XY-plane
+    thetaij = np.arctan2(Xj[2] - Xi[2], drijxy)  # polar angle from XY-plane
+    phiij = np.arctan2(Xj[1] - Xi[1], Xj[0] - Xi[0])  # azimuthal angle in XY-plane
 
     Fmag = LJ(drij)
 
-    Fijz  = np.sin(thetaij) * Fmag
+    Fijz = np.sin(thetaij) * Fmag
     Fijxy = np.cos(thetaij) * Fmag
-    Fijx  = np.cos(phiij) * Fijxy
-    Fijy  = np.sin(phiij) * Fijxy
+    Fijx = np.cos(phiij) * Fijxy
+    Fijy = np.sin(phiij) * Fijxy
 
     return np.array([-Fijx, -Fijy, -Fijz])
